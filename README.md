@@ -4,12 +4,14 @@
 
 - 开发方案：[v1.3](docs/research/V1.0-开发方案-v1.3.md)（取代 v1.2 与更早版本）
 - 原始调研材料：[docs/research/](docs/research/)
-- 当前阶段：**S0 + S1 + S2a + S2b + S3 完成**，下一步 S4（[ADR-0003](docs/adr/0003-dsh-compat.md)、[ADR-0005](docs/adr/0005-s2a-store.md)、[ADR-0006](docs/adr/0006-s2b-integrity.md)、[ADR-0007](docs/adr/0007-s3-recall-inject-rules.md)；M1–M4 已在 rc.2 复测）
+- 当前阶段：**V1.0 全部阶段完成**（S0、S1、S2a、S2b、S3、S4、S6、S7；[ADR-0010](docs/adr/0010-s7-ops.md)）
 - 配置与策略：**config v2（22 键）/ policy v2（8 + sealed_files 3 键）**，见 [ADR-0004](docs/adr/0004-plan-v1.3.md)
 - 目标宿主：桌面 DSH **0.2.1-rc.2**（M1–M4 的实测记录在 rc.1，S3 改插件时重跑），运行时 Node **24.21.0**（`.node-version`）
 - 环境：Windows / 本地 NTFS · 运行时零依赖
 
-## 现在能做什么（S3）
+**使用者请从这里开始**：[使用手册](docs/manual.md)（功能、用法与规矩，面向非开发者；开发者文档在下方）。
+
+## 现在能做什么（S7）
 
 | 能力 | 命令 / 位置 |
 |---|---|
@@ -23,7 +25,13 @@
 | 重建索引与目录 | `mem rebuild` |
 | 策略重新封存（人专属） | `mem policy seal --accept` |
 | 召回基线（60 条 / 16 查询） | `npm run eval`（写 `docs/eval/s3-baseline.json`） |
-| 阶段门禁 | `node scripts/stage.mjs S3` |
+| 审阅提案 / 人工决定 | `mem proposals` · `mem decide <id> accept|reject --accept` · `mem decide --batch accept|reject` |
+| 收尾蒸馏 | DSH 里输入 `/closeout`，模型用 `closeout_submit` 提交候选 |
+| 一屏自检 | `mem inspect [--json]` |
+| 导出/打包（带校验和） | `mem export <dir>` · `mem pack <dir>` |
+| 物理清除（人 T2） | `mem purge <id> --accept` |
+| 历史会话审计 | `npm run audit:sessions` |
+| 阶段门禁 | `node scripts/stage.mjs S7` |
 | 仓库门禁（分层 / 文档键名） | `npm run gates` |
 | 类型检查 / 测试 / 构建 | `npm run typecheck` · `npm test` · `npm run build` |
 
@@ -112,7 +120,7 @@ npm run smoke           # 成功路径：init -> doctor(json+text) -> policy sea
 
 ```text
 S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─► S3 召回/注入/规则 ─► S4 工具/权限 ─► S6 收尾蒸馏 ─► S7 运维/发布
-   ✅           ✅            ✅             ✅              ✅                  ⬜ 下一步          ⬜              ⬜
+   ✅           ✅            ✅             ✅              ✅                  ✅                  ✅              ✅
 ```
 
 | 阶段 | 目标 | 关键产出 | 验收 | 估时 | 状态 | 记录 |
@@ -122,11 +130,11 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 | **S2a** | 写入→读出→重建闭环 | journal、锁、模型、store、子串召回、CLI 4 命令、配置冻结 22 键 | S2a.1–S2a.6 | 4–5 d | ✅ 完成 | [ADR-0005](docs/adr/0005-s2a-store.md) |
 | **S2b** | 坏文件不拖垮、可修 | 隔离/adopt、路径红队、journal 一致性、`sealed_files`、备份演练 | S2b.1–S2b.5 | 3–4 d | ✅ 完成 | [ADR-0006](docs/adr/0006-s2b-integrity.md) |
 | **S3** | 每轮看得见该看的 | BM25 + 60 条 fixture、section 注入、快照、RULES 解析、token 预算 | S3.1–S3.6 | 4–5 d | ✅ 完成 | [ADR-0007](docs/adr/0007-s3-recall-inject-rules.md) |
-| **S4** | 只能从一个门进出 | 5 个模型工具、可信来源绑定、提案/决定、T0/T1/T2、扫描 | S4.1–S4.6 | 4.5–5.5 d | 下一步 | 0008 |
-| **S6** | 项目收尾有候选可采纳 | L0 打标、`/closeout`、决定界面、去重 | S6.1–S6.5 | 3–3.5 d | — | 0009 |
-| **S7** | 可备份、可回滚、可发布 | `inspect`/`export`/`purge`、备份、`mem pack`、真实 DSH smoke | S7.1–S7.6 | 3–4 d | — | 0010 |
+| **S4** | 只能从一个门进出 | 5 个模型工具、可信来源绑定、提案/决定、T0/T1/T2、扫描 | S4.1–S4.6 | 4.5–5.5 d | ✅ 完成 | [ADR-0008](docs/adr/0008-s4-tools.md) |
+| **S6** | 项目收尾有候选可采纳 | L0 打标、`/closeout`、决定界面、去重 | S6.1–S6.5 | 3–3.5 d | ✅ 完成 | [ADR-0009](docs/adr/0009-s6-closeout.md) |
+| **S7** | 可备份、可回滚、可发布 | `inspect`/`export`/`purge`、备份、`mem pack`、真实 DSH smoke | S7.1–S7.6 | 3–4 d | ✅ 完成 | [ADR-0010](docs/adr/0010-s7-ops.md) |
 
-- 估时合计约 **11–13 人日**（S4–S7；S0–S3 已完成）。
+- **V1.0 完成**；S7.5 真实 DSH 全流程走查已通过（2026-10-17，第 9 轮）。
 - 依赖：S3 起需要 S0 的实测结论；S4 依赖 S2b 的隔离与 S3 的注入；S6 依赖 S4 的提案/决定；S7 收口全部。
 - 未决问题见 [docs/plan/open-questions.md](docs/plan/open-questions.md)；偏差修复待办见 [docs/plan/todo.md](docs/plan/todo.md)；阶段门禁 `node scripts/stage.mjs <S>`（ci + smoke + ADR + 验收编号）。
 - **闭环检查**（`scripts/closure.mjs`，已并入阶段门禁）：已标 ✅ 的阶段必须有存在的 ADR 链接与「第 N 轮」记录；到期 `todo.md` 条目不得是"待办"（`顺延` 必须带理由）；到期 open question 必须"已解决/顺延"；README 必须仍链接两个计划文件。
@@ -198,5 +206,89 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - 验证：`node scripts/stage.mjs S3` 全绿（**144 个测试** + smoke 的 S3 段 + ADR + S3.1–S3.6 编号 + 闭环检查）。
 - 记录：[ADR-0007](docs/adr/0007-s3-recall-inject-rules.md)。
 
-<!-- 下一轮追加到这里：### 第 6 轮 · S4 工具、权限与审批（YYYY-MM-DD） -->
+### 第 6 轮 · S4 工具、权限与审批（2026-10-17）
+
+- **工具表**：`memory_recall` / `memory_read` / `memory_record` / `memory_propose` / `memory_context` / `rules_list`，严格 schema、`additionalProperties:false`、无 path/target/session/approve 字段、每个工具声明 `output {schema, render}`；`decide` 永不是工具。`memory_context` 返回最近事件的 `{seq, speaker, preview}`，让模型能选对 `event_seq`。
+- **权限**：子 agent 只拿读工具；T0 配额用尽拒绝并提示改用提案；`memory_propose` 必须带 `base_hash`，accept 前重新核对。
+- **扫描**：不可见/双向字符、`sk-`/`AKIA`/私钥/连接串、注入模式、`<private>`；只报规则 id + 字段名，不把原文写进错误或 journal；`add` 与 `adopt` 同一扫描。
+- **提案账本**：`proposals/pending/*.json` + journal `decide`；supersede 一次写多条、失败回滚已写文件（不部分提交）；失败保留提案。
+- **来源绑定**：`quote` 必须是真实事件子串，assistant 消息不能当证据，事件哈希可校验。
+- **CLI**：`mem proposals`、`mem decide <id> accept|reject --accept`；`accept` 需人工确认（缺 `--accept` 退出码 3），与工具共用同一 store。
+- **插件接线**：`dist/plugin.mjs` 打包 core；store 可用时注册 5 工具 + 真实注入 section，否则回退 S0 探针；bundle 契约调整为“无第三方 import，Node 内置模块允许”。
+- 实测：headless 一次性 profile 里 `memory_recall`、`rules_list` 均真实调用成功；桌面会话工具表已出现 5 个工具。
+- 验证：`node scripts/stage.mjs S4` 全绿（**172 个测试** + smoke + ADR-0008 + S4.1–S4.6 + 闭环检查）。
+- 记录：[ADR-0008](docs/adr/0008-s4-tools.md)。
+
+### 第 7 轮 · S6 收尾蒸馏（2026-10-17）
+
+- **L0 确定性打标**：重复错误、用户纠正、工具失败后成功、回滚；只产出事件引用与摘要。
+- **提示词即契约**：L0 列表 + 活动记忆目录 + 严格 JSON；最多 5 条提案。
+- **模型输出全部重验**：targets 必须是活动 id、event_seq 必须真实、assistant 消息不能当证据、quote 必须子串；重复/已否决摘要丢弃；超 5 条截断。
+- **规则降级**：无 `check`+`test` 的 rule 降为 pitfall，不冒充机器保证。
+- **轮次生命周期**：`CloseoutRound` 只允许一次 submit，成功/失败/超时 dispose；`/closeout` 打开轮次，`closeout_submit` 只在轮次内注册。
+- **决定界面**：`mem proposals`、`mem decide <id>`、`mem decide --batch accept|reject`；否决摘要存 `.state/distill-rejected.json`，下次不再提。
+- **桌面实测**：`/closeout` → `closeout_submit` → `{"proposals":[],"message":"本次无新提案"}`；`closeout_submit` 提交后消失。
+- 验证：`node scripts/stage.mjs S6` 全绿（**178 个测试** + smoke + ADR-0009 + S6.1–S6.5 + 闭环检查）。
+- 记录：[ADR-0009](docs/adr/0009-s6-closeout.md)。
+
+### 第 8 轮 · S7 运维与发布（2026-10-17）
+
+- **`mem inspect`**：各 kind 活动数、规则清单与类别、最近 N 条 journal、预算占用、隔离与 journal head；`--json` 给机器。
+- **`mem export` / `mem pack`**：复制权威数据（memories、proposals、journal、封存、三份人工文件、配置/策略），生成排序后的 `SHA256SUMS`；不复制派生物。
+- **`mem purge <id> --accept`**：journal 墓碑（`purged:true` + 原因）、删文件、重建 manifest/目录、引用它的待审提案作废；`reload` 不再把墓碑当隔离。
+- **历史审计**：`scripts/audit-sessions.mjs` 只读扫 106 个会话日志（54 v4 + 52 v3），0 缺陷；`repair-dsh-session.mjs` 遇 v3 明确跳过。
+- **恢复文档**：`docs/ops.md §8` 写清 journal 断链/截断的停写、导出、判断、恢复顺序。
+- 验证：`node scripts/stage.mjs S7` 全绿（**185 个测试**，含 S7.1–S7.6；S7.5 为人工用例）。
+- 记录：[ADR-0010](docs/adr/0010-s7-ops.md)。
+
+### 第 9 轮 · S7.5 真实 DSH 全流程走查（2026-10-17）
+
+- **全流程**：新建会话 → `memory_record`（引用 `memory_context` 给出的 `event_seq`）→ `memory_recall` 命中 → `memory_propose` 提出替代 → `mem decide --batch accept` → `/compact` → 重启应用 → `mem rebuild` + `mem inspect`；重启后召回命中替代后的 `mem-20261017-16850c76`，旧条目仍可 `memory_read` 追溯。
+- **修复：宿主缓存**——`Store.recall` 与 `Store.read` 查询前先 `reload()`；CLI 写入/决定之后，宿主常驻 store 不再返回旧索引，也不会对 CLI 刚写入的记录报“找不到 id”。
+- **修复：提案证据断链**——提案在 propose 时绑定 `provenance`（`session_id`/`event_seq`/`speaker`/`quote`/`event_sha256`），accept 后写进替代记录；原先 `service.propose` 丢弃证据、`addMany` 硬编码 `provenance: []`，导致 `author: human` 的新记录无出处、`provenance_verifiable:false`。
+- **收紧 `memory_propose`**：`replacements` 逐项要求 `kind`/`abstract`/`body`/`evidence`，`evidence` 非空且 `event_seq` 非负；closeout 证据 `quote` 限 160 字符。
+- 真实签收：`memory_propose` 提交的提案 JSON 已含 provenance；`mem decide` 采纳后 `memory_read` 返回 `mem-20261017-c3634f09`（provenance：session、event_seq 7277、speaker=user、quote=「重启好了」、event_sha256），`memory_recall` 的 `provenance_verifiable: true`。
+- 验证：`node scripts/ci.mjs` 全绿（**190 个测试**，1 个 S7.5 人工用例 skip）；真实 store `mem inspect`：3 active、journal 一致。
+- 记录：[ADR-0010](docs/adr/0010-s7-ops.md)（追加 S7.5 走查）。
+
+### 第 10 轮 · 聊天框内的人机指令 `/mem`（2026-10-17）
+
+- **新增 `/mem` 命令面**：把 CLI 的人操作搬进聊天输入框——`proposals`、`decide`（单个 / `--batch`）、`add`、`read`、`recall`、`inspect`、`adopt`、`delete`、`purge`、`rebuild`、`export`、`seal`、`help`。
+- **模型不可触达**：命令走宿主的 UI 命令面，不进模型消息/上下文；`decide` 仍不是工具。
+- **安全确认**：`purge`/`seal` 要 `--accept`，`decide` 必须写出 `accept|reject`，`delete` 要 `--reason`。
+- **衔接**：`memory_propose` 的工具输出追加「人在聊天框决定：/mem decide <id> accept」，提案→决定不离开对话。
+- **实现**：语法与逻辑在 `packages/core/src/human/command.ts`（可单测），DSH 只转发；宿主为每次命令写 `command/run` + `command/done` 审计。
+- 验证：`node scripts/ci.mjs` 全绿（**200 个测试**）；插件测试里 `/mem add` → `/mem read` 跑通。
+- 记录：[ADR-0011](docs/adr/0011-chat-commands.md)。
+
+### 第 11 轮 · 按钮式审批卡片（2026-10-17）
+
+- **提案即弹卡**：`memory_propose` 建完提案立刻弹出中文选项卡片（复用宿主 `userQuestions` 面）：先展示提案全文（目标/理由/替换内容/出处），再给「采纳 / 驳回 / 暂不处理」三个按钮。
+- **点击即命令**：采纳 → `/mem decide <id> accept`，驳回 → `… reject`，经宿主 `commands.execute` 执行，与聊天框 `/mem` 同源；暂不处理不落任何决定。
+- **`memory_review` 工具**：对暂缓的提案重新弹卡；参数只有可选 id，没有任何决定字段。
+- **安全边界**：判定只来自卡片上的点击，模型传不了 accept/reject，`decide` 仍不是工具；无交互界面时降级为“保留待审”。
+- 实测通过：`memory_propose` 弹出卡片 → 点「采纳」→ 实际执行 `/mem decide prop-mem-20261017-70b94008 accept` → 新记录 `mem-20261017-f0fa7c44`（provenance 保留 event_seq 8255「提一条修订提案」，`memory_recall` 返回 `provenance_verifiable: true`）。
+- **卡片排版**：`1)` `2）` 这类行内编号自动拆成独立行并渲染为有序列表，长正文不再挤成一段；无编号的正文保持原样。
+- 实测发现并修复两处：① 交互服务在插件 apply 时尚未激活（`userQuestions` 取到 `undefined`），改为**调用时惰性解析**；② 快照审计直接写 journal、绕过 manifest 刷新，下一次写入被误判为“journal 不一致”而拒写——快照改走 `store.appendAudit`，同时 `reload` 只把「journal 落后于 manifest」视为截断，「manifest 落后」按陈旧派生物自愈。
+- 验证：`node scripts/ci.mjs` 全绿（**210 个测试**，S9.1 卡片用例 + S9.2 manifest 自愈用例 + S9.3 排版用例）。
+- 记录：[ADR-0012](docs/adr/0012-review-cards.md)。
+
+### 第 12 轮 · 记忆架构 v2：人设层、用户条目、会话工具（2026-10-17）
+
+- **人设层脚手架**：`mem scaffold`（聊天框 `/mem scaffold`）生成 SOUL.md / USER.md / RULES.md 注释模板，封存 SOUL/RULES，USER 默认不封存；模板内容在注入前被剥掉，未编辑时零噪音。
+- **注入分段**：SOUL / RULES / USER / MEMORY 各自一个 prompt section（order 100/150/200/300），空文件不产生 section；快照 schema 升到 v2 以保存分段。
+- **USER 条目**：`user_profile` 工具读改 `§` 条目（单条完整、10000 字上限、唯一字面匹配），写入前必须在本会话读过 USER，并经确认卡片；写后追加 journal 审计。
+- **会话五工具**：包装宿主原生 `sessionQuery`（FTS5）——`session_search`、`session_event_search`、`session_event_read`、`session_event_trace`、`session_trace`，全部只读、默认当前会话。
+- **体检**：`mem inspect` 显示三份人工文件字符数；`mem doctor` 在缺失时提示 `mem scaffold`。
+- 验证：`node scripts/ci.mjs` 全绿（**224 个测试**，S10.1–S10.4）。
+- 记录：[ADR-0013](docs/adr/0013-memory-v2-p0-p2.md)。
+
+### 第 13 轮 · 记忆架构 v2 收口：guidance 路由与权限开关（2026-10-17）
+
+- **`MEMORY_GUIDANCE` 注入段**：按 `personalization.mode` 生成中文指引（偏好→USER、事实→记忆、约定→RULES、先读后写、只走工具、子 agent 只读），顺序 SOUL 100 → GUIDANCE 110 → RULES 150 → USER 200 → MEMORY 300；预算 300 字，快照 schema 升到 v3。
+- **权限开关**：新配置 `personalization.mode = confirm | direct | readonly`（默认 confirm）。readonly 拒绝一切助手写入（record/propose/偏好）；direct 让偏好写入跳过卡片；confirm 保持卡片确认。
+- **预算调整**：新增 `inject.guidance_max_chars`（300），`inject.total_max_chars` 3700→4000（五段之和）；真实库配置已按新模板重建并校验通过。
+- **诊断**：`mem doctor` 的 inject 行显示 guidance 预算。
+- 验证：`node scripts/ci.mjs` 全绿（**228 个测试**，S11.1–S11.3）；真实库 `mem doctor` 通过、journal 一致。
+- 记录：[ADR-0014](docs/adr/0014-memory-v2-p3-p4.md)。
 

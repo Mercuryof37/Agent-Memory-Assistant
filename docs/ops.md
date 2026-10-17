@@ -54,6 +54,7 @@ powershell.exe -NoProfile -File 'D:\Ai Agent\dsh-acl-recovery\acl-backup-ca570b9
 
 - 数据目录默认 `~/.dsh/memory`，可用 `AGENT_MEMORY_HOME` 或 `mem … --home` 指向别处；**不要**拿本仓库目录当数据目录。
 - 改过 `policy.json` 后必须 `mem policy seal --accept` 才能启动；这是唯一的重新封存入口，agent 没有通道。
+- 改了 `SOUL.md` / `RULES.md` 但忘记重新封存时，启动错误里会带一段 `REQUIRED ACTION`，直接给出可复制的修复命令（`mem policy seal --home "<数据目录>" --accept`，或在聊天框 `/mem seal --accept`）；桌面端启动失败时，这段文字也会出现在 probe 回退的注入段里，模型可以转告你。
 - 启动失败一律非零退出并点名文件/键；先跑 `mem doctor` 看结构化原因。
 - Windows 编辑器可能给文件加 UTF-8 BOM：解析层会剥掉（不会报"未知键"），但**哈希按原始字节算**，加/去 BOM 会造成失配，需要重新封存。
 - **沙箱只给"权限修复之后创建的文件"继承写权限**：修复前就存在的文件（例如 `V1.0-开发方案.md`）可能仍然不能被受限工具写入，报 `UnauthorizedAccessException`。实测该文件 DACL 对 `Authenticated Users` 是 Modify，但缺少沙箱自己的 `S-1-4-*` ACE；这不是文件坏了，是沙箱的写授权 ACE 没有回溯到旧文件。需要改它时：用非受限运行补 ACL，或先复制成新文件再改名。
@@ -168,4 +169,25 @@ node scripts/repair-dsh-session.mjs "<会话目录>" --apply    # 先备份再�
 会话目录形如 `%USERPROFILE%\.dsh\sessions\<workspace-key>\session-<uuid>\`；脚本读其中的 `session.v4.jsonl.zstd`，也可以直接给这个文件。它只补 `id`（必要时把 `role` 改成 `user`），其他字段、其他事件、首帧 header 行原样保留；遇到身份之外的损坏会点名拒绝，不猜。备份写在同目录的 `session.v4.jsonl.zstd.bak-<YYYYMMDD-HHmmss>`。
 
 **验证**：重启 DSH 后重开会话应能加载。需要机器校验时，用宿主 `dsh-session-persistence-jsonl` 的 `validateStoredEvents` 跑一遍（本机三份修复后日志均为 `VALIDATION: OK`，见 ADR-0003 §5.7）。
+
+## 7. 全量历史审计（v4 + v3）
+
+```powershell
+node scripts/audit-sessions.mjs              # 默认扫 ~/.dsh/sessions
+node scripts/audit-sessions.mjs <根目录>
+```
+
+只读：逐个 `session.v*.jsonl.zstd` 检查 `user/message` 是否有 `id` 与 `role:user`。v4 缺陷会让命令退出 1；v3 旧格式只计数、不判定（当前 DSH 在加载时迁移）。本机 2026-10-17 的结果是 **106 个日志 / 54 v4 + 52 v3 / 0 缺陷**。
+
+## 8. journal 断链/截断后的恢复步骤
+
+`mem doctor` 返回 2 且点名 `journal is inconsistent` 时，说明 journal 链断、seq 不连续，或比 manifest 记录的 `journal_head` 短：
+
+1. **停写**：不要继续 `mem add/delete/decide`，也不要运行 `mem rebuild`（它会拒绝，这是刻意的）；
+2. **先备份**：`mem export <dir>` 会把 `memories/`、`proposals/`、`.state/journal/`、`.state/policy.seal.json`、三份人工文件、配置与策略复制出来并生成 `SHA256SUMS`；
+3. **判断**：若只是 manifest 过期（journal 更长），可删 `.index/` 让下次重建；若是 journal 被截断/改行，**以备份或上一版本为准**，不要手工补行；
+4. **恢复**：把备份目录当数据目录用（`--home <dir>`），先 `mem doctor` 再 `mem rebuild`；确认 `records` 与 `journal_head` 后再替换原目录；
+5. **记录**：在 journal 里留一次 `audit`（恢复动作由人执行，`mem` 不自动改写历史）。
+
+V1 不承诺断电零丢失；目录项不 fsync 的边界见 README。
 

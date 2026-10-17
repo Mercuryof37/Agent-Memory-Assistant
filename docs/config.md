@@ -27,10 +27,11 @@
 | `storage.max_records` | int | 1000 | 1–100000 | 活动记忆条目上限；写满后拒绝新增，不自动淘汰 |
 | `storage.max_record_chars` | int | 10000 | 100–200000 | 单条记忆文件字符上限（含 frontmatter） |
 | `inject.persona_max_chars` | int | 200 | 0–5000 | 人格摘要注入预算 |
-| `inject.user_max_chars` | int | 1500 | 0–20000 | 偏好全文注入预算 |
-| `inject.rules_max_chars` | int | 800 | 0–10000 | 硬约束注入预算 |
+| `inject.guidance_max_chars` | int | 300 | 0–2000 | 记忆使用指引注入预算（P3） |
+| `inject.user_max_chars` | int | 1100 | 0–20000 | 偏好全文注入预算 |
+| `inject.rules_max_chars` | int | 1200 | 0–10000 | 硬约束注入预算 |
 | `inject.index_max_chars` | int | 1200 | 0–20000 | 记忆目录注入预算 |
-| `inject.total_max_chars` | int | 3700 | 0–40000 | 常驻注入合计上限；四段之和不得超过它 |
+| `inject.total_max_chars` | int | 4000 | 0–40000 | 常驻注入合计上限；五段之和不得超过它 |
 | `inject.protect` | bool | true | true/false | 注入段打 protected 标记，压缩不得触及（S3） |
 | `inject.counter` | string | "chars" | chars / tokens | 预算计量方式；tokens 走 `ctx.tokenMeter`（S3） |
 | `recall.limit` | int | 5 | 1–100 | 单次检索默认返回条数；不得超过 `recall.max_limit` |
@@ -45,6 +46,7 @@
 | `limits.body_chars` | int | 4000 | 100–200000 | 单条记忆正文字符上限 |
 | `quota.t0_per_session` | int | 20 | 1–1000 | 每会话允许的 T0 写入条数（S4 强制） |
 | `proposals.max_pending` | int | 50 | 1–1000 | 待审提案上限 |
+| `personalization.mode` | string | "confirm" | confirm / direct / readonly | 助手写记忆与偏好的权限：每次确认 / 自主写入 / 只读（P3） |
 
 > 不再有审计与 Web 查看器的配置键：审计轨迹并入 `.state/journal/`（S2a 起），Web 查看器延后到 V1.1。`recall.min_score` 用千分制整数是因为受限 TOML 不支持浮点（ADR-0001）。
 

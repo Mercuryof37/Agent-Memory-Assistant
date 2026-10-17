@@ -52,7 +52,8 @@ mem policy seal --accept
 | `sealed_files.user` | string | "" | "" 或 64 位小写 hex | `USER.md` 的规范化哈希；空串表示跳过 |
 | `sealed_files.rules` | string | "" | "" 或 64 位小写 hex | `RULES.md` 的规范化哈希；空串表示跳过 |
 
-> `sealed_files` 由 `mem policy seal --accept` 按当时文件内容自动写入；三个文件任一被改动（哪怕只是行尾）都会让启动失败并点名文件。旧版（v1）的 `targets` 与 `approval` 已删除：模型工具没有"目标"参数，T1 恒为人工决定，两者都由接口而不是配置保证。
+> `sealed_files` 由 `mem policy seal --accept` 按当时文件内容自动写入；SOUL.md 与 RULES.md 任一被改动（哪怕只是行尾）都会让启动失败并点名文件。
+> **USER.md 默认不封存**（`sealed_files.user` 保持空串）：允许 agent 通过 `user_profile` 工具在**确认卡片**之后修改；需要冻结时用 `mem policy seal --accept --seal-user` 显式开启。旧版（v1）的 `targets` 与 `approval` 已删除：模型工具没有"目标"参数，T1 恒为人工决定，两者都由接口而不是配置保证。
 
 ## 从 v1 迁移到 v2
 
