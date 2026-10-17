@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Agent Memory",
+    "description": "DSH 的本地 Markdown 记忆：冻结注入快照、一条记忆一个文件。S0 探针版本。"
+  }
+}

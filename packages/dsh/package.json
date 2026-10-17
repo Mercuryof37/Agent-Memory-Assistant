@@ -1,0 +1,22 @@
+{
+  "name": "@agent-memory/dsh",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent Memory plugin for DeepSeek Harness: local memory with a frozen injection snapshot.",
+  "type": "module",
+  "main": "./dist/plugin.mjs",
+  "exports": {
+    ".": "./dist/plugin.mjs",
+    "./settings": "./src/settings.ts"
+  },
+  "files": [
+    "dist",
+    "cordis.patch.yml",
+    "locale/*.json"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

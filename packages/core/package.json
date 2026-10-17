@@ -1,0 +1,16 @@
+{
+  "name": "@agent-memory/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pure memory logic: config, policy, store, index, audit. Zero DSH dependencies.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {}
+}

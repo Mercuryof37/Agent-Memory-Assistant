@@ -1,0 +1,10 @@
+# Normalise line endings on Windows: the repo is authored on NTFS, edited by
+# tools that default to CRLF, and read by Node on every platform.
+* text=auto eol=lf
+
+# Binary artefacts that must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary
+*.asar binary

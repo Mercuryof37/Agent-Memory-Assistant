@@ -1,0 +1,18 @@
+{
+  "memories": 60,
+  "queries": 16,
+  "recallAt5": 1,
+  "devRecall": 1,
+  "heldoutRecall": 1,
+  "falsePositiveRate": 0,
+  "perKind": {
+    "fact": 1,
+    "pitfall": 1,
+    "exp": 1
+  },
+  "p95Ms": 1.749,
+  "coldStartMs": 8.184,
+  "heapBytes": 9496136,
+  "limit": 5,
+  "minScorePermille": 500
+}

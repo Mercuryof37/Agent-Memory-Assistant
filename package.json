@@ -1,0 +1,33 @@
+{
+  "name": "agent-memory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Long-term memory for DSH: one memory per file, rebuildable index, frozen injection snapshot.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "node scripts/test.mjs",
+    "typecheck": "node scripts/typecheck.mjs",
+    "build": "node scripts/build.mjs",
+    "gates": "node scripts/gates.mjs",
+    "compat": "node scripts/compat.mjs",
+    "stage": "node scripts/stage.mjs",
+    "closure": "node scripts/closure.mjs",
+    "eval": "node scripts/eval.mjs",
+    "plugin:install": "node scripts/install-desktop-plugin.mjs --apply",
+    "plugin:revert": "node scripts/install-desktop-plugin.mjs --revert",
+    "ci": "node scripts/ci.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "mem": "node packages/cli/bin/mem.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

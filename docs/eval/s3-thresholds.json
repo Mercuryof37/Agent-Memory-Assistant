@@ -1,0 +1,13 @@
+{
+  "limit": 5,
+  "minScorePermille": 500,
+  "recallAt5": 1,
+  "devRecall": 1,
+  "heldoutRecall": 1,
+  "falsePositiveRateMax": 0,
+  "perKind": {
+    "fact": 1,
+    "pitfall": 1,
+    "exp": 1
+  }
+}

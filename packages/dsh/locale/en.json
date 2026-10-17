@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Agent Memory",
+    "description": "Local Markdown memory for DSH: frozen injection snapshot, one file per memory. S0 probe build."
+  }
+}

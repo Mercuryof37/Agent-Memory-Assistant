@@ -1,0 +1,21 @@
+{
+  "name": "@agent-memory/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local commands: init, doctor, policy seal, rebuild (later stages).",
+  "type": "module",
+  "bin": {
+    "mem": "./bin/mem.mjs"
+  },
+  "main": "./src/main.ts",
+  "types": "./src/main.ts",
+  "exports": {
+    ".": {
+      "types": "./src/main.ts",
+      "default": "./src/main.ts"
+    }
+  },
+  "dependencies": {
+    "@agent-memory/core": "0.1.0"
+  }
+}

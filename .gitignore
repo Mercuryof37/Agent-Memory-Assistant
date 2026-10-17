@@ -1,0 +1,8 @@
+node_modules/
+.npm-cache/
+dist/
+coverage/
+*.tsbuildinfo
+.tmp/
+.DS_Store
+Thumbs.db

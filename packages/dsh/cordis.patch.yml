@@ -1,0 +1,8 @@
+# Agent Memory bundle patch.
+#
+# One row inserts the Host plugin into the profile root. The row id is stable so
+# a user patch can target it (for example to disable it during a probe).
+- insert:
+    - id: agent-memory
+      name: '@agent-memory/dsh'
+      config: {}
