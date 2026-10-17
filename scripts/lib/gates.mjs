@@ -67,6 +67,31 @@ export function gateCoreNoDynamicRegex(root) {
 }
 
 /**
+ * Every `agent.followup(...)` must hand the host an identified user message
+ * (role + id + source). DSH appends it verbatim as `user/message`; a missing id
+ * makes the whole stored session unloadable on the next replay.
+ */
+export function gateFollowupIdentity(root) {
+  const src = join(root, 'packages', 'dsh', 'src');
+  const files = listFiles(src).filter((file) => file.endsWith('.ts'));
+  const problems = [];
+  for (const file of files) {
+    const lines = readFileSync(file, 'utf8').split(/\r?\n/);
+    lines.forEach((line, index) => {
+      if (!/followup\?*\s*[.(]/.test(line)) return;
+      const window = lines.slice(index, index + 14).join('\n');
+      if (!/\bid\s*:/.test(window)) {
+        problems.push(`${relative(root, file)}:${index + 1} followup without a message id`);
+      }
+      if (!/role\s*:\s*'user'/.test(window)) {
+        problems.push(`${relative(root, file)}:${index + 1} followup without role 'user'`);
+      }
+    });
+  }
+  return { name: 'followup-identity', ok: problems.length === 0, checked: files.length, problems };
+}
+
+/**
  * Discipline 2: the DSH adapter never touches files. It may only call core.
  */
 const FILE_IO_PATTERNS = [

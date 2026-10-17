@@ -47,6 +47,27 @@ test('S2a.1 journey: add -> read -> recall -> rebuild -> recall', (t) => {
   assert.match(catalog, new RegExp(`\\[fact\\] alpha deployment uses blue-green — ${written.id}`));
 });
 
+test('S9.2 a raw journal append without a manifest refresh does not block writes', (t) => {
+  const { store } = fixture(t);
+  store.journal.append({ op: 'audit', data: { event: 'snapshot-capture', session_id: 's1' } });
+  const written = store.add(
+    { kind: 'fact', abstract: 'after raw append', body: 'b', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  assert.match(written.id, /^mem-\d{8}-[0-9a-f]{8}$/);
+});
+
+test('S4.6 a host store reads records written by another process', (t) => {
+  const { store, open } = fixture(t);
+  const external = open();
+  const written = external.add(
+    { kind: 'fact', abstract: 'external write', body: 'written by the other store', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  assert.equal(store.read(written.id).abstract, 'external write');
+  assert.equal(store.recall('external write').hits[0]?.id, written.id);
+});
+
 test('S2a.6 duplicate content returns the existing id and keeps the file bytes', (t) => {
   const { home, store } = fixture(t);
   const input = { kind: 'fact' as const, abstract: 'same abstract', body: 'same body', evidence_level: 'observed' as const };

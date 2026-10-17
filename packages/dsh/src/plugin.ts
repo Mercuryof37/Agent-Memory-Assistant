@@ -12,6 +12,31 @@
  * resolution path.
  */
 
+import { randomUUID } from 'node:crypto';
+import {
+  addRejected,
+  bindEvidence,
+  buildCloseoutPrompt,
+  CloseoutRound,
+  collectL0,
+  createProposal,
+  HUMAN_COMMAND_HINT,
+  listProposals,
+  loadRejected,
+  parseCloseout,
+  resolveHome,
+  runHumanCommand,
+  summaryHash,
+  type DistillEvent,
+  type Proposal,
+  type ProposalInput,
+} from '../../core/src/index.ts';
+import { registerTools } from './tools.ts';
+import { reviewProposal, type ReviewExecLike, type UserQuestionsLike } from './review.ts';
+import { registerUserProfileTool } from './personalization.ts';
+import { registerSessionTools, type SessionQueryLike } from './session-tools.ts';
+import { openHostService, type SessionStoreLike } from './service.ts';
+
 export const name = 'agent-memory';
 export const inject = ['tools'];
 
@@ -47,8 +72,15 @@ export interface CommandsLike {
   register(spec: {
     readonly name: string;
     readonly description: string;
+    readonly input?: { readonly hint: string };
     readonly handler: (invocation: any) => unknown;
   }): unknown;
+  execute?(
+    agent: unknown,
+    line: string,
+    attachments: readonly unknown[],
+    signal: AbortSignal,
+  ): Promise<{ readonly result: { readonly kind?: string; readonly text?: string } } | undefined>;
 }
 
 export interface TokenMeterLike {
@@ -86,7 +118,259 @@ function service<T>(ctx: PluginContextLike, name: string): T | undefined {
   }
 }
 
+function eventTextOf(data: unknown): string {
+  if (typeof data !== 'object' || data === null) return '';
+  const record = data as { content?: unknown; text?: unknown };
+  if (Array.isArray(record.content)) {
+    return record.content
+      .map((block) =>
+        typeof block === 'object' && block !== null && typeof (block as { text?: unknown }).text === 'string'
+          ? (block as { text: string }).text
+          : '',
+      )
+      .filter((text) => text !== '')
+      .join('\n');
+  }
+  return typeof record.text === 'string' ? record.text : '';
+}
+
+function eventsOf(sessions: SessionStoreLike | undefined, sessionId: string): DistillEvent[] {
+  const live = sessions?.get(sessionId);
+  if (live === undefined) return [];
+  const events: DistillEvent[] = [];
+  for (let seq = 0; seq < (live.seq ?? 0); seq += 1) {
+    const event = live.eventAt(seq);
+    if (event === undefined) continue;
+    const speaker = event.type.startsWith('assistant')
+      ? 'assistant'
+      : event.type.startsWith('tool')
+        ? 'tool'
+        : event.type.startsWith('system')
+          ? 'system'
+          : 'user';
+    events.push({ seq: event.seq, speaker, text: eventTextOf(event.data) });
+  }
+  return events;
+}
+
 export function apply(ctx: PluginContextLike): void {
+  // S4: real tool surface + injection when a store is configured. If startup
+  // fails (no home, bad policy, sealed file changed) fall back to the probe so a
+  // broken store never takes the host down.
+  const home = resolveHome({ env: process.env });
+  // Cordis forbids undeclared service property reads; go through the guarded
+  // resolver (ctx.get first) so a composition without a session still loads.
+  const sessionService = service<{ id?: string }>(ctx, 'session');
+  const sessionId = sessionService?.id ?? `dsh-${process.pid}`;
+  const persistence = service<import('./service.ts').SessionPersistenceLike>(ctx, 'sessionPersistence');
+  const sessions = service<import('./service.ts').SessionStoreLike>(ctx, 'sessions');
+  let startupFailure: string | undefined;
+  const host = openHostService(
+    home,
+    {
+      sessionId,
+      ...(persistence === undefined ? {} : { persistence }),
+      ...(sessions === undefined ? {} : { sessions }),
+    },
+    {
+      onFailure: (error) => {
+        const formatted = error as { format?: () => string; message?: string };
+        startupFailure = typeof formatted.format === 'function' ? formatted.format() : (formatted.message ?? String(error));
+      },
+    },
+  );
+  if (host !== null) {
+    // Registration-time services (the command plane). Interaction services are
+    // resolved per call: Cordis may not have activated the provider fiber yet
+    // when this plugin applies, and `userQuestions` (Typert) comes up later.
+    const commands = service<CommandsLike>(ctx, 'commands');
+    const resolveQuestions = (): UserQuestionsLike | undefined =>
+      service<UserQuestionsLike>(ctx, 'userQuestions');
+    const resolveCommands = (): CommandsLike | undefined => service<CommandsLike>(ctx, 'commands');
+    const reviewDeps = () => {
+      const userQuestions = resolveQuestions();
+      const commandsNow = resolveCommands();
+      return {
+        store: host.store,
+        config: host.runtime.config,
+        home,
+        ...(userQuestions === undefined ? {} : { userQuestions }),
+        ...(commandsNow === undefined ? {} : { commands: commandsNow }),
+      };
+    };
+    // S9 review card: propose opens a Chinese button card and the click runs
+    // `/mem decide …`; the model never supplies the verdict (ADR-0012).
+    registerTools(ctx as never, host, { sessionId, delegationDepth: 0 }, undefined, {
+      reviewProposal: (proposal, exec) =>
+        reviewProposal(reviewDeps(), proposal as Proposal, exec as ReviewExecLike | undefined),
+      reviewPending: async (proposalId, exec) => {
+        const pending = listProposals(host.store);
+        const proposal =
+          proposalId === undefined ? pending[0] : pending.find((entry) => entry.id === proposalId);
+        if (proposal === undefined) {
+          throw new Error(
+            proposalId === undefined ? '当前没有待审提案' : `没有待审提案 ${proposalId}（可能已被决定或作废）`,
+          );
+        }
+        return reviewProposal(reviewDeps(), proposal, exec as ReviewExecLike | undefined);
+      },
+    });
+    // P1: USER.md profile tool (read always; writes need a prior read + card).
+    const readSessions = new Set<string>();
+    registerUserProfileTool(ctx as never, {
+      home,
+      store: host.store,
+      resolveQuestions,
+      mode: host.mode,
+      readSessions,
+    });
+    // P2: session-history tools over the host's native sessionQuery service.
+    registerSessionTools(ctx as never, {
+      resolveQuery: () => service<SessionQueryLike>(ctx, 'sessionQuery'),
+      sessionId,
+    });
+    try {
+      const prompt = service<PromptRegistryLike>(ctx, 'systemPrompt');
+      for (const section of host.assembleSections()) prompt?.section(section);
+    } catch {
+      // Injection problems are reported by `mem doctor`; keep the tools usable.
+    }
+
+    // S6 closeout: `/closeout` opens a round, registers `closeout_submit` only
+    // for that round, and disposes it after submit (or when a new round opens).
+    type RoundEntry = { round: CloseoutRound; dispose: (() => void) | undefined };
+    const rounds = new Map<string, RoundEntry>();
+    const rejected = loadRejected(home);
+
+    const disposeRound = (id: string): void => {
+      const entry = rounds.get(id);
+      if (entry === undefined) return;
+      entry.round.dispose();
+      entry.dispose?.();
+      rounds.delete(id);
+    };
+
+    // S8 human command plane: the CLI-level operations run from the chat box.
+    // Commands execute in the UI plane, never as a model message, and `decide`
+    // is still not a tool (ADR-0011).
+    commands?.register({
+      name: 'mem',
+      description: 'Agent Memory：审提案、采纳/否决、写入、查看与运维（人操作）',
+      input: { hint: HUMAN_COMMAND_HINT },
+      handler: (invocation: { rawInput?: string }) => {
+        const result = runHumanCommand(
+          { store: host.store, config: host.runtime.config, home },
+          invocation.rawInput ?? '',
+        );
+        return { kind: result.ok ? 'success' : 'error', text: result.text };
+      },
+    });
+    commands?.register({
+      name: 'closeout',
+      description: 'Run one closeout distillation round over the current session.',
+      handler: (invocation: {
+        agent?: { session?: { id?: string }; followup?: (input: unknown) => unknown };
+      }) => {
+        const sid = invocation.agent?.session?.id ?? sessionId;
+        disposeRound(sid);
+        const round = new CloseoutRound({ timeoutMs: 300_000 });
+        const definition = {
+          name: 'closeout_submit',
+          description: 'Submit the closeout distillation JSON for the current round.',
+          parameters: {
+            type: 'object',
+            properties: { payload: { type: 'object' } },
+            required: ['payload'],
+            additionalProperties: false,
+          },
+          output: {
+            schema: { type: 'object' },
+            render: (_args: unknown, value: unknown) => [
+              { type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) },
+            ],
+          },
+          execute: async (args: { payload?: unknown }, exec?: { agent?: { session?: { id?: string } } }) => {
+            const callSid = exec?.agent?.session?.id ?? sid;
+            const entry = rounds.get(callSid);
+            if (entry === undefined || entry.round.status !== 'open') {
+              throw new Error('no active closeout round');
+            }
+            const accepted = entry.round.submit();
+            if (!accepted.ok) throw new Error(accepted.error);
+
+            const events = eventsOf(sessions, callSid);
+            const active = host.store.active();
+            const parsed = parseCloseout(JSON.stringify(args.payload ?? {}), {
+              events,
+              activeIds: active.map((doc) => doc.id),
+              activeAbstracts: active.map((doc) => doc.abstract),
+              rejectedHashes: rejected,
+              maxProposals: host.runtime.config.distill.max_proposals,
+            });
+            const created: string[] = [];
+            const hashes: string[] = [];
+            const eventsBySeq = new Map(events.map((event) => [event.seq, event]));
+            for (const candidate of parsed.candidates) {
+              const base_hashes = candidate.targets.map((id) => host.store.read(id).content_hash);
+              const input: ProposalInput =
+                candidate.op === 'delete'
+                  ? {
+                      op: 'delete',
+                      target: candidate.targets[0] as string,
+                      base_hash: base_hashes[0] as string,
+                      reason: candidate.reason,
+                    }
+                  : {
+                      op: 'supersede',
+                      targets: candidate.targets,
+                      base_hashes,
+                      replacements: candidate.replacements.map((replacement) => ({
+                        kind: replacement.kind,
+                        abstract: replacement.abstract,
+                        body: replacement.body,
+                        evidence_level: 'observed',
+                        provenance: replacement.evidence.map((entry) =>
+                          bindEvidence({
+                            sessionId: callSid,
+                            eventSeq: entry.event_seq,
+                            quote: entry.quote,
+                            lookup: () => eventsBySeq.get(entry.event_seq),
+                          }),
+                        ),
+                      })),
+                      reason: candidate.reason,
+                    };
+              created.push(createProposal({ store: host.store, config: host.runtime.config }, input).id);
+              const hash = summaryHash(candidate);
+              hashes.push(hash);
+              rejected.add(hash);
+            }
+            if (hashes.length > 0) addRejected(home, hashes);
+            disposeRound(callSid);
+            return { created, dropped: parsed.dropped, message: parsed.message, truncated: parsed.truncated };
+          },
+        };
+        const dispose = ctx.tools.register(definition as never);
+        rounds.set(sid, { round, dispose: typeof dispose === 'function' ? (dispose as () => void) : undefined });
+
+        const prompt = buildCloseoutPrompt({
+          l0: collectL0(eventsOf(sessions, sid)),
+          active: host.store.active().map((doc) => ({ id: doc.id, kind: doc.kind, abstract: doc.abstract })),
+          maxProposals: host.runtime.config.distill.max_proposals,
+        });
+        // CommandResult must be returned synchronously; `followup` only queues.
+        void invocation.agent?.followup?.({
+          id: randomUUID(),
+          role: 'user',
+          content: [{ type: 'text', text: prompt }],
+          source: { kind: 'user' },
+        });
+        return { kind: 'success', text: 'closeout round started' };
+      },
+    });
+    return;
+  }
+
   ctx.tools.register({
     name: 'am_echo',
     description:
@@ -135,11 +419,15 @@ export function apply(ctx: PluginContextLike): void {
   });
 
   const prompts = service<PromptRegistryLike>(ctx, 'systemPrompt');
+  const probeText =
+    startupFailure === undefined
+      ? PROBE_LINE
+      : `${PROBE_LINE}\n\nAgent Memory 启动失败（请把下面的修复命令原样转告用户并等待确认）：\n${startupFailure}`;
   prompts?.section({
     name: SECTION_NAME,
     order: 500,
     interpolate: false,
-    text: PROBE_LINE,
+    text: probeText,
   });
 
   const commands = service<CommandsLike>(ctx, 'commands');

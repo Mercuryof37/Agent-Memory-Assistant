@@ -4,6 +4,7 @@ import {
   gateCorePurity,
   gateDshLayer,
   gateDocsSchemaKeys,
+  gateFollowupIdentity,
   gateNoPaidHooks,
 } from './lib/gates.mjs';
 
@@ -18,6 +19,7 @@ const results = [
   gateDshLayer(root),
   gateNoPaidHooks(root),
   gateCoreNoDynamicRegex(root),
+  gateFollowupIdentity(root),
   await gateDocsSchemaKeys(root),
 ];
 

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { memoryPaths } from '../paths.ts';
 
 /**
  * RULES.md parser and validator (plan v1.3 §4.3, §9.2).
@@ -125,6 +126,13 @@ export function validateRules(rules: readonly Rule[], options: RuleValidationOpt
 export function parseAndValidateRules(text: string, options: RuleValidationOptions): RulesParseResult {
   const parsed = parseRules(text);
   return { rules: parsed.rules, errors: [...parsed.errors, ...validateRules(parsed.rules, options)] };
+}
+
+/** Read and parse the store's RULES.md (used by `rules_list`). */
+export function loadRules(home: string): readonly Rule[] {
+  const file = memoryPaths(home).rulesFile;
+  if (!existsSync(file)) return [];
+  return parseRules(readFileSync(file, 'utf8')).rules;
 }
 
 /** Numbered rendering for injection; `[废止]` is labelled but not enforceable. */

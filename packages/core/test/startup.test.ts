@@ -23,7 +23,7 @@ test('a freshly initialised store starts with documented defaults', (t) => {
 
   const runtime = startup({ home });
   assert.equal(runtime.home, home);
-  assert.equal(runtime.config.inject.total_max_chars, 3700);
+  assert.equal(runtime.config.inject.total_max_chars, 4000);
   assert.equal(runtime.config.storage.max_records, 1000);
   assert.equal(runtime.policy.version, 2);
   assert.equal(runtime.policy.scan.private_tag, 'confirm');

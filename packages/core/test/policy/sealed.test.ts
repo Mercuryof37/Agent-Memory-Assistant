@@ -21,7 +21,7 @@ function home(t: { after: (fn: () => void) => void }): string {
   return dir;
 }
 
-test('sealing records normalized hashes for the three human files', (t) => {
+test('sealing records soul and rules; USER stays unsealed unless asked', (t) => {
   const dir = home(t);
   writeFileSync(join(dir, 'SOUL.md'), 'persona line\n');
   writeFileSync(join(dir, 'USER.md'), 'user preference\n');
@@ -30,8 +30,11 @@ test('sealing records normalized hashes for the three human files', (t) => {
   const seal = sealPolicy({ home: dir, accept: true });
   const soulHash = hashContent(readFileSync(join(dir, 'SOUL.md'), 'utf8'));
   assert.equal(seal.sealedFiles.soul, soulHash);
-  assert.notEqual(seal.sealedFiles.user, '');
+  assert.equal(seal.sealedFiles.user, '');
   assert.notEqual(seal.sealedFiles.rules, '');
+
+  const withUser = sealPolicy({ home: dir, accept: true, sealUser: true });
+  assert.equal(withUser.sealedFiles.user, hashContent(readFileSync(join(dir, 'USER.md'), 'utf8')));
 
   const loaded = loadPolicy({ home: dir });
   assert.equal(loaded.policy.sealed_files.soul, soulHash);
@@ -50,7 +53,11 @@ test('a modified human file stops startup and names the file', (t) => {
   const text = error.format();
   assert.match(text, /SOUL\.md/);
   assert.match(text, /sealed hash/);
-  assert.match(text, /mem policy seal --accept/);
+  // The repair command is printed highlighted so the user cannot miss it.
+  assert.match(text, />>> RUN THIS COMMAND:/);
+  assert.match(text, /mem policy seal --home /);
+  assert.match(text, /--accept/);
+  assert.match(text, /\/mem seal --accept/);
 });
 
 test('a sealed file that disappears also stops startup', (t) => {

@@ -8,6 +8,7 @@ import {
   gateCorePurity,
   gateDocsSchemaKeys,
   gateDshLayer,
+  gateFollowupIdentity,
   gateNoPaidHooks,
 } from '../../../scripts/lib/gates.mjs';
 import { cleanupHome, tempHome } from './helpers.ts';
@@ -120,11 +121,30 @@ test('the dynamic RegExp gate catches core code outside scan/', (t) => {
   assert.doesNotMatch(result.problems.join('\n'), /scan\/allowed\.ts/);
 });
 
+test('the follow-up identity gate catches a message without id or role', (t) => {
+  const root = fixtureRoot();
+  t.after(() => cleanupHome(root));
+  writeFileSync(
+    join(root, 'packages', 'dsh', 'src', 'bad.ts'),
+    "agent.followup({ role: 'user', content: [{ type: 'text', text: 'x' }] });\n",
+  );
+  const bad = gateFollowupIdentity(root);
+  assert.equal(bad.ok, false);
+  assert.match(bad.problems.join('\n'), /bad\.ts:1 followup without a message id/);
+
+  writeFileSync(
+    join(root, 'packages', 'dsh', 'src', 'bad.ts'),
+    "agent.followup({ id: crypto.randomUUID(), role: 'user', content: [{ type: 'text', text: 'x' }] });\n",
+  );
+  assert.equal(gateFollowupIdentity(root).ok, true);
+});
+
 test('the real repository passes every gate', async () => {
   assert.equal(gateCorePurity(repoRoot).ok, true, gateCorePurity(repoRoot).problems.join('\n'));
   assert.equal(gateDshLayer(repoRoot).ok, true, gateDshLayer(repoRoot).problems.join('\n'));
   assert.equal(gateNoPaidHooks(repoRoot).ok, true, gateNoPaidHooks(repoRoot).problems.join('\n'));
   assert.equal(gateCoreNoDynamicRegex(repoRoot).ok, true, gateCoreNoDynamicRegex(repoRoot).problems.join('\n'));
+  assert.equal(gateFollowupIdentity(repoRoot).ok, true, gateFollowupIdentity(repoRoot).problems.join('\n'));
   const docs = await gateDocsSchemaKeys(repoRoot);
   assert.equal(docs.ok, true, docs.problems.join('\n'));
 });

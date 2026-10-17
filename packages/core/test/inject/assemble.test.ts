@@ -48,6 +48,20 @@ function source(docs: MemoryDoc[], audits: unknown[] = []) {
   };
 }
 
+test('S9.2 snapshot capture goes through the store audit sink and keeps the manifest in sync', (t) => {
+  const { home, config, policy } = fixture(t);
+  const store = new MemoryStore({ home, config });
+  assemble({ home, config, policy, source: store, sessionId: 'session-a' });
+  // A snapshot audit must not look like a truncated journal on the next write.
+  const written = store.add(
+    { kind: 'fact', abstract: 'after snapshot', body: 'b', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  assert.match(written.id, /^mem-/);
+  const reopened = new MemoryStore({ home, config });
+  assert.deepEqual(reopened.diagnostics().issues, []);
+});
+
 test('S3.3 fenced code and </memory> cannot escape the delimiter block', (t) => {
   const { home, config, policy } = fixture(t);
   const delimiter = 'deadbeefdeadbeef';
@@ -118,7 +132,7 @@ test('S3.4 snapshots keep only the newest 20', (t) => {
 
 test('S3.5 rules over budget fail loudly instead of truncating', (t) => {
   const { home, config, policy } = fixture(t);
-  writeFileSync(join(home, 'RULES.md'), `1. [模型指引] ${'长'.repeat(900)}\n`);
+  writeFileSync(join(home, 'RULES.md'), `1. [模型指引] ${'长'.repeat(config.inject.rules_max_chars + 100)}\n`);
   assert.throws(
     () => assemble({ home, config, policy, source: source([]), sessionId: 's1', persist: false }),
     (error: unknown) => error instanceof InjectionError && error.code === 'RULES_OVER_BUDGET',
@@ -156,6 +170,30 @@ test('T2 an edited sealed file is rejected at injection time', (t) => {
     () => assemble({ home, config, policy: sealed, source: source([]), sessionId: 's1', persist: false }),
     (error: unknown) => error instanceof StartupError && error.code === 'SEALED_FILE_MISMATCH',
   );
+});
+
+test('S11.3 the guidance section follows personalization.mode and stays in budget', (t) => {
+  const { home } = fixture(t);
+  const config = loadConfig({ home }).config;
+  const policy = loadPolicy({ home }).policy;
+  const store = new MemoryStore({ home, config });
+  const assembleWith = (mode: 'confirm' | 'direct' | 'readonly', sessionId: string) =>
+    assemble({
+      home,
+      config: { ...config, personalization: { mode } },
+      policy,
+      source: store,
+      sessionId,
+      persist: false,
+    });
+
+  const confirm = assembleWith('confirm', 'g1');
+  assert.match(confirm.parts.GUIDANCE, /记忆与方法复用/);
+  assert.match(confirm.parts.GUIDANCE, /确认卡片/);
+  assert.ok([...confirm.parts.GUIDANCE].length <= config.inject.guidance_max_chars);
+
+  assert.match(assembleWith('direct', 'g2').parts.GUIDANCE, /直接写入/);
+  assert.match(assembleWith('readonly', 'g3').parts.GUIDANCE, /只读/);
 });
 
 test('T3 a deleted memory never reaches the assembled text', (t) => {

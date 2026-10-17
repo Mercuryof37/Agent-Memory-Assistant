@@ -19,6 +19,7 @@ export interface Config {
   };
   readonly inject: {
     readonly persona_max_chars: number;
+    readonly guidance_max_chars: number;
     readonly user_max_chars: number;
     readonly rules_max_chars: number;
     readonly index_max_chars: number;
@@ -50,6 +51,9 @@ export interface Config {
   readonly proposals: {
     readonly max_pending: number;
   };
+  readonly personalization: {
+    readonly mode: 'confirm' | 'direct' | 'readonly';
+  };
 }
 
 /**
@@ -67,10 +71,11 @@ export const configSchema: TableSpec = {
   },
   inject: {
     persona_max_chars: { type: 'int', default: 200, min: 0, max: 5_000 },
-    user_max_chars: { type: 'int', default: 1_500, min: 0, max: 20_000 },
-    rules_max_chars: { type: 'int', default: 800, min: 0, max: 10_000 },
+    guidance_max_chars: { type: 'int', default: 300, min: 0, max: 2_000 },
+    user_max_chars: { type: 'int', default: 1_100, min: 0, max: 20_000 },
+    rules_max_chars: { type: 'int', default: 1_200, min: 0, max: 10_000 },
     index_max_chars: { type: 'int', default: 1_200, min: 0, max: 20_000 },
-    total_max_chars: { type: 'int', default: 3_700, min: 0, max: 40_000 },
+    total_max_chars: { type: 'int', default: 4_000, min: 0, max: 40_000 },
     protect: { type: 'bool', default: true },
     counter: { type: 'enum', values: ['chars', 'tokens'], default: 'chars' },
   },
@@ -98,6 +103,9 @@ export const configSchema: TableSpec = {
   proposals: {
     max_pending: { type: 'int', default: 50, min: 1, max: 1_000 },
   },
+  personalization: {
+    mode: { type: 'enum', values: ['confirm', 'direct', 'readonly'], default: 'confirm' },
+  },
 };
 
 /**
@@ -117,12 +125,13 @@ max_records = 1000
 max_record_chars = 10000
 
 [inject]
-# 常驻注入的四个分区预算（字符数）与合计上限。
+# 常驻注入的五个分区预算（字符数）与合计上限。
 persona_max_chars = 200
-user_max_chars = 1500
-rules_max_chars = 800
+guidance_max_chars = 300
+user_max_chars = 1100
+rules_max_chars = 1200
 index_max_chars = 1200
-total_max_chars = 3700
+total_max_chars = 4000
 # 注入段打 protected 标记：压缩不得触及。
 protect = true
 # 预算计量方式：chars（字符，保守）或 tokens（S3 起用 tokenMeter）。
@@ -159,6 +168,10 @@ t0_per_session = 20
 [proposals]
 # 待审提案上限。
 max_pending = 50
+
+[personalization]
+# 助手写记忆的权限：confirm（每次先确认）/ direct（自主写入）/ readonly（只读）。
+mode = "confirm"
 `;
 
 export function defaultConfig(): Config {
@@ -180,6 +193,7 @@ export function validateConfigTable(
   if (isRawTable(inject)) {
     const parts = [
       inject.persona_max_chars,
+      inject.guidance_max_chars,
       inject.user_max_chars,
       inject.rules_max_chars,
       inject.index_max_chars,
@@ -190,7 +204,7 @@ export function validateConfigTable(
       if (sum > total) {
         problems.push({
           key: 'inject.total_max_chars',
-          message: `the four injection sections add up to ${sum} chars, more than inject.total_max_chars (${total})`,
+          message: `the five injection sections add up to ${sum} chars, more than inject.total_max_chars (${total})`,
         });
       }
     }

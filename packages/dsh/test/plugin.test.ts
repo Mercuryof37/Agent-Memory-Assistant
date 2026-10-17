@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { apply, inject, type ToolDefinitionLike } from '../src/plugin.ts';
 
+// The probe tests run with a path that cannot be a store, so `apply` takes the
+// fallback branch and registers the S0 probe instead of the real tool surface.
+process.env.AGENT_MEMORY_HOME = 'C:\\__agent-memory-plugin-test-missing__';
+
 interface Recorded {
   readonly tools: ToolDefinitionLike[];
   readonly sections: Array<Record<string, unknown>>;
@@ -49,6 +53,9 @@ test('the probe plugin registers its two tools, one section and one command', ()
   assert.equal(recorded.sections.length, 1);
   assert.equal(recorded.sections[0]?.name, 'agent-memory:probe');
   assert.equal(recorded.sections[0]?.interpolate, false);
+  // A failed store startup must not disappear: the probe section carries the
+  // formatted failure so the model can relay it (repair command included).
+  assert.match(String(recorded.sections[0]?.text ?? ''), /启动失败/);
   assert.equal(recorded.commands.length, 1);
   assert.equal(recorded.commands[0]?.name, 'am-closeout');
 });

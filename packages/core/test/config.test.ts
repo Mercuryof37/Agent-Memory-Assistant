@@ -18,8 +18,10 @@ test('the generated template is exactly the schema defaults', () => {
 
 test('the config surface covered by docs is stable', () => {
   const keys = configKeys();
-  assert.equal(keys.length, 22);
+  assert.equal(keys.length, 24);
   assert.ok(keys.includes('inject.persona_max_chars'));
+  assert.ok(keys.includes('inject.guidance_max_chars'));
+  assert.ok(keys.includes('personalization.mode'));
   assert.ok(keys.includes('storage.max_records'));
   assert.ok(!keys.includes('viewer.enabled'));
   assert.ok(!keys.includes('audit.enabled'));
@@ -49,11 +51,11 @@ test('an out-of-range value names the key and the bound', () => {
   assert.match(error.format(), /at most 100, found 500/);
 });
 
-test('the four injection sections may not exceed the total budget', () => {
-  const text = CONFIG_TEMPLATE.replace('total_max_chars = 3700', 'total_max_chars = 1000');
+test('the five injection sections may not exceed the total budget', () => {
+  const text = CONFIG_TEMPLATE.replace('total_max_chars = 4000', 'total_max_chars = 1000');
   const error = expectConfigError(() => parseConfig(text, 'config.toml'));
   assert.deepEqual(error.keys, ['inject.total_max_chars']);
-  assert.match(error.format(), /add up to 3700 chars/);
+  assert.match(error.format(), /add up to 4000 chars/);
 });
 
 test('an unknown table is refused by name', () => {
@@ -88,7 +90,7 @@ test('validateConfigTable accepts an empty table and fills defaults', () => {
   const { config, problems } = validateConfigTable({});
   assert.deepEqual(problems, []);
   const typed: Config = config;
-  assert.equal(typed.inject.total_max_chars, 3700);
+  assert.equal(typed.inject.total_max_chars, 4000);
   assert.equal(typed.inject.protect, true);
   assert.equal(typed.distill.max_proposals, 5);
   assert.equal(typed.distill.require_quote, true);

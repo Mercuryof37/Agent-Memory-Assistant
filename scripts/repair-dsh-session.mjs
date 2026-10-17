@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { repairSessionLog, timestamp } from './lib/session-repair.mjs';
 
@@ -19,7 +19,7 @@ import { repairSessionLog, timestamp } from './lib/session-repair.mjs';
  * `session.v4.jsonl.zstd.bak-<YYYYMMDD-HHmmss>`.
  */
 
-const ARTIFACT = 'session.v4.jsonl.zstd';
+const ARTIFACT = /^session\.v(\d+)\.jsonl\.zstd$/;
 const apply = process.argv.includes('--apply');
 const inputs = process.argv.slice(2).filter((argument) => !argument.startsWith('--'));
 
@@ -36,7 +36,27 @@ for (const input of inputs) {
   const path = resolve(input);
   let artifact = path;
   try {
-    if (statSync(path).isDirectory()) artifact = join(path, ARTIFACT);
+    if (statSync(path).isDirectory()) {
+      const names = readdirSync(path).filter((name) => ARTIFACT.test(name));
+      const v4 = names.find((name) => /^session\.v4\./.test(name));
+      if (v4 === undefined) {
+        const legacy = names.find((name) => !/^session\.v4\./.test(name));
+        if (legacy !== undefined) {
+          console.log(`${path}: legacy ${legacy} (audit only; use scripts/audit-sessions.mjs)`);
+          continue;
+        }
+        console.error(`${path}: no session.v*.jsonl.zstd`);
+        failures += 1;
+        continue;
+      }
+      artifact = join(path, v4);
+    } else {
+      const match = ARTIFACT.exec(path.split(/[\\/]/).pop() ?? '');
+      if (match === null || Number(match[1]) !== 4) {
+        console.log(`${path}: legacy v${match?.[1] ?? '?'} (audit only; use scripts/audit-sessions.mjs)`);
+        continue;
+      }
+    }
   } catch (error) {
     console.error(`${path}: cannot read: ${String(error)}`);
     failures += 1;

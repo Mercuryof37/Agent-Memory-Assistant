@@ -7,6 +7,7 @@ import { memoryPaths } from '../paths.ts';
 import { parseRules, renderRules, validateRules, type Rule } from '../rules/rules.ts';
 import { today } from '../model/validity.ts';
 import type { MemoryDoc } from '../model/types.ts';
+import { renderGuidance } from '../personalization/guidance.ts';
 import { readSnapshot, writeSnapshot, PROMPT_SCHEMA_VERSION } from './snapshot.ts';
 
 /**
@@ -35,6 +36,8 @@ export class InjectionError extends Error {
 
 export interface InjectionSource {
   active(date?: string): readonly MemoryDoc[];
+  /** Preferred audit sink: keeps the store manifest head in sync. */
+  appendAudit?(data: Record<string, unknown>): void;
   readonly journal?: { append(entry: { op: 'audit'; data: Record<string, unknown> }): unknown };
 }
 
@@ -68,6 +71,8 @@ export interface AssembleResult {
   readonly budget: InjectionBudget;
   readonly sections: readonly string[];
   readonly rules: readonly Rule[];
+  /** Per-source text, one entry per human/maintained source (empty when absent). */
+  readonly parts: Readonly<Record<'SOUL' | 'GUIDANCE' | 'RULES' | 'USER' | 'MEMORY', string>>;
 }
 
 const EVIDENCE_RANK: Record<string, number> = {
@@ -79,6 +84,11 @@ const EVIDENCE_RANK: Record<string, number> = {
 
 function charCount(text: string): number {
   return [...text].length;
+}
+
+/** Templates ship as HTML comments; they must not reach the prompt or parser. */
+function stripHtmlComments(text: string): string {
+  return text.replace(/<!--[\s\S]*?-->/g, '');
 }
 
 function truncate(text: string, budget: number): string {
@@ -145,7 +155,11 @@ export function assemble(input: AssembleInput): AssembleResult {
   const revision = memoryRevision(active);
 
   const existing = readSnapshot(input.home, input.sessionId);
-  if (existing !== null && existing.prompt_schema_version === PROMPT_SCHEMA_VERSION) {
+  if (
+    existing !== null &&
+    existing.prompt_schema_version === PROMPT_SCHEMA_VERSION &&
+    existing.parts !== undefined
+  ) {
     return {
       text: existing.text,
       memory_revision: existing.memory_revision,
@@ -153,14 +167,15 @@ export function assemble(input: AssembleInput): AssembleResult {
       budget: { counter: input.config.inject.counter, estimated: input.measure === undefined, sections: {}, total: 0 },
       sections: [],
       rules: [],
+      parts: existing.parts,
     };
   }
 
   const readIfExists = (file: string): string =>
-    existsSync(file) ? readFileSync(file, 'utf8') : '';
+    existsSync(file) ? stripHtmlComments(readFileSync(file, 'utf8')).trim() : '';
 
-  const soul = readIfExists(paths.soulFile).trim();
-  const user = readIfExists(paths.userFile).trim();
+  const soul = readIfExists(paths.soulFile);
+  const user = readIfExists(paths.userFile);
   const rulesText = readIfExists(paths.rulesFile);
   const parsed = parseRules(rulesText);
   const ruleErrors = [...parsed.errors, ...validateRules(parsed.rules, { rootDir: input.home })];
@@ -170,20 +185,28 @@ export function assemble(input: AssembleInput): AssembleResult {
   const rules = parsed.rules;
   const renderedRules = renderRules(rules, { includeRevoked: false });
 
+  const parts: Record<'SOUL' | 'GUIDANCE' | 'RULES' | 'USER' | 'MEMORY', string> = {
+    SOUL: soul === '' ? '' : truncate(soul, input.config.inject.persona_max_chars),
+    GUIDANCE: truncate(renderGuidance(input.config.personalization.mode), input.config.inject.guidance_max_chars),
+    USER: user === '' ? '' : truncate(user, input.config.inject.user_max_chars),
+    RULES: renderedRules,
+    MEMORY: '',
+  };
   const sections: Array<{ title: string; text: string }> = [];
-  if (soul !== '') sections.push({ title: 'SOUL', text: truncate(soul, input.config.inject.persona_max_chars) });
-  if (user !== '') sections.push({ title: 'USER', text: truncate(user, input.config.inject.user_max_chars) });
-  if (renderedRules !== '') {
-    if (charCount(renderedRules) > input.config.inject.rules_max_chars) {
-      throw new InjectionError(
-        'RULES_OVER_BUDGET',
-        `RULES.md renders to ${charCount(renderedRules)} chars, over inject.rules_max_chars (${input.config.inject.rules_max_chars}); trim the rules instead of relying on truncation`,
-      );
-    }
-    sections.push({ title: 'RULES', text: renderedRules });
+  for (const title of ['SOUL', 'GUIDANCE', 'RULES', 'USER'] as const) {
+    if (parts[title] !== '') sections.push({ title, text: parts[title] });
+  }
+  if (renderedRules !== '' && charCount(renderedRules) > input.config.inject.rules_max_chars) {
+    throw new InjectionError(
+      'RULES_OVER_BUDGET',
+      `RULES.md renders to ${charCount(renderedRules)} chars, over inject.rules_max_chars (${input.config.inject.rules_max_chars}); trim the rules instead of relying on truncation`,
+    );
   }
   const catalog = fitCatalog(active, input.config.inject.index_max_chars);
-  if (catalog !== '') sections.push({ title: 'MEMORY', text: catalog });
+  if (catalog !== '') {
+    parts.MEMORY = catalog;
+    sections.push({ title: 'MEMORY', text: catalog });
+  }
 
   let body = sections.map((section) => `## ${section.title}\n${section.text}`).join('\n\n');
   const counter = input.config.inject.counter;
@@ -216,11 +239,17 @@ export function assemble(input: AssembleInput): AssembleResult {
     prompt_schema_version: PROMPT_SCHEMA_VERSION,
     created_at: now().toISOString(),
     text,
+    parts,
   };
   if (input.persist !== false) {
     writeSnapshot(input.home, record);
     try {
-      input.source.journal?.append({ op: 'audit', data: { event: 'snapshot-capture', session_id: input.sessionId } });
+      const audit = { event: 'snapshot-capture', session_id: input.sessionId };
+      if (input.source.appendAudit !== undefined) {
+        input.source.appendAudit(audit);
+      } else {
+        input.source.journal?.append({ op: 'audit', data: audit });
+      }
     } catch {
       // Journal trouble is reported by the store; a snapshot is still usable.
     }
@@ -238,6 +267,7 @@ export function assemble(input: AssembleInput): AssembleResult {
     },
     sections: sections.map((section) => section.title),
     rules,
+    parts,
   };
 }
 

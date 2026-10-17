@@ -19,6 +19,7 @@
     "stage": "node scripts/stage.mjs",
     "closure": "node scripts/closure.mjs",
     "eval": "node scripts/eval.mjs",
+    "audit:sessions": "node scripts/audit-sessions.mjs",
     "plugin:install": "node scripts/install-desktop-plugin.mjs --apply",
     "plugin:revert": "node scripts/install-desktop-plugin.mjs --revert",
     "ci": "node scripts/ci.mjs",

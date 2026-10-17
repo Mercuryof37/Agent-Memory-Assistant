@@ -191,10 +191,12 @@ export function verifySealedFiles(options: { home: string; policy: Policy }): vo
     if (expected === '') continue;
     const actual = existsSync(file) ? hashContent(readFileSync(file, 'utf8')) : '';
     if (actual !== expected) {
+      const homeArg = /\s/.test(options.home) ? `"${options.home}"` : options.home;
       throw new StartupError('SEALED_FILE_MISMATCH', `${name} does not match its sealed hash`, {
         sourcePath: file,
         details: [`sealed sha256 ${expected}`, `actual sha256 ${actual === '' ? '(missing)' : actual}`],
-        hint: 'restore the file, or deliberately edit it and run `mem policy seal --accept`',
+        fixCommand: `mem policy seal --home ${homeArg} --accept`,
+        hint: `编辑 ${name} 后必须重新封存；也可以在聊天框运行 /mem seal --accept`,
       });
     }
   }
@@ -243,7 +245,13 @@ export interface SealResult {
  * after a human typed the flag; nothing in the agent's tool surface can reach
  * this function.
  */
-export function sealPolicy(options: { home: string; accept: boolean; now?: Date }): SealResult {
+export function sealPolicy(options: {
+  home: string;
+  accept: boolean;
+  now?: Date;
+  /** Seal USER.md too. Default false: the agent may propose USER edits. */
+  sealUser?: boolean;
+}): SealResult {
   const paths = memoryPaths(options.home);
   if (!options.accept) {
     throw new StartupError('SEAL_REFUSED', 'refusing to re-seal policy.json without explicit confirmation', {
@@ -260,7 +268,12 @@ export function sealPolicy(options: { home: string; accept: boolean; now?: Date 
   const { policy, problems } = parsePolicyText(policyText);
   if (problems.length > 0) throw policyProblems(paths.policyFile, problems);
 
-  const sealedFiles = computeSealedFiles(options.home);
+  const computed = computeSealedFiles(options.home);
+  const sealedFiles: SealedFileHashes = {
+    soul: computed.soul,
+    user: options.sealUser === true ? computed.user : '',
+    rules: computed.rules,
+  };
   const nextText = `${JSON.stringify({ ...policy, sealed_files: sealedFiles }, null, 2)}\n`;
   writeFileAtomic(paths.policyFile, nextText);
 

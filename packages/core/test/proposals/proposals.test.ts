@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { initStore } from '../../src/init.ts';
 import { loadConfig } from '../../src/config/load.ts';
@@ -85,6 +85,50 @@ test('S4.4 accepting a supersede activates the replacement and retires the targe
   assert.equal(active[0]?.abstract, 'new fact');
   assert.deepEqual(active[0]?.supersedes, [id]);
   assert.equal(pendingCount(home), 0);
+});
+
+test('S4.4 an accepted supersede keeps proposer provenance on the replacement', (t) => {
+  const { home, config, store } = fixture(t);
+  const id = addFact(store, 'old fact with evidence');
+  const provenance = [
+    {
+      session_id: 'session-0001',
+      event_seq: 7,
+      speaker: 'user' as const,
+      quote: 'remember the new path',
+      event_sha256: 'a'.repeat(64),
+    },
+  ];
+  const proposal = createProposal(
+    { store, config },
+    {
+      op: 'supersede',
+      targets: [id],
+      base_hashes: [store.read(id).content_hash],
+      replacements: [
+        {
+          kind: 'fact',
+          abstract: 'new fact with evidence',
+          body: 'body',
+          evidence_level: 'observed',
+          provenance,
+        },
+      ],
+      reason: 'correction',
+    },
+  );
+  const pending = JSON.parse(
+    readFileSync(join(home, 'proposals', 'pending', `${proposal.id}.json`), 'utf8'),
+  ) as { replacements: { provenance?: unknown[] }[] };
+  assert.equal(pending.replacements[0]?.provenance?.length, 1);
+
+  decideProposal({ store, config }, { id: proposal.id, decision: 'accept' });
+  const replacement = store.active().find((doc) => doc.abstract === 'new fact with evidence');
+  assert.ok(replacement);
+  assert.equal(replacement.author, 'human');
+  assert.deepEqual(replacement.provenance, provenance);
+  const hit = store.recall('new fact with evidence').hits.find((entry) => entry.id === replacement.id);
+  assert.equal(hit?.provenance_verifiable, true);
 });
 
 test('S4.4 a mid-accept failure keeps the proposal and leaves no partial write', (t) => {

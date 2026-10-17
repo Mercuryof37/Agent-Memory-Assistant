@@ -14,11 +14,12 @@ import { join, resolve } from 'node:path';
 const ROOT = resolve(import.meta.dirname, '../../..');
 const DIST = join(ROOT, 'packages', 'dsh', 'dist', 'plugin.mjs');
 
-test('S3.6 the built bundle has no imports and exports the Cordis surface', () => {
+test('S3.6 the built bundle has no third-party imports and exports the Cordis surface', () => {
   assert.ok(existsSync(DIST), 'run `node scripts/build.mjs` first');
   const text = readFileSync(DIST, 'utf8');
-  assert.doesNotMatch(text, /^\s*import\s/m, 'bundle must not import at load time');
-  assert.doesNotMatch(text, /from\s+["']node:/, 'bundle must not import node builtins');
+  // S4 bundles the core store into the plugin, so node builtins are expected;
+  // third-party imports would break the linked plugin (no node_modules lookup).
+  assert.doesNotMatch(text, /from\s+["'](?!node:)[^"']+["']/);
   assert.match(text, /function apply\(ctx\)/);
   assert.match(text, /export\s*\{[^}]*apply[^}]*\}/s);
   assert.match(text, /export\s*\{[^}]*inject[^}]*\}/s);

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Config } from '../config/config.ts';
-import type { MemoryId, ProposalInput, RecordInput } from '../model/types.ts';
+import type { MemoryId, ProposalInput, ProposalReplacement } from '../model/types.ts';
 import { isMemoryId, newMemoryId } from '../model/ids.ts';
 import { assertClean, redactPrivate } from '../scan/scan.ts';
 import type { MemoryStore } from '../store/store.ts';
@@ -16,12 +16,19 @@ import { writeFileAtomic } from '../fs/atomic.ts';
  * accept leaves the proposal file in place (S4.4).
  */
 
+/**
+ * A replacement carries provenance bound at propose time (verified against the
+ * proposing session). It is written into the record on accept, so the evidence
+ * does not stop at the pending file (plan v1.3 §7 "证据可核验").
+ */
+export type { ProposalReplacement };
+
 export interface Proposal {
   readonly id: string;
   readonly op: 'supersede' | 'delete';
   readonly targets: readonly MemoryId[];
   readonly base_hashes: readonly string[];
-  readonly replacements: readonly RecordInput[];
+  readonly replacements: readonly ProposalReplacement[];
   readonly reason: string;
   readonly created_at: string;
 }

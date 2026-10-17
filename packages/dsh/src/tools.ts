@@ -1,8 +1,11 @@
 import { SessionQuota } from '../../core/src/service/quota.ts';
 
 /**
- * Tool surface (plan v1.3 §5.2, §5.4). Five tools, strict schemas, no field names
+ * Tool surface (plan v1.3 §5.2, §5.4; ADR-0012). Strict schemas, no field names
  * that could smuggle a path or a session; `decide` is never a tool.
+ *
+ * `memory_review` shows a human button card and then runs the `/mem decide …`
+ * command; the verdict comes from the card, never from the model.
  *
  * `registerTools` takes a service object so the adapter stays free of file I/O;
  * the real DSH wiring passes the core-backed service in.
@@ -13,6 +16,8 @@ export const TOOL_NAMES = [
   'memory_read',
   'memory_record',
   'memory_propose',
+  'memory_review',
+  'memory_context',
   'rules_list',
 ] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -56,11 +61,34 @@ export const TOOL_SCHEMAS: Readonly<Record<ToolName, unknown>> = {
       op: { type: 'string', enum: ['supersede', 'delete'] },
       ids: { type: 'array', items: { type: 'string' }, minItems: 1 },
       base_hashes: { type: 'array', items: { type: 'string' } },
-      replacements: { type: 'array', items: { type: 'object' } },
+      replacements: {
+        type: 'array',
+        minItems: 1,
+        items: objectSchema(
+          {
+            kind: { type: 'string', enum: ['fact', 'pitfall', 'exp'] },
+            abstract: { type: 'string', minLength: 1 },
+            body: { type: 'string' },
+            evidence: {
+              type: 'array',
+              minItems: 1,
+              items: objectSchema(
+                { event_seq: { type: 'integer', minimum: 0 }, quote: { type: 'string' } },
+                ['event_seq', 'quote'],
+              ),
+            },
+            valid_from: { type: 'string' },
+            error_signatures: { type: 'array', items: { type: 'string' }, maxItems: 3 },
+          },
+          ['kind', 'abstract', 'body', 'evidence'],
+        ),
+      },
       reason: { type: 'string' },
     },
     ['op', 'ids', 'base_hashes'],
   ),
+  memory_review: objectSchema({ id: { type: 'string' } }),
+  memory_context: objectSchema({ limit: { type: 'integer', minimum: 1, maximum: 50 } }, []),
   rules_list: objectSchema({}, []),
 };
 
@@ -111,12 +139,24 @@ export function validateToolArgs(name: ToolName, args: unknown): string[] {
     const evidence = record.evidence;
     if (!Array.isArray(evidence) || evidence.length === 0) problems.push('evidence is required');
   }
+  if (name === 'memory_review') {
+    if (record.id !== undefined && (typeof record.id !== 'string' || !/^prop-mem-\d{8}-[0-9a-f]{8}$/.test(record.id))) {
+      problems.push('id must be a proposal id');
+    }
+  }
   if (name === 'memory_propose') {
     if (record.op === 'delete' && (typeof record.reason !== 'string' || record.reason.trim() === '')) {
       problems.push('a delete proposal needs reason');
     }
-    if (record.op === 'supersede' && !Array.isArray(record.replacements)) {
-      problems.push('a supersede proposal needs replacements');
+    if (record.op === 'supersede') {
+      const replacements = record.replacements;
+      if (!Array.isArray(replacements) || replacements.length === 0) {
+        problems.push('a supersede proposal needs replacements');
+      } else {
+        replacements.forEach((replacement, index) => {
+          problems.push(...replacementProblems(replacement, `replacements[${index}]`));
+        });
+      }
     }
     if (Array.isArray(record.base_hashes) && Array.isArray(record.ids)) {
       if (record.base_hashes.length !== record.ids.length) problems.push('one base_hash per id is required');
@@ -125,13 +165,62 @@ export function validateToolArgs(name: ToolName, args: unknown): string[] {
   return problems;
 }
 
+const KINDS = new Set(['fact', 'pitfall', 'exp']);
+
+function replacementProblems(replacement: unknown, path: string): string[] {
+  if (typeof replacement !== 'object' || replacement === null || Array.isArray(replacement)) {
+    return [`${path} must be an object`];
+  }
+  const item = replacement as Record<string, unknown>;
+  const problems: string[] = [];
+  if (typeof item.kind !== 'string' || !KINDS.has(item.kind)) problems.push(`${path}.kind must be fact|pitfall|exp`);
+  if (typeof item.abstract !== 'string' || item.abstract.trim() === '') problems.push(`${path}.abstract is required`);
+  if (typeof item.body !== 'string') problems.push(`${path}.body is required`);
+  if (item.kind === 'pitfall') {
+    const signatures = item.error_signatures;
+    if (!Array.isArray(signatures) || signatures.length === 0) problems.push(`${path} pitfall needs error_signatures`);
+  }
+  const evidence = item.evidence;
+  if (!Array.isArray(evidence) || evidence.length === 0) {
+    problems.push(`${path}.evidence is required`);
+    return problems;
+  }
+  evidence.forEach((entry, index) => {
+    if (typeof entry !== 'object' || entry === null) {
+      problems.push(`${path}.evidence[${index}] must be an object`);
+      return;
+    }
+    const evidenceItem = entry as Record<string, unknown>;
+    if (!Number.isInteger(evidenceItem.event_seq) || (evidenceItem.event_seq as number) < 0) {
+      problems.push(`${path}.evidence[${index}].event_seq must be a non-negative integer`);
+    }
+    if (typeof evidenceItem.quote !== 'string' || evidenceItem.quote === '') {
+      problems.push(`${path}.evidence[${index}].quote is required`);
+    }
+  });
+  return problems;
+}
+
 export interface ToolService {
   readonly config: { readonly quota: { readonly t0_per_session: number } };
+  /** Assistant write mode from `personalization.mode`. */
+  readonly mode: 'confirm' | 'direct' | 'readonly';
   recall(input: { query: string; limit?: number; kind?: string }): unknown;
   read(id: string): unknown;
-  record(input: unknown, actor: TrustedActor): unknown;
-  propose(input: unknown, actor: TrustedActor): unknown;
+  record(input: unknown, actor: TrustedActor, exec?: unknown): unknown;
+  propose(input: unknown, actor: TrustedActor, exec?: unknown): unknown;
+  context(exec?: unknown, limit?: number): unknown;
   rules(): unknown;
+}
+
+/**
+ * Host-side review card hooks (ADR-0012). `memory_propose` opens the card right
+ * after a proposal is stored; `memory_review` re-opens it for a deferred one.
+ * The hook turns the click into `/mem decide …` and returns the outcome.
+ */
+export interface ToolHooks {
+  readonly reviewProposal?: (proposal: unknown, exec?: unknown) => Promise<unknown>;
+  readonly reviewPending?: (proposalId: string | undefined, exec?: unknown) => Promise<unknown>;
 }
 
 export interface TrustedActor {
@@ -156,22 +245,51 @@ export function registerTools(
   service: ToolService,
   actor: TrustedActor,
   quota: SessionQuota = new SessionQuota(service.config.quota.t0_per_session),
+  hooks: ToolHooks = {},
 ): RegisteredTool {
-  const names: ToolName[] = ['memory_recall', 'memory_read', 'rules_list'];
-  if (actor.delegationDepth === 0) names.push('memory_record', 'memory_propose');
+  const names: ToolName[] = ['memory_recall', 'memory_read', 'memory_context', 'rules_list'];
+  if (actor.delegationDepth === 0) names.push('memory_record', 'memory_propose', 'memory_review');
 
-  const execute = (name: ToolName, handler: (args: Record<string, unknown>) => unknown) => ({
+/** Tool copy is human-facing; Chinese is the project's default (user preference). */
+const TOOL_DESCRIPTIONS: Readonly<Record<ToolName, string>> = {
+  memory_recall: '检索长期记忆：按查询返回相关摘要与记忆编号',
+  memory_read: '读取一条记忆的全文、出处与状态',
+  memory_record: '写入一条新记忆（必须给出真实事件出处）',
+  memory_propose: '提出记忆修订或删除提案，等待人确认',
+  memory_review: '为待审提案弹出中文审批卡片',
+  memory_context: '查看当前会话最近事件，取得可用于出处的 event_seq',
+  rules_list: '列出当前生效的规则',
+};
+
+  const execute = (name: ToolName, handler: (args: Record<string, unknown>, exec?: unknown) => unknown) => ({
     name,
-    description: `Agent Memory: ${name}`,
+    description: TOOL_DESCRIPTIONS[name],
     parameters: TOOL_SCHEMAS[name],
-    execute: (args: unknown) => {
+    output: {
+      schema: { type: 'object' },
+      render: (_args: unknown, value: unknown) => {
+        const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+        // Point the human at the review paths; `decide` itself stays out of the
+        // tool surface (ADR-0011/0012).
+        const candidate = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+        const proposal = (candidate.proposal as { id?: unknown } | undefined) ?? candidate;
+        const review = candidate.review as { decision?: unknown } | undefined;
+        const proposalId = name === 'memory_propose' && review === undefined ? proposal.id : undefined;
+        const hint =
+          typeof proposalId === 'string'
+            ? `\n\n人在聊天框决定：/mem decide ${proposalId} accept 或 reject；也可调用 memory_review 重新弹出卡片`
+            : '';
+        return [{ type: 'text', text: text + hint }];
+      },
+    },
+    execute: async (args: unknown, exec?: unknown) => {
       const problems = validateToolArgs(name, args);
       if (problems.length > 0) throw new ToolInputError(problems.join('; '));
-      return handler(args as Record<string, unknown>);
+      return handler(args as Record<string, unknown>, exec);
     },
   });
 
-  const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
+  const handlers: Record<string, (args: Record<string, unknown>, exec?: unknown) => unknown> = {
     memory_recall: (args) =>
       service.recall({
         query: String(args.query),
@@ -179,17 +297,38 @@ export function registerTools(
         ...(typeof args.kind === 'string' ? { kind: args.kind } : {}),
       }),
     memory_read: (args) => service.read(String(args.id)),
-    memory_record: (args) => {
+    memory_record: (args, exec) => {
+      if (service.mode === 'readonly') {
+        throw new ToolInputError('当前为 readonly 模式：只能读取记忆，不能写入');
+      }
       if (!quota.consume(actor.sessionId)) {
         throw new ToolInputError('T0 write quota is exhausted for this session; use memory_propose instead');
       }
       const { evidence, ...rest } = args;
-      return service.record({ ...rest, evidence }, actor);
+      return service.record({ ...rest, evidence }, actor, exec);
     },
-    memory_propose: (args) => service.propose(args, actor),
+    memory_propose: async (args, exec) => {
+      if (service.mode === 'readonly') {
+        throw new ToolInputError('当前为 readonly 模式：只能读取记忆，不能提出修改');
+      }
+      const proposal = (await service.propose(args, actor, exec)) as { id?: string };
+      if (hooks.reviewProposal === undefined) return proposal;
+      const review = await hooks.reviewProposal(proposal, exec);
+      return { proposal, review };
+    },
+    memory_review: async (args, exec) => {
+      if (hooks.reviewPending === undefined) {
+        throw new ToolInputError('proposal review is unavailable in this host');
+      }
+      return hooks.reviewPending(typeof args.id === 'string' ? args.id : undefined, exec);
+    },
+    memory_context: (args, exec) =>
+      service.context(exec, typeof args.limit === 'number' ? args.limit : undefined),
     rules_list: () => service.rules(),
   };
 
-  for (const name of names) ctx.tools.register(execute(name, handlers[name] as (args: Record<string, unknown>) => unknown));
+  for (const name of names) {
+    ctx.tools.register(execute(name, handlers[name] as (args: Record<string, unknown>, exec?: unknown) => unknown));
+  }
   return { names };
 }

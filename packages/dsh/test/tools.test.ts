@@ -6,6 +6,7 @@ import {
   TOOL_NAMES,
   TOOL_SCHEMAS,
   validateToolArgs,
+  type ToolHooks,
   type ToolService,
 } from '../src/tools.ts';
 
@@ -14,11 +15,12 @@ interface FakeCall {
   readonly execute: (args: unknown) => unknown;
 }
 
-function fakeService(): ToolService & { readonly calls: string[] } {
+function fakeService(mode: 'confirm' | 'direct' | 'readonly' = 'confirm'): ToolService & { readonly calls: string[] } {
   const calls: string[] = [];
   return {
     calls,
     config: { quota: { t0_per_session: 1 } },
+    mode,
     recall: () => {
       calls.push('recall');
       return { hits: [] };
@@ -35,6 +37,10 @@ function fakeService(): ToolService & { readonly calls: string[] } {
       calls.push('propose');
       return { id: 'prop-1' };
     },
+    context: () => {
+      calls.push('context');
+      return { events: [] };
+    },
     rules: () => {
       calls.push('rules');
       return [];
@@ -42,27 +48,27 @@ function fakeService(): ToolService & { readonly calls: string[] } {
   };
 }
 
-function register(service: ToolService, delegationDepth = 0, quota?: SessionQuota): FakeCall[] {
+function register(service: ToolService, delegationDepth = 0, quota?: SessionQuota, hooks?: ToolHooks): FakeCall[] {
   const calls: FakeCall[] = [];
   const ctx = { tools: { register: (definition: unknown) => calls.push(definition as FakeCall) } };
-  registerTools(ctx, service, { sessionId: 's1', delegationDepth }, quota);
+  registerTools(ctx, service, { sessionId: 's1', delegationDepth }, quota, hooks);
   return calls;
 }
 
-test('S4.1 the tool table is exactly five names with strict schemas and no forbidden fields', () => {
+test('S4.1 the tool table is exactly seven names with strict schemas and no forbidden fields', () => {
   const registered = register(fakeService());
   assert.deepEqual(
     registered.map((call) => call.name).sort(),
     [...TOOL_NAMES].sort(),
   );
-  assert.equal(registered.length, 5);
+  assert.equal(registered.length, 7);
   for (const name of TOOL_NAMES) {
     const schema = TOOL_SCHEMAS[name] as { additionalProperties?: boolean };
     assert.equal(schema.additionalProperties, false, `${name} must be strict`);
     const text = JSON.stringify(TOOL_SCHEMAS[name]);
     assert.doesNotMatch(text, /"(path|target|session|session_id|approve)"/);
   }
-  assert.equal(new Set(registered.map((call) => call.name)).size, 5);
+  assert.equal(new Set(registered.map((call) => call.name)).size, 7);
 });
 
 test('S4.2 the red-team argument table is rejected', () => {
@@ -77,6 +83,36 @@ test('S4.2 the red-team argument table is rejected', () => {
     ['memory_propose', { op: 'delete', ids: ['mem-20261017-00000001'], base_hashes: ['x'] }],
     ['memory_propose', { op: 'supersede', ids: ['mem-20261017-00000001'], base_hashes: ['x'] }],
     ['memory_propose', { op: 'delete', ids: ['mem-20261017-00000001'], base_hashes: ['x', 'y'], reason: 'r' }],
+    [
+      'memory_propose',
+      {
+        op: 'supersede',
+        ids: ['mem-20261017-00000001'],
+        base_hashes: ['x'],
+        replacements: [{ kind: 'fact', abstract: 'a', body: 'b' }],
+      },
+    ],
+    [
+      'memory_propose',
+      {
+        op: 'supersede',
+        ids: ['mem-20261017-00000001'],
+        base_hashes: ['x'],
+        replacements: [{ kind: 'fact', abstract: 'a', body: 'b', evidence: [] }],
+      },
+    ],
+    [
+      'memory_propose',
+      {
+        op: 'supersede',
+        ids: ['mem-20261017-00000001'],
+        base_hashes: ['x'],
+        replacements: [{ kind: 'fact', abstract: 'a', body: 'b', evidence: [{ event_seq: -1, quote: 'q' }] }],
+      },
+    ],
+    ['memory_review', { id: 'mem-20261017-00000001' }],
+    ['memory_review', { id: 'prop-1' }],
+    ['memory_review', { id: 'prop-mem-20261017-00000001', approve: true }],
   ];
   for (const [name, args] of cases) {
     assert.ok(validateToolArgs(name, args).length > 0, `${name} accepted ${JSON.stringify(args)}`);
@@ -85,25 +121,80 @@ test('S4.2 the red-team argument table is rejected', () => {
     validateToolArgs('memory_read', { id: 'mem-20261017-00000001' }),
     [],
   );
+  assert.deepEqual(validateToolArgs('memory_review', {}), []);
+  assert.deepEqual(validateToolArgs('memory_review', { id: 'prop-mem-20261017-00000001' }), []);
+  assert.deepEqual(
+    validateToolArgs('memory_propose', {
+      op: 'supersede',
+      ids: ['mem-20261017-00000001'],
+      base_hashes: ['x'],
+      replacements: [
+        { kind: 'fact', abstract: 'a', body: 'b', evidence: [{ event_seq: 3, quote: 'q' }] },
+      ],
+    }),
+    [],
+  );
+});
+
+test('S9.1 memory_propose opens the review hook and memory_review reopens it', async () => {
+  const reviewed: unknown[] = [];
+  const calls = register(fakeService(), 0, undefined, {
+    reviewProposal: async (proposal) => {
+      reviewed.push(proposal);
+      return { decision: 'accept' };
+    },
+    reviewPending: async (id) => ({ reopened: id }),
+  });
+  const propose = calls.find((call) => call.name === 'memory_propose');
+  assert.ok(propose);
+  const result = await propose.execute({
+    op: 'delete',
+    ids: ['mem-20261017-00000001'],
+    base_hashes: ['x'],
+    reason: 'r',
+  });
+  assert.deepEqual(result, { proposal: { id: 'prop-1' }, review: { decision: 'accept' } });
+  assert.equal(reviewed.length, 1);
+
+  const review = calls.find((call) => call.name === 'memory_review');
+  assert.ok(review);
+  assert.deepEqual(await review.execute({ id: 'prop-mem-20261017-00000001' }), {
+    reopened: 'prop-mem-20261017-00000001',
+  });
+});
+
+test('S11.1 readonly mode blocks record and propose before they reach the store', async () => {
+  const service = fakeService('readonly');
+  const calls = register(service);
+  const record = calls.find((call) => call.name === 'memory_record');
+  const propose = calls.find((call) => call.name === 'memory_propose');
+  assert.ok(record && propose);
+  await assert.rejects(
+    async () => record.execute({ kind: 'fact', abstract: 'a', body: 'b', evidence: [{ event_seq: 1, quote: 'q' }] }),
+    /readonly/,
+  );
+  await assert.rejects(
+    async () => propose.execute({ op: 'delete', ids: ['mem-20261017-00000001'], base_hashes: ['x'], reason: 'r' }),
+    /readonly/,
+  );
+  assert.equal(service.calls.length, 0);
 });
 
 test('S4.6 a sub-agent gets read tools only; decide is never a tool', () => {
   const names = register(fakeService(), 1).map((call) => call.name);
-  assert.deepEqual(names.sort(), ['memory_read', 'memory_recall', 'rules_list']);
+  assert.deepEqual(names.sort(), ['memory_context', 'memory_read', 'memory_recall', 'rules_list']);
   assert.ok(!TOOL_NAMES.includes('decide' as never));
   assert.ok(!names.includes('memory_record' as never));
 });
 
-test('S4.6 the T0 quota rejects the second write and points at proposals', () => {
+test('S4.6 the T0 quota rejects the second write and points at proposals', async () => {
   const service = fakeService();
   const calls = register(service, 0, new SessionQuota(1));
   const record = calls.find((call) => call.name === 'memory_record');
   assert.ok(record);
-  assert.doesNotThrow(() =>
-    record.execute({ kind: 'fact', abstract: 'a', body: 'b', evidence: [{ event_seq: 1, quote: 'q' }] }),
-  );
-  assert.throws(
-    () => record.execute({ kind: 'fact', abstract: 'c', body: 'd', evidence: [{ event_seq: 1, quote: 'q' }] }),
+  await record.execute({ kind: 'fact', abstract: 'a', body: 'b', evidence: [{ event_seq: 1, quote: 'q' }] });
+  await assert.rejects(
+    async () => record.execute({ kind: 'fact', abstract: 'c', body: 'd', evidence: [{ event_seq: 1, quote: 'q' }] }),
     /quota is exhausted.*memory_propose/,
   );
 });

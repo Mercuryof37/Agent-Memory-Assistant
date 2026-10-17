@@ -6,16 +6,22 @@
  * `policy seal --accept`, the human-only T2 channel (plan v1.3 §5.4).
  */
 
+import { existsSync } from 'node:fs';
 import { relative } from 'node:path';
 import {
   initStore,
+  loadProfile,
   memoryPaths,
   MemoryStore,
   MemoryStoreError,
   ProposalError,
+  queryProfile,
   decideProposal,
+  exportStore,
+  inspectStore,
   listProposals,
   resolveHome,
+  scaffoldPersonalization,
   sealPolicy,
   startup,
   StartupError,
@@ -56,10 +62,17 @@ Usage:
   mem recall <query> [--limit <n>] [--as-of YYYY-MM-DD] [--kind <kind>] [--json]
   mem adopt <id> [--json]
   mem delete <id> --reason <text> [--json]
+  mem profile [query] [--json]
+  mem scaffold [--home <dir>]
   mem proposals [--home <dir>] [--json]
   mem decide <id> accept|reject [--reason <text>] [--accept] [--json]
+  mem decide --batch accept|reject [--reason <text>] [--accept]
   mem rebuild [--json]
-  mem policy seal [--home <dir>] --accept
+  mem inspect [--limit <n>] [--json]
+  mem export <dir>
+  mem pack <dir>
+  mem purge <id> --accept [--reason <text>]
+  mem policy seal [--home <dir>] --accept [--seal-user]
 
 Options:
   --home <dir>     store directory (default: $AGENT_MEMORY_HOME, else $DSH_HOME/memory)
@@ -85,7 +98,7 @@ const VALUE_FLAGS = new Set([
   'limit',
   'reason',
 ]);
-const BOOLEAN_FLAGS = new Set(['accept', 'json', 'help', 'version']);
+const BOOLEAN_FLAGS = new Set(['accept', 'batch', 'json', 'help', 'version', 'seal-user']);
 const KINDS: readonly Kind[] = ['fact', 'pitfall', 'exp'];
 
 class UsageError extends Error {
@@ -143,6 +156,10 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
         return commandRecall(parsed, io);
       case 'adopt':
         return commandAdopt(parsed, io);
+      case 'profile':
+        return commandProfile(parsed, io);
+      case 'scaffold':
+        return commandScaffold(parsed, io);
       case 'delete':
         return commandDelete(parsed, io);
       case 'rebuild':
@@ -151,6 +168,14 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
         return commandProposals(parsed, io);
       case 'decide':
         return commandDecide(parsed, io);
+      case 'inspect':
+        return commandInspect(parsed, io);
+      case 'export':
+        return commandExport(parsed, io);
+      case 'pack':
+        return commandExport(parsed, io);
+      case 'purge':
+        return commandPurge(parsed, io);
       case 'policy':
         if (subcommand !== 'seal') throw new UsageError('usage: mem policy seal [--home <dir>] --accept');
         return commandSeal(parsed, io);
@@ -215,6 +240,17 @@ function commandDoctor(parsed: ParsedArgs, io: CliIo): number {
     io.out(JSON.stringify({ ...doctorSummary(runtime), stats, quarantine: quarantined, issues: diagnostics.issues }, null, 2));
   } else {
     io.out(formatDoctor(runtime, stats, diagnostics.issues, quarantined));
+    const paths = memoryPaths(runtime.home);
+    const present = [paths.soulFile, paths.userFile, paths.rulesFile].filter((file) => existsSync(file)).length;
+    if (present < 3) {
+      io.err('hint: run `mem scaffold` to create SOUL.md / USER.md / RULES.md (persona, preferences, rules)');
+    }
+    const profile = loadProfile(runtime.home);
+    if (profile.chars > runtime.config.inject.user_max_chars) {
+      io.err(
+        `warning: USER.md is ${profile.chars} chars, over the ${runtime.config.inject.user_max_chars}-char injection budget (the injected copy is truncated)`,
+      );
+    }
   }
   if (diagnostics.issues.length > 0) {
     io.err('journal is inconsistent; writes are blocked until it is repaired');
@@ -356,6 +392,38 @@ function commandProposals(parsed: ParsedArgs, io: CliIo): number {
 }
 
 function commandDecide(parsed: ParsedArgs, io: CliIo): number {
+  const batch = parsed.flags.has('batch');
+  if (batch) {
+    const decision = parsed.positionals[1];
+    if (decision !== 'accept' && decision !== 'reject') {
+      throw new UsageError('mem decide --batch accept|reject');
+    }
+    if (decision === 'accept' && !parsed.flags.has('accept')) {
+      io.err('mem: accepting proposals needs --accept (human confirmation)');
+      return EXIT_CONFIRMATION_MISSING;
+    }
+    const runtime = openRuntime(parsed, io);
+    const store = openStore(runtime);
+    const pending = listProposals(store);
+    let failures = 0;
+    for (const proposal of pending) {
+      try {
+        decideProposal(
+          { store, config: runtime.config },
+          {
+            id: proposal.id,
+            decision,
+            ...(stringFlag(parsed, 'reason') === undefined ? {} : { reason: stringFlag(parsed, 'reason') }),
+          },
+        );
+      } catch (error) {
+        failures += 1;
+        io.err(`mem: ${proposal.id}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    io.out(`${decision === 'accept' ? 'accepted' : 'rejected'} ${pending.length - failures}/${pending.length}`);
+    return failures > 0 ? EXIT_REFUSED : EXIT_OK;
+  }
   const id = parsed.positionals[1];
   const decision = parsed.positionals[2];
   if (id === undefined || (decision !== 'accept' && decision !== 'reject')) {
@@ -374,9 +442,96 @@ function commandDecide(parsed: ParsedArgs, io: CliIo): number {
   return EXIT_OK;
 }
 
+function commandInspect(parsed: ParsedArgs, io: CliIo): number {
+  const runtime = openRuntime(parsed, io);
+  const store = openStore(runtime);
+  const limitText = stringFlag(parsed, 'limit');
+  const limit = limitText === undefined ? 10 : Number(limitText);
+  if (!Number.isSafeInteger(limit) || limit < 1) throw new UsageError('--limit must be a positive integer');
+  const report = inspectStore({ home: runtime.home, config: runtime.config, store, limit });
+  if (parsed.flags.has('json')) {
+    io.out(JSON.stringify(report, null, 2));
+    return EXIT_OK;
+  }
+  io.out(`records: ${report.active} active (fact ${report.byKind.fact}, pitfall ${report.byKind.pitfall}, exp ${report.byKind.exp})`);
+  io.out(`pending proposals: ${report.pendingProposals} · quarantined: ${report.quarantined.length}`);
+  io.out(`journal head: ${report.journalHead === null ? 'empty' : `#${report.journalHead.seq} ${report.journalHead.hash.slice(0, 12)}`}`);
+  io.out(`rules: ${report.rules.length === 0 ? '(none)' : ''}`);
+  for (const rule of report.rules) io.out(`  ${rule.number}. [${rule.category}] ${rule.text}`);
+  io.out('recent journal:');
+  for (const entry of report.journal) io.out(`  #${entry.seq} ${entry.at} ${entry.op} ${entry.op_id}`);
+  io.out(`budget: index ${report.budget.indexChars} chars · total ${report.budget.totalChars} chars`);
+  io.out(
+    `personalization: SOUL ${report.personalization.soul || 'missing'} · USER ${report.personalization.user || 'missing'} · RULES ${report.personalization.rules || 'missing'} chars`,
+  );
+  if (report.personalization.soul > report.inject.persona_max_chars) {
+    io.err(`warning: SOUL.md ${report.personalization.soul} chars, over the ${report.inject.persona_max_chars}-char injection budget (truncated on inject)`);
+  }
+  if (report.personalization.user > report.inject.user_max_chars) {
+    io.err(`warning: USER.md ${report.personalization.user} chars, over the ${report.inject.user_max_chars}-char injection budget (truncated on inject)`);
+  }
+  if (report.personalization.rules > report.inject.rules_max_chars) {
+    io.err(`warning: RULES.md ${report.personalization.rules} chars, over the ${report.inject.rules_max_chars}-char injection budget (injection fails)`);
+  }
+  return EXIT_OK;
+}
+
+function commandExport(parsed: ParsedArgs, io: CliIo): number {
+  const out = parsed.positionals[1];
+  if (out === undefined) throw new UsageError('mem export <dir>');
+  const runtime = openRuntime(parsed, io);
+  const result = exportStore({ home: runtime.home, out });
+  io.out(`exported ${result.files} files (${result.bytes} bytes) to ${result.out}`);
+  io.out(`checksums: ${result.sums}`);
+  return EXIT_OK;
+}
+
+function commandPurge(parsed: ParsedArgs, io: CliIo): number {
+  const id = parsed.positionals[1];
+  if (id === undefined) throw new UsageError('mem purge <id> --accept');
+  if (!parsed.flags.has('accept')) {
+    io.err('mem: purge needs --accept (human confirmation; this removes the file)');
+    return EXIT_CONFIRMATION_MISSING;
+  }
+  const runtime = openRuntime(parsed, io);
+  const result = openStore(runtime).purge(id, { reason: stringFlag(parsed, 'reason') ?? 'purge' });
+  io.out(`purged ${id} · invalidated ${result.proposals} pending proposal(s)`);
+  return EXIT_OK;
+}
+
+function commandProfile(parsed: ParsedArgs, io: CliIo): number {
+  const runtime = openRuntime(parsed, io);
+  const snapshot = loadProfile(runtime.home);
+  const query = parsed.positionals.slice(1).join(' ');
+  const entries = query.trim() === '' ? [...snapshot.entries] : queryProfile(snapshot.entries, query);
+  if (parsed.flags.has('json')) {
+    io.out(JSON.stringify({ entries, total: snapshot.entries.length, chars: snapshot.chars }, null, 2));
+    return EXIT_OK;
+  }
+  if (entries.length === 0) io.out('USER.md has no matching entries');
+  else {
+    io.out(`USER.md: ${snapshot.entries.length} entries / ${snapshot.chars} chars`);
+    entries.forEach((entry, index) => io.out(`${index + 1}. ${entry}`));
+  }
+  if (snapshot.chars > runtime.config.inject.user_max_chars) {
+    io.err(`warning: USER.md is ${snapshot.chars} chars, over the ${runtime.config.inject.user_max_chars}-char injection budget (truncated on inject)`);
+  }
+  return EXIT_OK;
+}
+
+function commandScaffold(parsed: ParsedArgs, io: CliIo): number {
+  const home = resolveHome({ home: stringFlag(parsed, 'home'), env: io.env, cwd: io.cwd });
+  const result = scaffoldPersonalization({ home });
+  if (result.created.length > 0) io.out(`created: ${result.created.join(', ')}`);
+  if (result.kept.length > 0) io.out(`kept: ${result.kept.join(', ')}`);
+  io.out(`policy sealed: ${result.sealSha256}`);
+  io.out('edit SOUL.md / USER.md / RULES.md, then run `mem policy seal --accept` to apply');
+  return EXIT_OK;
+}
+
 function commandSeal(parsed: ParsedArgs, io: CliIo): number {
   const home = resolveHome({ home: stringFlag(parsed, 'home'), env: io.env, cwd: io.cwd });
-  const seal = sealPolicy({ home, accept: parsed.flags.has('accept') });
+  const seal = sealPolicy({ home, accept: parsed.flags.has('accept'), sealUser: parsed.flags.has('seal-user') });
   io.out(`policy sealed: ${seal.sealPath}`);
   io.out(`  sha256: ${seal.sha256}`);
   const sealedCount = [seal.sealedFiles.soul, seal.sealedFiles.user, seal.sealedFiles.rules].filter(
@@ -473,7 +628,7 @@ function formatDoctor(
     `  config:   ${runtime.configPath ?? '(built-in defaults)'}`,
     `  policy:   sealed ${runtime.sealedAt || '(unknown)'} · sha256 ${shortHash(runtime.policySha256)}`,
     `  capacity: ${config.storage.max_records} records · ${config.storage.max_record_chars} chars/file`,
-    `  inject:   ${config.inject.total_max_chars} chars total (persona ${config.inject.persona_max_chars} / user ${config.inject.user_max_chars} / rules ${config.inject.rules_max_chars} / index ${config.inject.index_max_chars})`,
+    `  inject:   ${config.inject.total_max_chars} chars total (persona ${config.inject.persona_max_chars} / guidance ${config.inject.guidance_max_chars} / user ${config.inject.user_max_chars} / rules ${config.inject.rules_max_chars} / index ${config.inject.index_max_chars})`,
     `  recall:   ${config.recall.limit} hits (max ${config.recall.max_limit})`,
     `  journal:  ${stats.journal_head === null ? 'empty' : `#${stats.journal_head.seq} ${shortHash(stats.journal_head.hash)}`} · ${stats.journal_consistent ? 'consistent' : 'INCONSISTENT'}`,
     `  records:  ${stats.active} active · ${stats.total_files} files · ${stats.deleted} deleted`,

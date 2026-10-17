@@ -22,6 +22,8 @@ export interface StartupFailureInit {
   readonly details?: readonly string[];
   /** One-line next step for a human. */
   readonly hint?: string;
+  /** Exact command that repairs this failure; printed highlighted by `format()`. */
+  readonly fixCommand?: string;
   /** Machine-readable offending keys, for tests and tooling. */
   readonly keys?: readonly string[];
   /** File the failure came from, when there is one. */
@@ -32,6 +34,7 @@ export class StartupError extends Error {
   readonly code: StartupFailureCode;
   readonly details: readonly string[];
   readonly hint: string | undefined;
+  readonly fixCommand: string | undefined;
   readonly keys: readonly string[];
   readonly sourcePath: string | undefined;
 
@@ -41,6 +44,7 @@ export class StartupError extends Error {
     this.code = code;
     this.details = init.details ?? [];
     this.hint = init.hint;
+    this.fixCommand = init.fixCommand;
     this.keys = init.keys ?? [];
     this.sourcePath = init.sourcePath;
   }
@@ -50,6 +54,13 @@ export class StartupError extends Error {
     const lines = [`Agent Memory startup failed [${this.code}]: ${this.message}`];
     if (this.sourcePath !== undefined) lines.push(`  file: ${this.sourcePath}`);
     for (const detail of this.details) lines.push(`  - ${detail}`);
+    if (this.fixCommand !== undefined) {
+      // Deliberately loud: the human must see the exact repair command even when
+      // this text is shown inside a desktop card or a chat transcript.
+      lines.push('', '  ================  REQUIRED ACTION  ================');
+      lines.push(`  >>> RUN THIS COMMAND:  ${this.fixCommand}`);
+      lines.push('  ===================================================');
+    }
     if (this.hint !== undefined) lines.push(`  hint: ${this.hint}`);
     return lines.join('\n');
   }

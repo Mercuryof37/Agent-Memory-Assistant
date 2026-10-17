@@ -19,6 +19,7 @@ import type {
   RecallHit,
   RebuildReport,
   RecordInput,
+  ProvenanceEntry,
   Stats,
   WriteResult,
 } from '../model/types.ts';
@@ -146,27 +147,41 @@ export class MemoryStore {
       }
     }
 
-    // A journal record whose file is gone is not usable either.
+    // A journal record whose file is gone is not usable either — unless the
+    // journal also records a delete/purge for it (a tombstone is not corruption).
     for (const id of this.accounted.keys()) {
+      if (this.deleted.has(id)) continue;
       if (!this.docs.has(id) && !this.quarantined.has(id)) {
         this.quarantined.set(id, 'accounted in journal but file is missing');
       }
     }
 
     // Tripwire: the manifest records where the journal ended after the last
-    // successful rebuild. A shorter journal now means truncation, not progress.
+    // successful rebuild. A *shorter* journal now means truncation, not progress.
+    // A *longer* journal means a writer appended without refreshing the
+    // manifest (the chain is intact), which is a stale derived file, not
+    // truncation — the next `writeDerived` catches up.
     try {
       const manifest = JSON.parse(readFileSync(this.paths.manifestFile, 'utf8')) as {
         journal_head?: { seq?: number; hash?: string } | null;
       };
       const expected = manifest.journal_head;
-      if (expected === null || expected === undefined) {
-        // No head recorded yet; nothing to compare.
+      const expectedSeq = expected?.seq;
+      const expectedHash = expected?.hash;
+      if (expectedSeq === undefined || expectedHash === undefined) {
+        // No complete head recorded yet; nothing to compare.
       } else if (this.head === null) {
         this.issues.push('journal is empty but the manifest records a head: possible truncation');
-      } else if (expected.seq !== this.head.seq || expected.hash !== this.head.hash) {
+      } else if (expectedSeq !== this.head.seq) {
+        if (expectedSeq > this.head.seq) {
+          this.issues.push(
+            `journal head #${this.head.seq} is behind the manifest (#${String(expectedSeq)}): possible truncation`,
+          );
+        }
+        // expectedSeq < this.head.seq: stale manifest, self-heals on write.
+      } else if (expectedHash !== this.head.hash) {
         this.issues.push(
-          `journal head #${this.head.seq} differs from the manifest (#${String(expected.seq)}): possible truncation`,
+          `journal head #${this.head.seq} differs from the manifest (#${String(expectedSeq)}): possible truncation`,
         );
       }
     } catch {
@@ -180,6 +195,10 @@ export class MemoryStore {
   }
 
   read(id: MemoryId): MemoryDoc {
+    // The host keeps one store open for the app process; `mem decide` / `mem add`
+    // write disk underneath it. Re-scan before a single-document read so a
+    // record created by the CLI is immediately readable through `memory_read`.
+    this.reload();
     const doc = this.docs.get(id);
     if (doc === undefined) {
       const reason = this.quarantined.get(id);
@@ -197,6 +216,11 @@ export class MemoryStore {
   ): RecallResult {
     const text = query.trim();
     if (text === '') return { hits: [], warnings: ['empty query'] };
+    // The host keeps one store open for the whole app process; `mem decide` and
+    // other CLI writes change disk underneath it. Re-scan so recall reflects
+    // them immediately (plan v1.3 §6.1: recall stays live while the catalog is
+    // frozen).
+    this.reload();
     const date = options.asOf ?? today(this.now());
     const limit = Math.min(
       options.limit ?? this.config.recall.limit,
@@ -249,7 +273,10 @@ export class MemoryStore {
    * binding arrives with the DSH adapter in S4. Duplicate content returns the
    * existing id without touching its file (plan v1.3 §5.4).
    */
-  add(input: RecordInput, options: { author: 'agent' | 'human'; opId?: string }): WriteResult {
+  add(
+    input: RecordInput,
+    options: { author: 'agent' | 'human'; opId?: string; provenance?: readonly ProvenanceEntry[] },
+  ): WriteResult {
     this.validateInput(input);
     const lock = acquireLock({
       file: this.paths.lockFile,
@@ -298,7 +325,7 @@ export class MemoryStore {
         author: options.author,
         evidence_level: input.evidence_level,
         error_signatures: input.error_signatures ?? [],
-        provenance: [],
+        provenance: options.provenance ?? [],
         body: input.body,
       };
       const text = serializeMemory(doc);
@@ -458,7 +485,10 @@ export class MemoryStore {
    * supersede leaves no half-applied replacement (S4.4).
    */
   addMany(
-    inputs: readonly (RecordInput & { readonly supersedes?: readonly MemoryId[] })[],
+    inputs: readonly (RecordInput & {
+      readonly supersedes?: readonly MemoryId[];
+      readonly provenance?: readonly ProvenanceEntry[];
+    })[],
     options: { author: 'agent' | 'human'; opId?: string },
   ): WriteResult[] {
     if (inputs.length === 0) return [];
@@ -499,7 +529,7 @@ export class MemoryStore {
           author: options.author,
           evidence_level: input.evidence_level,
           error_signatures: input.error_signatures ?? [],
-          provenance: [],
+          provenance: input.provenance ?? [],
           body: input.body,
         };
         return { id, text: serializeMemory(doc), hash: '', kind: doc.kind };
@@ -565,6 +595,67 @@ export class MemoryStore {
       this.reload();
       this.writeDerived();
       this.reload();
+    } finally {
+      lock.release();
+    }
+  }
+
+  /** Audit append for non-store writers (snapshot capture): refreshes the manifest head too. */
+  appendAudit(data: Readonly<Record<string, unknown>>): void {
+    this.appendJournal('audit', data);
+  }
+
+  /** Physically remove one memory (human T2): tombstone in journal, file gone. */
+  purge(id: MemoryId, options: { reason: string }): { removed: boolean; proposals: number } {
+    if (!isMemoryId(id)) throw new MemoryStoreError('INVALID', `"${id}" is not a memory id`);
+    const lock = acquireLock({
+      file: this.paths.lockFile,
+      config: {
+        heartbeatMs: this.config.lock.heartbeat_ms,
+        staleMs: this.config.lock.stale_ms,
+        timeoutMs: this.config.lock.timeout_ms,
+      },
+      now: () => this.now().getTime(),
+    });
+    try {
+      this.reload();
+      const file = this.findMemoryFile(id);
+      if (file === undefined) throw new MemoryStoreError('NOT_FOUND', `no memory file for ${id}`);
+      const doc = this.docs.get(id);
+      this.journal.append({
+        op: 'delete',
+        data: { id, purged: true, reason: options.reason, sha256: doc?.content_hash ?? '' },
+      });
+      rmSync(file, { force: true });
+
+      let proposals = 0;
+      let names: string[] = [];
+      try {
+        names = readdirSync(this.paths.pendingDir).filter((name) => name.endsWith('.json'));
+      } catch {
+        names = [];
+      }
+      for (const name of names) {
+        const path = join(this.paths.pendingDir, name);
+        try {
+          const proposal = JSON.parse(readFileSync(path, 'utf8')) as { id?: string; targets?: unknown };
+          if (Array.isArray(proposal.targets) && proposal.targets.includes(id)) {
+            rmSync(path, { force: true });
+            this.journal.append({
+              op: 'audit',
+              data: { event: 'proposal-invalidated', proposal: proposal.id ?? name, target: id },
+            });
+            proposals += 1;
+          }
+        } catch {
+          // A corrupt pending file is left for `doctor`, not silently deleted.
+        }
+      }
+
+      this.reload();
+      this.writeDerived();
+      this.reload();
+      return { removed: true, proposals };
     } finally {
       lock.release();
     }

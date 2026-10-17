@@ -46,12 +46,21 @@ export interface RecordInput {
   readonly evidence?: readonly { readonly event_seq: number; readonly quote: string }[];
 }
 
+/**
+ * A supersede replacement may carry provenance bound at propose time (verified
+ * against the proposing session). The evidence survives into the record on
+ * accept, so "证据可核验" is not lost at the pending-file boundary.
+ */
+export interface ProposalReplacement extends RecordInput {
+  readonly provenance?: readonly ProvenanceEntry[];
+}
+
 export type ProposalInput =
   | {
       readonly op: 'supersede';
       readonly targets: readonly MemoryId[];
       readonly base_hashes: readonly string[];
-      readonly replacements: readonly RecordInput[];
+      readonly replacements: readonly ProposalReplacement[];
       readonly reason?: string;
     }
   | {

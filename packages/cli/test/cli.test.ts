@@ -44,7 +44,7 @@ test('init creates the store and doctor verifies it', async (t) => {
   const doctor = await mem(['doctor', '--home', home]);
   assert.equal(doctor.code, 0);
   assert.match(doctor.stdout, /store check/);
-  assert.match(doctor.stdout, /3700 chars total/);
+  assert.match(doctor.stdout, /4000 chars total/);
 });
 
 test('init is idempotent and never overwrites human edits', async (t) => {
@@ -78,7 +78,7 @@ test('an unknown config key exits 2 and names the key and line', async (t) => {
   assert.equal(result.code, 2);
   assert.match(result.stderr, /CONFIG_INVALID/);
   assert.match(result.stderr, /recall\.limits/);
-  assert.match(result.stderr, /line 27/);
+  assert.match(result.stderr, /line \d+/);
 });
 
 test('a tampered policy exits 2 and reports both hashes', async (t) => {
