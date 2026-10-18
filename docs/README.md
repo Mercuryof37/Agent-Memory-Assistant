@@ -28,6 +28,7 @@
 - [V2 方案](plan/v2-gui-and-distribution.md) · [架构审核](plan/v2-architecture-review.md)
 - [V3 方案](plan/v3-visual-and-workflows.md)
 - [V4 方向调研](plan/v4-directions.md)
+- [ONNX 必要性调研](plan/onnx-necessity.md)
 - [待办](plan/todo.md) · [开放问题](plan/open-questions.md) · [阶段状态](plan/status.md)
 
 ## 发布
