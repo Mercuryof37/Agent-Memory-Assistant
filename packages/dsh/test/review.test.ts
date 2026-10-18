@@ -70,8 +70,7 @@ function deps(overrides: Partial<ReviewDeps> = {}): ReviewDeps {
   return { store: {} as never, config: {} as never, home: '.', ...overrides };
 }
 
-test('S9.1 the card shows the proposal content and three Chinese choices', () => {
-  const question = buildReviewQuestion(PROPOSAL);
+test('S9.1 the card shows the proposal content and three Chinese choices', () => {  const question = buildReviewQuestion(PROPOSAL);
   assert.equal(question.header, '记忆提案');
   assert.match(question.question, /是否采纳提案 prop-mem-20261017-00000001/);
   assert.match(question.detail, /新的结论/);
@@ -151,6 +150,20 @@ test('S9.1 驳回 converts to reject; 暂不处理 and free text defer without a
     'defer',
   );
   assert.equal(custom.requests.length, 0);
+});
+
+test('S9.1 an answer for a different proposal cannot approve this one', async () => {
+  const questions = fakeQuestions({ answers: [{ id: 'prop-other', selected: [REVIEW_LABELS.accept] }] });
+  const commands = fakeCommands();
+  const outcome = await reviewProposal(
+    deps({ userQuestions: questions.service, commands: commands.service }),
+    PROPOSAL,
+    { agent: {}, callId: 'call-mismatch' },
+  );
+  assert.equal(outcome.decision, 'defer');
+  assert.equal(outcome.command, undefined);
+  assert.equal(commands.lines.length, 0);
+  assert.match(outcome.message, /不属于当前提案/);
 });
 
 test('S9.1 no interaction surface leaves the proposal pending instead of deciding', async () => {

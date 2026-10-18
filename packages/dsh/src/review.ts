@@ -1,5 +1,6 @@
 import type { Config } from '../../core/src/config/config.ts';
 import type { Proposal } from '../../core/src/proposals/proposals.ts';
+import { listProposals } from '../../core/src/proposals/proposals.ts';
 import { runHumanCommand, type HumanCommandResult } from '../../core/src/human/command.ts';
 import type { MemoryStore } from '../../core/src/store/store.ts';
 
@@ -178,10 +179,16 @@ export async function reviewProposal(
     ...(exec.callId === undefined ? {} : { wait: { callId: exec.callId } }),
   });
   const decision = decisionFromAnswer(answer);
+  if (answer.answers[0]?.id !== proposal.id) {
+    return { decision: 'defer', message: '收到的审批答复不属于当前提案，提案保留待审' };
+  }
   const line = commandForDecision(proposal.id, decision);
   if (line === undefined) {
     return { decision, message: '已暂缓，提案继续待审' };
   }
   const result = await executeCommandLine(deps, exec.agent, line, exec.signal);
+  if (result.ok && listProposals(deps.store).some((entry) => entry.id === proposal.id)) {
+    return { decision, command: line, result, message: '审批命令已执行，但提案仍在待审；请刷新后重试' };
+  }
   return { decision, command: line, result, message: result.text };
 }

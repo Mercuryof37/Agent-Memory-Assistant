@@ -282,7 +282,7 @@ const TOOL_DESCRIPTIONS: Readonly<Record<ToolName, string>> = {
   memory_recall: '检索长期记忆：按查询返回相关摘要与记忆编号',
   memory_read: '读取一条记忆的全文、出处与状态',
   memory_record: '写入一条新记忆（必须给出真实事件出处）',
-  memory_propose: '提出记忆修订或删除提案，等待人确认',
+  memory_propose: '提出记忆修订或删除提案；只创建待审提案，不自动审批',
   memory_review: '为待审提案弹出中文审批卡片',
   memory_context: '查看当前会话最近事件，取得可用于出处的 event_seq',
   rules_list: '列出当前生效的规则',
@@ -338,10 +338,10 @@ const TOOL_DESCRIPTIONS: Readonly<Record<ToolName, string>> = {
       if (service.mode === 'readonly') {
         throw new ToolInputError('当前为 readonly 模式：只能读取记忆，不能提出修改');
       }
-      const proposal = (await service.propose(args, actor, exec)) as { id?: string };
-      if (hooks.reviewProposal === undefined) return proposal;
-      const review = await hooks.reviewProposal(proposal, exec);
-      return { proposal, review };
+      // Deliberately do NOT open a review card here. Approval is a separate
+      // human action (proposal page or memory_review); creating a proposal must
+      // never be able to select an option on the human's behalf.
+      return service.propose(args, actor, exec);
     },
     memory_review: async (args, exec) => {
       if (hooks.reviewPending === undefined) {

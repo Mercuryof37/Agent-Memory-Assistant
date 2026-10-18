@@ -6,7 +6,7 @@
  * spec; it never downloads or executes a caller-supplied URL.
  */
 
-export const PLUGIN_VERSION = '0.5.2';
+export const PLUGIN_VERSION = '0.5.3';
 const PACKAGE_NAME = '@agent_memory/dsh';
 const REGISTRY_LATEST = [
   'https://registry.npmjs.org/@agent_memory%2Fdsh/latest',

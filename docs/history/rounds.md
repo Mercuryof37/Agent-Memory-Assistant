@@ -438,3 +438,10 @@
 - 原因定位：更新路由未注册/旧进程未重启时，宿主返回纯文本 `not found`；客户端直接 `response.json()`。
 - 修复：服务端先读文本、校验 HTTP/JSON 并回退镜像；客户端防御性解析，提示完整重启 DSH。
 - 测试：S29.4 纯文本响应 → `non-JSON`；全量 294 pass + 1 skip。
+
+### 第 52 轮 · 0.5.3 审批门禁加固（2026-10-18）
+
+- 调查：本机 confirm；journal 无 cb219152 decide；无 DS-MEM-TEST-01 记忆。截图状态无法在本机复现为真实决策。
+- 风险：memory_propose 创建后立即弹卡并返回 review；宿主自动回答即可把创建和审批耦合。
+- 修复：memory_propose 只创建 pending；review answer id 必须匹配提案；decide 后复核 pending。
+- 测试：S9.1 改造 + answer 错配用例；全量 295 pass / 1 skip。

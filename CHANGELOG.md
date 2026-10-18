@@ -4,6 +4,16 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
+## [0.5.3] - 2026-10-18
+
+### Security
+
+- `memory_propose` now only creates a pending proposal; it no longer opens a
+  review card or returns a `review` decision in the same tool call.
+- A review answer whose question id does not match the proposal is discarded
+  (defer), and a successful decide is re-checked against the pending list before
+  reporting acceptance.
+
 ## [0.5.2] - 2026-10-18
 
 ### Fixed

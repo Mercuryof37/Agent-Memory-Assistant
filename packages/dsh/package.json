@@ -1,6 +1,6 @@
 {
   "name": "@agent_memory/dsh",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": false,
   "license": "MIT",
   "description": "Agent Memory plugin for DeepSeek Harness: local, file-per-memory long-term memory with human approval.",

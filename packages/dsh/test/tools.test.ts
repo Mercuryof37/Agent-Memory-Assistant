@@ -137,7 +137,7 @@ test('S4.2 the red-team argument table is rejected', () => {
   );
 });
 
-test('S9.1 memory_propose opens the review hook and memory_review reopens it', async () => {
+test('S9.1 memory_propose only creates a pending proposal; memory_review opens the card', async () => {
   const reviewed: unknown[] = [];
   const calls = register(fakeService(), 0, undefined, {
     reviewProposal: async (proposal) => {
@@ -154,8 +154,8 @@ test('S9.1 memory_propose opens the review hook and memory_review reopens it', a
     base_hashes: ['x'],
     reason: 'r',
   });
-  assert.deepEqual(result, { proposal: { id: 'prop-1' }, review: { decision: 'accept' } });
-  assert.equal(reviewed.length, 1);
+  assert.deepEqual(result, { id: 'prop-1' });
+  assert.equal(reviewed.length, 0);
 
   const review = calls.find((call) => call.name === 'memory_review');
   assert.ok(review);

@@ -38,6 +38,7 @@
 - [V5.1 更新公告](development/v5.1-announcement.md)
 - [V5.1 发布验收](development/release-verification-v5.1.md)
 - [0.5.2 修复验收](development/release-verification-v5.2.md)
+- [0.5.3 审批门禁验收](development/release-verification-v5.3.md)
 - [V5.0 发布验收](development/release-verification-v5.0.md)
 - [发布检查单](development/release.md)
 - [发布验收记录](development/release-verification.md)
