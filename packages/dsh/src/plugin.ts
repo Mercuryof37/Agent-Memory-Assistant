@@ -229,34 +229,43 @@ export function apply(ctx: PluginContextLike): void {
       resolveQuery: () => service<SessionQueryLike>(ctx, 'sessionQuery'),
       sessionId,
     });
-    // V2 P0 probe: one read-only exact Fetch route for the client panel. The
-    // host serves it under `/api`; the browser client fetches the same origin.
-    const registerStatusRoute = (connection: { fetch?: { register(route: unknown): unknown } }): void => {
-      connection.fetch?.register({
-        path: '/agent-memory/status',
-        methods: ['GET'],
-        requestBody: 'buffered',
-        fetch: async () => {
-          const stats = host.store.stats();
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              home,
-              active: stats.active,
-              pending: stats.pending_proposals,
-              journal_head: stats.journal_head,
-              mode: host.mode,
-            }),
-            {
-              status: 200,
-              headers: {
-                'content-type': 'application/json; charset=utf-8',
-                'cache-control': 'no-store',
-              },
+    // V2 P0 probe: one read-only exact Fetch route for the client panel. Exact
+    // routes own their full `/api/...` path (see dsh-api-session-controller).
+    const statusRoute = {
+      path: '/api/agent-memory/status',
+      methods: ['GET'],
+      requestBody: 'buffered',
+      fetch: async () => {
+        const stats = host.store.stats();
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            home,
+            active: stats.active,
+            pending: stats.pending_proposals,
+            journal_head: stats.journal_head,
+            mode: host.mode,
+          }),
+          {
+            status: 200,
+            headers: {
+              'content-type': 'application/json; charset=utf-8',
+              'cache-control': 'no-store',
             },
-          );
-        },
-      });
+          },
+        );
+      },
+    };
+    const registerStatusRoute = (connection: { fetch?: { register(route: unknown): unknown } }): void => {
+      const effectful = ctx as unknown as {
+        effect?: (install: () => unknown, label?: string) => unknown;
+      };
+      if (connection.fetch === undefined) return;
+      if (typeof effectful.effect === 'function') {
+        effectful.effect(() => connection.fetch?.register(statusRoute), 'agent-memory: status route');
+      } else {
+        connection.fetch.register(statusRoute);
+      }
     };
     const connectionNow = service<{ fetch?: { register(route: unknown): unknown } }>(ctx, 'connection');
     if (connectionNow !== undefined) registerStatusRoute(connectionNow);
