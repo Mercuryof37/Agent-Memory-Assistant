@@ -420,4 +420,12 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - 内置 skill `.dsh/skills/agent-memory-retro/SKILL.md`（本会话已可发现）；`/mem help` 列三条指令。
 - `ci` 全绿（**255 个测试**，`S17.1`–`S17.4`）；记录：[ADR-0031](docs/adr/0031-retro-skill-and-commands.md)。
 
+### 第 31 轮 · V3.2 正式发布与一键安装（2026-10-18）
+
+- **npm 元数据**：`@agent-memory/dsh@0.2.0`，`private:false`、MIT、repository/keywords/engines、`publishConfig`、包内 README/LICENSE。
+- **一键安装**：`node scripts/setup.mjs --apply`（备份 profile → pnpm add → 追加 bundle → 校验）；`--revert` 回滚；`npm run setup`。
+- **发布流水线**：`.github/workflows/release.yml`（tag → ci → pack → GitHub Release；变量 `NPM_PUBLISH=true` 时 `npm publish --provenance`）。
+- **文档**：`CHANGELOG.md`、[docs/release.md](docs/release.md) 发布检查单；`ci` 全绿（**257 个测试**，`S18.1`/`S18.2`）。
+- 记录：[ADR-0032](docs/adr/0032-v32-release.md)。
+
 

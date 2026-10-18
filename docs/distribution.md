@@ -1,6 +1,6 @@
-# 分发与安装（V2 P3）
+# 分发与安装（V3.2）
 
-> 目标：一个 `.tgz` 包，双击/插件页安装，失败可回滚。npm 正式发布留到下一版。
+> 目标：一个 `.tgz` 包或 npm 包，设置 → 插件一键安装，失败可回滚。发布检查单见 [release.md](release.md)。
 
 ## 1. 打包
 
@@ -8,7 +8,7 @@
 npm run pack
 ```
 
-产物：`release/agent-memory-dsh-<version>.tgz`（当前 `0.1.0`）。
+产物：`release/agent-memory-dsh-<version>.tgz`（当前 `0.2.0`）。
 
 包内必须包含三部分（`scripts/pack.mjs` 会检查）：
 
@@ -32,12 +32,30 @@ npm run pack
 ### 2.2 命令行
 
 ```powershell
-dsh plugin add "D:\Ai Agent\Agent Memory\release\agent-memory-dsh-0.1.0.tgz"
+dsh plugin add "D:\Ai Agent\Agent Memory\release\agent-memory-dsh-0.2.0.tgz"
 ```
 
 DSH 会写入当前 profile 的 `package.json` 并执行安装；用 `dsh plugin list` 确认。
 
-### 2.3 开发期链接（不用打包）
+### 2.3 一键安装脚本
+
+```powershell
+node scripts/setup.mjs            # dry run
+node scripts/setup.mjs --apply    # 备份 → pnpm add → 追加 bundle
+node scripts/setup.mjs --revert "<backupDir>"
+```
+
+`setup` 会在 profile 的 `.backups/agent-memory-<timestamp>/` 留备份，适合没有 UI 的机器；
+桌面 profile 由 Electron 独占管理，脚本模拟插件页动作，失败可按提示回滚。
+
+### 2.4 npm（发布后）
+
+```powershell
+npm install -g @agent-memory/dsh
+# 或在插件页输入包名 @agent-memory/dsh
+```
+
+### 2.5 开发期链接（不用打包）
 
 ```powershell
 npm run plugin:install     # 链接 packages/dsh 到 desktop profile

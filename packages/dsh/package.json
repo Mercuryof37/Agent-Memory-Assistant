@@ -1,8 +1,32 @@
 {
   "name": "@agent-memory/dsh",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Agent Memory plugin for DeepSeek Harness: local memory with a frozen injection snapshot.",
+  "version": "0.2.0",
+  "private": false,
+  "license": "MIT",
+  "description": "Agent Memory plugin for DeepSeek Harness: local, file-per-memory long-term memory with human approval.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "memory",
+    "agent-memory",
+    "local-first"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mercuryof37/Agent-Memory-Assistant.git",
+    "directory": "packages/dsh"
+  },
+  "homepage": "https://github.com/Mercuryof37/Agent-Memory-Assistant#readme",
+  "bugs": {
+    "url": "https://github.com/Mercuryof37/Agent-Memory-Assistant/issues"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/plugin.mjs",
   "exports": {
@@ -14,7 +38,9 @@
     "dist",
     "client/client.js",
     "cordis.patch.yml",
-    "locale/*.json"
+    "locale/*.json",
+    "README.md",
+    "LICENSE"
   ],
   "dsh": {
     "bundle": {
