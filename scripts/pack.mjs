@@ -8,7 +8,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -17,11 +17,21 @@ const releaseDir = join(root, 'release');
 execFileSync(process.execPath, [join(root, 'scripts', 'build.mjs')], { stdio: 'inherit' });
 mkdirSync(releaseDir, { recursive: true });
 
-// Run npm through its CLI entry so paths with spaces need no shell quoting.
-const npmCli = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
-const pack = existsSync(npmCli)
-  ? () => execFileSync(process.execPath, [npmCli, 'pack', join(root, 'packages', 'dsh'), '--pack-destination', releaseDir], { stdio: 'inherit' })
-  : () => execFileSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `npm pack "${join(root, 'packages', 'dsh')}" --pack-destination "${releaseDir}"`], { stdio: 'inherit' });
+// Resolve npm portably: `npm run pack` exports npm_execpath; a direct call
+// falls back to the npm on PATH (Linux CI) or npm.cmd (Windows).
+const npmCli = process.env.npm_execpath;
+const packageDir = join(root, 'packages', 'dsh');
+const pack = () => {
+  if (npmCli !== undefined && existsSync(npmCli)) {
+    execFileSync(process.execPath, [npmCli, 'pack', packageDir, '--pack-destination', releaseDir], { stdio: 'inherit' });
+    return;
+  }
+  if (process.platform === 'win32') {
+    execFileSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `npm pack "${packageDir}" --pack-destination "${releaseDir}"`], { stdio: 'inherit' });
+    return;
+  }
+  execFileSync('npm', ['pack', packageDir, '--pack-destination', releaseDir], { stdio: 'inherit' });
+};
 pack();
 
 const tarballs = readdirSync(releaseDir)
