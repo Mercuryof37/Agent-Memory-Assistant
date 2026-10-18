@@ -82,6 +82,8 @@ mem policy seal [--home <dir>] --accept [--seal-user]
   memories/<kind>/<id>.md
   proposals/pending/<id>.json
   .state/journal/                # 哈希链
+  .state/checkpoint.json         # S2：checkpoint 状态（HMAC）
+  .state/checkpoint.key          # S2：本机 HMAC 密钥（备份包含）
   .index/                        # manifest、embeddings.json（派生）
   .state/snapshots/
 ```

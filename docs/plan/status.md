@@ -26,6 +26,14 @@ V1.0 已完成；V2/V3 的功能迭代见 [开发历程](../history/rounds.md) �
 | V4.0-S3 | Mem0 导入、Memory API v1、MCP 对齐 | ✅ 完成 | [ADR-0037](../adr/0037-v4-s3-interop.md) |
 | V4.0-S4 | 工作树 L0–L2、焦点局部图、冲突提示、项目删除/多选移动 | ✅ 完成 | [ADR-0038](../adr/0038-v4-s4-worktree.md) / [0039](../adr/0039-project-lifecycle.md) |
 
+## V5.0（进行中）
+
+| 阶段 | 内容 | 状态 | 记录 |
+|---|---|---|---|
+| V5.0-S1 | doctor 指标、压测基线、崩溃点测试 | ✅ 完成 | — |
+| V5.0-S2 | checkpoint + 尾部重放 + Merkle/HMAC | ✅ 完成 | [ADR-0040](../adr/0040-v5-checkpoint.md) |
+| V5.0-S3 | 归档/保留/自动维护 | 待开始 | — |
+
 ## 闭环检查
 
 `scripts/closure.mjs`（已并入阶段门禁）机械确认：

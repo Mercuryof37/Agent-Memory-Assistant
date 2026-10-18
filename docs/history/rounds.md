@@ -386,3 +386,11 @@
 - **基准确认**：200 条 41ms/条、reload 8.4ms、recall P95 18.7ms；1000 条 177ms/条、reload 102ms、recall 130ms → 每次写入全量 reload 是主要瓶颈。
 - **故障注入**：S24.1–S24.3 覆盖 before-write / before-journal / before-derived 三个崩溃点；before-journal 遗留文件可 quarantined + adopt。
 - **脚本**：`scripts/bench.mjs`（默认 1000，10k 手动）；不进 CI。
+
+### 第 45 轮 · V5.0-S2 checkpoint 与尾部重放（2026-10-18）
+
+- **checkpoint**：`.state/checkpoint.json` 保存 journal head、docs(id→sha,deleted)、Merkle roots；默认 HMAC，密钥 `.state/checkpoint.key`。
+- **启动**：验证 HMAC/docs_root 后，从 checkpoint 所在 segment 读尾部；旧 segment 跳过，尾部接不上 checkpoint 则报 truncation。
+- **自动**：writeDerived 后每 ≥200 行写一次；rebuild 强制；`store.checkpoint()` 供测试/维护。
+- **测试**：S25.1 checkpoint+tail、S25.2 篡改 HMAC、S25.3 Merkle 确定性；全量 287 tests 绿。
+- **文档**：ADR-0040、V5 阶段表、开发者手册。

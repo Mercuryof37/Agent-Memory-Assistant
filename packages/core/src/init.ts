@@ -4,6 +4,7 @@ import { ensureDir, writeFileAtomic } from './fs/atomic.ts';
 import { assertSafeHome, layoutDirectories, memoryPaths } from './paths.ts';
 import { POLICY_TEMPLATE, sealIfNeeded } from './policy/policy.ts';
 import { ensureProjectsFile } from './projects/projects.ts';
+import { ensureCheckpointKey } from './journal/checkpoint.ts';
 
 export interface InitResult {
   readonly home: string;
@@ -46,6 +47,11 @@ export function initStore(options: { home: string; now?: Date }): InitResult {
 
   if (!ensureProjectsFile(paths.home)) keptFiles.push(paths.projectsFile);
   else createdFiles.push(paths.projectsFile);
+
+  const hadCheckpointKey = existsSync(paths.checkpointKeyFile);
+  ensureCheckpointKey(paths.home);
+  if (hadCheckpointKey) keptFiles.push(paths.checkpointKeyFile);
+  else createdFiles.push(paths.checkpointKeyFile);
 
   const hadSeal = existsSync(paths.sealFile);
   const seal = sealIfNeeded({ home: paths.home, ...(options.now === undefined ? {} : { now: options.now }) });

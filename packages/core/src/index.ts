@@ -22,6 +22,7 @@ export * from './model/frontmatter.ts';
 export * from './model/metadata.ts';
 export * from './model/validity.ts';
 export * from './journal/journal.ts';
+export * from './journal/checkpoint.ts';
 export * from './store/store.ts';
 export * from './index/tokenizer.ts';
 export * from './index/bm25.ts';

@@ -178,6 +178,60 @@ export class Journal {
     return { segments: segments.length, lines, bytes, first_seq: firstSeq, last_seq: lastSeq, largest_segment_bytes: largest };
   }
 
+  /**
+   * Replay only entries after a checkpoint. Old lines are skipped without JSON
+   * parsing; the checkpoint's last line hash is the expected `prev`.
+   */
+  readAfter(afterSeq: number, prevHash: string, fromSegment?: string): JournalReadResult {
+    if (afterSeq === 0) return this.readAll();
+    const allSegments = this.segments();
+    const start = fromSegment === undefined ? 0 : allSegments.indexOf(fromSegment);
+    const segments = start < 0 ? allSegments : allSegments.slice(start);
+    const entries: JournalEntry[] = [];
+    const hashes: string[] = [];
+    const issues: JournalIssue[] = [];
+    let expectedSeq = afterSeq + 1;
+    let prev = prevHash;
+    let seenTail = false;
+    for (const name of segments) {
+      const text = readFileSync(join(this.dir, name), 'utf8');
+      for (const line of text.split('\n')) {
+        if (line === '') continue;
+        const seqMatch = /^\{"seq":(\d+)/.exec(line);
+        if (seqMatch !== null && Number(seqMatch[1]) <= afterSeq) continue;
+        let entry: JournalEntry;
+        try {
+          entry = JSON.parse(line) as JournalEntry;
+        } catch {
+          issues.push({ kind: 'parse', message: `${name}: line is not valid JSON`, seq: expectedSeq });
+          return { entries, hashes, issues, head: { seq: afterSeq, hash: prevHash } };
+        }
+        if (entry.seq !== expectedSeq) {
+          issues.push({
+            kind: 'seq',
+            message: `${name}: expected seq ${expectedSeq}, found ${entry.seq}`,
+            seq: entry.seq,
+          });
+        }
+        if (entry.prev !== prev) {
+          issues.push({
+            kind: 'chain',
+            message: `${name}: seq ${entry.seq} prev does not match the checkpoint/previous line`,
+            seq: entry.seq,
+          });
+        }
+        const hash = hashLine(line);
+        entries.push(entry);
+        hashes.push(hash);
+        expectedSeq = entry.seq + 1;
+        prev = hash;
+        seenTail = true;
+      }
+    }
+    const head = seenTail ? { seq: expectedSeq - 1, hash: prev } : { seq: afterSeq, hash: prevHash };
+    return { entries, hashes, issues, head };
+  }
+
   findByOpId(opId: string): JournalEntry | undefined {
     return this.readAll().entries.find((entry) => entry.op_id === opId);
   }

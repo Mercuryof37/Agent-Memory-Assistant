@@ -62,6 +62,8 @@ export interface MemoryPaths {
   readonly manifestFile: string;
   readonly stateDir: string;
   readonly journalDir: string;
+  readonly checkpointFile: string;
+  readonly checkpointKeyFile: string;
   readonly txnDir: string;
   readonly snapshotsDir: string;
 }
@@ -85,6 +87,8 @@ export function memoryPaths(home: string): MemoryPaths {
     manifestFile: join(home, '.index', 'manifest.json'),
     stateDir: join(home, '.state'),
     journalDir: join(home, '.state', 'journal'),
+    checkpointFile: join(home, '.state', 'checkpoint.json'),
+    checkpointKeyFile: join(home, '.state', 'checkpoint.key'),
     txnDir: join(home, '.state', 'txn'),
     snapshotsDir: join(home, '.state', 'snapshots'),
   };
