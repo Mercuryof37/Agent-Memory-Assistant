@@ -266,6 +266,11 @@ export function apply(ctx: PluginContextLike): void {
       } else {
         connection.fetch.register(statusRoute);
       }
+      try {
+        host.store.appendAudit({ event: 'gui-route', state: 'registered', path: statusRoute.path });
+      } catch {
+        // Journal problems are reported by `mem doctor`.
+      }
     };
     const connectionNow = service<{ fetch?: { register(route: unknown): unknown } }>(ctx, 'connection');
     if (connectionNow !== undefined) registerStatusRoute(connectionNow);
@@ -273,9 +278,21 @@ export function apply(ctx: PluginContextLike): void {
       (ctx as unknown as {
         inject?: (deps: string[], callback: (child: unknown) => void) => unknown;
       }).inject?.(['connection'], (child) => {
-        const connection = child as { fetch?: { register(route: unknown): unknown } };
-        if (connection.fetch !== undefined) registerStatusRoute(connection);
+        // The injected child is a Context; the service hangs off `.connection`,
+        // not off the child itself (the previous cast looked one level too high).
+        const connection = (child as { connection?: { fetch?: { register(route: unknown): unknown } } })
+          .connection;
+        if (connection !== undefined) registerStatusRoute(connection);
       });
+    }
+    try {
+      host.store.appendAudit({
+        event: 'gui-route',
+        path: statusRoute.path,
+        at: connectionNow !== undefined ? 'apply' : 'deferred',
+      });
+    } catch {
+      // A journal problem is reported by `mem doctor`; the panel can still load.
     }
     try {
       const prompt = service<PromptRegistryLike>(ctx, 'systemPrompt');
