@@ -53,13 +53,19 @@ SHA256 526FD7AF6703F516FFA1B41A1E079E48E5628903633E4EC70118B7D87BA89E79
 
 - `.github/workflows/release.yml`：tag `v*` → ci → pack → 上传 artifact → GitHub Release；
 - 发布 job：仓库变量 `NPM_PUBLISH=true` 时 `npm publish --provenance`，已加 `id-token: write`（provenance 必需）与 `NPM_TOKEN`；
-- **未执行** tag / npm publish（需要凭据与你的发布决定）。
+- **2026-10-18 CI 结果**：run #5（`f3a69a3` / tag `v0.2.0`）**Success**，21s；artifact `agent-memory-tgz` 181 KB，`sha256:a3eff4398b8105927e84546ac1faeef6285a988c4b81ce17e6162bf7cde047f8`；
+- npm publish job 未运行（未设 `NPM_PUBLISH=true`）。
+
+### CI 平台修复记录（三次失败 → 通过）
+
+1. `package-lock.json` 的 workspace 版本仍是 0.1.0 → 刷新到 0.2.0；
+2. `startup.test.ts` 写死 Windows 路径 → 改为按平台取绝对路径；
+3. `build.mjs` 在 Linux 上找错 esbuild 位置（实际在 `@esbuild/linux-x64/bin/esbuild`）→ 依次探测 `bin/`、包根、`.bin`；`pack.mjs` 的 npm 解析同时改为 `npm_execpath`/PATH，兼容 Linux。
 
 ## 6. 待人工完成
 
-1. 设 设置 → 插件 用 0.2.0 tgz 在干净 profile 装/卸/回滚各一次（最终 UX 验收）；
-2. `git tag v0.2.0 && git push origin v0.2.0` 触发 Release；
-3. `npm login` 后 `npm publish ./packages/dsh --provenance --access public`（或配 `NPM_TOKEN` + `NPM_PUBLISH=true`）。
+1. 设置 → 插件 用 0.2.0 tgz 在干净 profile 装/卸/回滚各一次（最终 UX 验收）；
+2. `npm login` 后 `npm publish ./packages/dsh --provenance --access public`（或配 `NPM_TOKEN` + `NPM_PUBLISH=true`）。
 
 ## 7. 已知限制
 
