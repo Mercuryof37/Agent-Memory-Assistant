@@ -25,6 +25,10 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /detail\.data\.serial/);
   assert.match(source, /target\.display/);
   assert.match(source, /replacement\.display/);
+  // Proposal cards must expose the full content behind a toggle, not only the summary.
+  assert.match(source, /查看详情/);
+  assert.match(source, /目标全文/);
+  assert.match(source, /修改后摘要/);
   assert.ok(!/detail\.data\.id\s*\}?\s*·/.test(source));
   // The workbench owns a viewport-height scroll container with a styled rail;
   // the host panel does not scroll in windowed mode.

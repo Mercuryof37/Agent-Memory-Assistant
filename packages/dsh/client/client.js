@@ -246,6 +246,7 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = React.useState("");
       const [busy, setBusy] = React.useState(false);
       const [revise, setRevise] = React.useState(null);
+      const [expandedProposal, setExpandedProposal] = React.useState(null);
 
       // Own the scroll viewport: the host page container does not scroll in a
       // windowed desktop window, so measure the distance from the panel top to
@@ -520,9 +521,48 @@ window.__ModuleLoader__.load({
                           `新内容：${replacement.display || replacement.abstract}`,
                         ),
                       ),
+                      expandedProposal === proposal.id
+                        ? React.createElement(
+                            "div",
+                            { style: { ...styles.card, marginTop: "10px", background: "var(--dsw-hover, #f9fafb)" } },
+                            proposal.targets.map((target, index) =>
+                              React.createElement(
+                                "p",
+                                { key: `t-${index}`, style: { ...styles.small, margin: "0 0 6px" } },
+                                `目标全文：${target.abstract}`,
+                              ),
+                            ),
+                            proposal.replacements.map((replacement, index) =>
+                              React.createElement(
+                                "div",
+                                { key: `r-${index}`, style: { marginTop: "8px" } },
+                                React.createElement(
+                                  "p",
+                                  { style: { ...styles.small, margin: "0 0 4px" } },
+                                  `修改后摘要（${KIND_STYLE[replacement.kind] ? KIND_STYLE[replacement.kind].label : replacement.kind}）：${replacement.abstract}`,
+                                ),
+                                React.createElement("pre", { style: styles.body }, replacement.body || "（正文为空）"),
+                              ),
+                            ),
+                            React.createElement(
+                              "p",
+                              { style: { ...styles.small, margin: "8px 0 0" } },
+                              `理由：${proposal.reason || "（无说明）"}`,
+                            ),
+                          )
+                        : null,
                       React.createElement(
                         "div",
                         { style: styles.actions },
+                        React.createElement(
+                          "button",
+                          {
+                            style: styles.button,
+                            onClick: () =>
+                              setExpandedProposal(expandedProposal === proposal.id ? null : proposal.id),
+                          },
+                          expandedProposal === proposal.id ? "收起详情" : "查看详情",
+                        ),
                         React.createElement(
                           "button",
                           { style: styles.buttonPrimary, disabled: busy, onClick: () => decide(proposal.id, "accept") },
