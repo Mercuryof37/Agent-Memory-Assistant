@@ -381,4 +381,11 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - **切换收起**：打开提案/偏好与规则、执行搜索、切换条目时统一清空详情与修订草稿。
 - `ci` 全绿（**248 个测试**，`S13.1` 断言扩展）；记录：[ADR-0025](docs/adr/0025-list-interaction.md)。
 
+### 第 25 轮 · V3.0 独立视觉（2026-10-18）
+
+- 新增 `client/src/styles.ts`（`am-*` 令牌、明/暗、响应式、组件类）与 `client/src/components.ts`（`AmButton/AmBadge/AmEmpty/AmSkeleton`）。
+- 工作台根节点 `am-root` + `data-am-theme`；默认跟随系统，标题右侧 ☾/☀ 手动切换并存 localStorage。
+- 工具条/徽章/加载态/页面容器换成新组件与类；`ci` 全绿（**249 个测试**，`S16.1`）。
+- 记录：[ADR-0026](docs/adr/0026-v3-visual-tokens.md)。
+
 

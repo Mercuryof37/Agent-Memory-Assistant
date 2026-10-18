@@ -7,6 +7,8 @@
  * the build moves from hand-written output to a real bundle.
  */
 import * as React from "react";
+import { ensureStyles, initialTheme, persistTheme, type Theme } from "./styles";
+import { AmBadge, AmButton, AmSkeleton } from "./components";
 
     const PANEL_ID = "agent-memory";
 
@@ -22,28 +24,28 @@ import * as React from "react";
         maxWidth: "1080px",
         margin: "0 auto",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        color: "var(--dsw-text, #111827)",
+        color: "var(--am-text, #111827)",
         display: "flex",
         flexDirection: "column",
       },
       header: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "4px" },
       h1: { fontSize: "22px", fontWeight: 600, margin: 0 },
-      meta: { color: "var(--dsw-text-secondary, #6b7280)", fontSize: "13px" },
+      meta: { color: "var(--am-text-secondary, #6b7280)", fontSize: "13px" },
       toolbar: { display: "flex", gap: "8px", alignItems: "center", margin: "18px 0 22px" },
       input: {
         flex: "1 1 320px",
         padding: "8px 12px",
         borderRadius: "8px",
-        border: "1px solid var(--dsw-border, #e5e7eb)",
-        background: "var(--dsw-surface, #fff)",
+        border: "1px solid var(--am-border, #e5e7eb)",
+        background: "var(--am-surface, #fff)",
         fontSize: "13px",
       },
       button: {
         padding: "7px 12px",
         borderRadius: "8px",
-        border: "1px solid var(--dsw-border, #e5e7eb)",
+        border: "1px solid var(--am-border, #e5e7eb)",
         background: "transparent",
-        color: "var(--dsw-text, #111827)",
+        color: "var(--am-text, #111827)",
         cursor: "pointer",
         fontSize: "13px",
         whiteSpace: "nowrap",
@@ -51,22 +53,22 @@ import * as React from "react";
       buttonPrimary: {
         padding: "7px 12px",
         borderRadius: "8px",
-        border: "1px solid var(--dsw-accent, #2563eb)",
-        background: "var(--dsw-accent, #2563eb)",
+        border: "1px solid var(--am-accent, #3b5bdb)",
+        background: "var(--am-accent, #3b5bdb)",
         color: "#fff",
         cursor: "pointer",
         fontSize: "13px",
         whiteSpace: "nowrap",
       },
-      small: { fontSize: "12px", color: "var(--dsw-text-secondary, #6b7280)" },
+      small: { fontSize: "12px", color: "var(--am-text-secondary, #6b7280)" },
       danger: { color: "#b91c1c", borderColor: "#fecaca" },
       textarea: {
         width: "100%",
         minHeight: "140px",
         padding: "10px 12px",
         borderRadius: "8px",
-        border: "1px solid var(--dsw-border, #e5e7eb)",
-        background: "var(--dsw-surface, #fff)",
+        border: "1px solid var(--am-border, #e5e7eb)",
+        background: "var(--am-surface, #fff)",
         fontSize: "13px",
         lineHeight: 1.6,
         fontFamily: "inherit",
@@ -75,9 +77,9 @@ import * as React from "react";
       },
       card: {
         padding: "14px 16px",
-        border: "1px solid var(--dsw-border, #e5e7eb)",
+        border: "1px solid var(--am-border, #e5e7eb)",
         borderRadius: "10px",
-        background: "var(--dsw-surface, #fff)",
+        background: "var(--am-surface, #fff)",
         marginBottom: "8px",
       },
       actions: { display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" },
@@ -90,7 +92,7 @@ import * as React from "react";
         fontSize: "13px",
         fontWeight: 600,
       },
-      count: { color: "var(--dsw-text-secondary, #6b7280)", fontWeight: 400 },
+      count: { color: "var(--am-text-secondary, #6b7280)", fontWeight: 400 },
       list: { display: "flex", flexDirection: "column", gap: "6px" },
       row: {
         display: "flex",
@@ -99,7 +101,7 @@ import * as React from "react";
         padding: "10px 12px",
         borderRadius: "10px",
         border: "1px solid transparent",
-        background: "var(--dsw-surface, #fff)",
+        background: "var(--am-surface, #fff)",
         cursor: "pointer",
         textAlign: "left",
         width: "100%",
@@ -113,12 +115,12 @@ import * as React from "react";
         whiteSpace: "nowrap",
       },
       abstract: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-      date: { fontSize: "12px", color: "var(--dsw-text-secondary, #6b7280)", whiteSpace: "nowrap" },
+      date: { fontSize: "12px", color: "var(--am-text-secondary, #6b7280)", whiteSpace: "nowrap" },
       empty: {
         padding: "40px 16px",
         textAlign: "center",
-        color: "var(--dsw-text-secondary, #6b7280)",
-        border: "1px dashed var(--dsw-border, #e5e7eb)",
+        color: "var(--am-text-secondary, #6b7280)",
+        border: "1px dashed var(--am-border, #e5e7eb)",
         borderRadius: "12px",
         fontSize: "13px",
       },
@@ -126,9 +128,9 @@ import * as React from "react";
         order: 1,
         marginTop: "20px",
         padding: "20px",
-        border: "1px solid var(--dsw-border, #e5e7eb)",
+        border: "1px solid var(--am-border, #e5e7eb)",
         borderRadius: "12px",
-        background: "var(--dsw-surface, #fff)",
+        background: "var(--am-surface, #fff)",
       },
       detailTitle: { fontSize: "16px", fontWeight: 600, margin: "0 0 8px" },
       body: {
@@ -138,14 +140,14 @@ import * as React from "react";
         margin: "12px 0 0",
         padding: "12px",
         borderRadius: "8px",
-        background: "var(--dsw-hover, #f9fafb)",
+        background: "var(--am-surface-muted, #f9fafb)",
         fontFamily: "inherit",
       },
       provenance: {
         marginTop: "12px",
         paddingLeft: "18px",
         fontSize: "12px",
-        color: "var(--dsw-text-secondary, #6b7280)",
+        color: "var(--am-text-secondary, #6b7280)",
         lineHeight: 1.7,
       },
       overlay: {
@@ -161,7 +163,7 @@ import * as React from "react";
         width: "min(560px, calc(100vw - 48px))",
         maxHeight: "70vh",
         overflow: "auto",
-        background: "var(--dsw-surface, #fff)",
+        background: "var(--am-surface, #fff)",
         borderRadius: "14px",
         padding: "22px 24px",
         boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
@@ -170,7 +172,7 @@ import * as React from "react";
         margin: "12px 0 0",
         padding: "12px",
         borderRadius: "8px",
-        background: "var(--dsw-hover, #f9fafb)",
+        background: "var(--am-surface-muted, #f9fafb)",
         fontSize: "12px",
         lineHeight: 1.8,
         whiteSpace: "pre-wrap",
@@ -192,32 +194,9 @@ import * as React from "react";
       "编号一律是库编号（F-01 / P-01 / E-01），不是长串内部 ID。",
     ].join("\n");
 
-    // Chrome-like scrollbar for the workbench. The host does not scroll our
-    // main panel, so the page owns a viewport-height scroll container; this
-    // stylesheet keeps the rail thin and unobtrusive in both themes.
-    const SCROLL_CSS = [
-      ".am-memory-scroll{scrollbar-width:thin;scrollbar-color:rgba(120,120,128,.45) transparent;overscroll-behavior:contain}",
-      ".am-memory-scroll::-webkit-scrollbar{width:12px;height:12px}",
-      ".am-memory-scroll::-webkit-scrollbar-track{background:transparent}",
-      ".am-memory-scroll::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9ca3af) 42%,transparent);border:3px solid transparent;background-clip:padding-box;border-radius:999px}",
-      ".am-memory-scroll::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9ca3af) 65%,transparent);background-clip:padding-box}",
-    ].join("\n");
-
-    function ensureScrollbarStyles() {
-      if (typeof document === "undefined" || document.getElementById("am-memory-scroll")) return;
-      const style = document.createElement("style");
-      style.id = "am-memory-scroll";
-      style.textContent = SCROLL_CSS;
-      document.head.appendChild(style);
-    }
-
     function badge(kind, serial) {
-      const style = KIND_STYLE[kind] || { color: "#374151", background: "#f3f4f6" };
-      return React.createElement(
-        "span",
-        { style: { ...styles.serial, color: style.color, background: style.background } },
-        serial || "—",
-      );
+      const known = KIND_STYLE[kind] ? kind : "fact";
+      return React.createElement(AmBadge, { kind: known }, serial || "—");
     }
 
     function metric(label, value) {
@@ -246,6 +225,11 @@ import * as React from "react";
       const [busy, setBusy] = React.useState(false);
       const [revise, setRevise] = React.useState(null);
       const [expandedProposal, setExpandedProposal] = React.useState(null);
+      const [theme, setTheme] = React.useState(() => initialTheme());
+
+      React.useEffect(() => {
+        persistTheme(theme);
+      }, [theme]);
 
       // Own the scroll viewport: the host page container does not scroll in a
       // windowed desktop window, so measure the distance from the panel top to
@@ -454,7 +438,7 @@ import * as React from "react";
         items.map((item) =>
           React.createElement(
             "button",
-            { key: item.id, style: styles.row, onClick: () => openItem(item.id) },
+            { key: item.id, className: "am-row", onClick: () => openItem(item.id) },
             badge(item.kind, item.serial),
             React.createElement("span", { style: styles.abstract }, item.abstract),
             React.createElement("span", { style: styles.date }, item.valid_from || item.created_at.slice(0, 10)),
@@ -465,7 +449,8 @@ import * as React from "react";
         "div",
         {
           ref: rootRef,
-          className: "am-memory-scroll",
+          className: "am-root am-memory-scroll",
+          "data-am-theme": theme,
           style: {
             width: "100%",
             height: viewportHeight === null ? "100vh" : viewportHeight,
@@ -476,17 +461,30 @@ import * as React from "react";
         },
         React.createElement(
           "div",
-          { style: styles.page },
+          { className: "am-page" },
           React.createElement(
             "div",
-            { style: styles.header },
-          React.createElement("h1", { style: styles.h1 }, "记忆"),
+            { className: "am-header" },
+          React.createElement("h1", { className: "am-title" }, "记忆"),
           metric("共", total),
           metric("待审", pending),
+          React.createElement(
+            "span",
+            { style: { marginLeft: "auto" } },
+            React.createElement(
+              AmButton,
+              {
+                variant: "icon",
+                title: theme === "dark" ? "切换到浅色" : "切换到深色",
+                onClick: () => setTheme(theme === "dark" ? "light" : "dark"),
+              },
+              theme === "dark" ? "☀" : "☾",
+            ),
+          ),
         ),
         React.createElement(
           "p",
-          { style: { ...styles.meta, margin: "2px 0 0" } },
+          { className: "am-subtitle" },
           data && data.modules && data.modules.some((module) => !module.ok)
             ? `部分模块不可用：${data.modules
                 .filter((module) => !module.ok)
@@ -496,9 +494,10 @@ import * as React from "react";
         ),
         React.createElement(
           "div",
-          { style: styles.toolbar },
+          { className: "am-toolbar" },
           React.createElement("input", {
-            style: styles.input,
+            className: "am-input",
+            style: { flex: "1 1 320px" },
             placeholder: "搜索记忆（关键词）",
             value: query,
             onChange: (event) => setQuery(event.target.value),
@@ -506,11 +505,11 @@ import * as React from "react";
               if (event.key === "Enter") runSearch();
             },
           }),
-          React.createElement("button", { style: styles.buttonPrimary, onClick: runSearch }, "搜索"),
-          React.createElement("button", { style: styles.button, onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
-          React.createElement("button", { style: styles.button, onClick: openSettings }, "偏好与规则"),
-          React.createElement("button", { style: styles.button, onClick: () => setManual(true) }, "命令手册"),
-          React.createElement("button", { style: styles.button, onClick: exportNow }, "导出备份"),
+          React.createElement(AmButton, { variant: "primary", onClick: runSearch }, "搜索"),
+          React.createElement(AmButton, { variant: "ghost", onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
+          React.createElement(AmButton, { variant: "ghost", onClick: openSettings }, "偏好与规则"),
+          React.createElement(AmButton, { variant: "ghost", onClick: () => setManual(true) }, "命令手册"),
+          React.createElement(AmButton, { variant: "ghost", onClick: exportNow }, "导出备份"),
           React.createElement("input", {
             ref: fileInputRef,
             type: "file",
@@ -522,8 +521,8 @@ import * as React from "react";
             },
           }),
           React.createElement(
-            "button",
-            { style: styles.button, disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
+            AmButton,
+            { variant: "ghost", disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
             "导入备份",
           ),
         ),
@@ -562,7 +561,7 @@ import * as React from "react";
                       expandedProposal === proposal.id
                         ? React.createElement(
                             "div",
-                            { style: { ...styles.card, marginTop: "10px", background: "var(--dsw-hover, #f9fafb)" } },
+                            { style: { ...styles.card, marginTop: "10px", background: "var(--am-surface-muted, #f9fafb)" } },
                             proposal.targets.map((target, index) =>
                               React.createElement(
                                 "p",
@@ -653,7 +652,7 @@ import * as React from "react";
               "div",
               { style: { order: 2 } },
               state.loading
-                ? React.createElement("p", { style: styles.meta }, "正在读取…")
+                ? React.createElement(AmSkeleton, { rows: 3 })
                 : state.error
                   ? React.createElement("p", { style: styles.meta }, `读取失败：${state.error}`)
                   : search
@@ -671,7 +670,7 @@ import * as React from "react";
                                 : search.hits.map((hit) =>
                                     React.createElement(
                                       "button",
-                                      { key: hit.id, style: styles.row, onClick: () => openItem(hit.id) },
+                                      { key: hit.id, className: "am-row", onClick: () => openItem(hit.id) },
                                       badge(hit.kind, hit.serial),
                                       React.createElement("span", { style: styles.abstract }, hit.abstract),
                                       React.createElement("span", { style: styles.date }, hit.provenance_verifiable ? "有出处" : "无出处"),
@@ -722,9 +721,9 @@ import * as React from "react";
         detail
           ? React.createElement(
               "div",
-              { style: styles.detail },
+              { className: "am-card am-detail", style: { order: 1 } },
               detail.loading
-                ? React.createElement("p", { style: styles.meta }, "正在读取…")
+                ? React.createElement(AmSkeleton, { rows: 2 })
                 : detail.error
                   ? React.createElement("p", { style: styles.meta }, `读取失败：${detail.error}`)
                   : React.createElement(
@@ -792,10 +791,10 @@ import * as React from "react";
         manual
           ? React.createElement(
               "div",
-              { style: styles.overlay, onClick: () => setManual(false) },
+              { className: "am-overlay", onClick: () => setManual(false) },
               React.createElement(
                 "div",
-                { style: styles.modal, onClick: (event) => event.stopPropagation() },
+                { className: "am-modal", onClick: (event) => event.stopPropagation() },
                 React.createElement("h2", { style: styles.detailTitle }, "命令手册"),
                 React.createElement(
                   "p",
@@ -827,7 +826,7 @@ import * as React from "react";
             fontSize: "12px",
             fontWeight: 600,
             borderRadius: "6px",
-            border: "1px solid var(--dsw-border, #e5e7eb)",
+            border: "1px solid var(--am-border, #e5e7eb)",
           },
         },
         "记",
@@ -835,7 +834,7 @@ import * as React from "react";
     }
 
     function apply(ctx) {
-      ensureScrollbarStyles();
+      ensureStyles();
       ctx.slots.inject("main", () =>
         ctx.slots.register({ name: "main", key: PANEL_ID }, MemoryPage),
       );

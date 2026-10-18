@@ -41,7 +41,272 @@ __export(index_exports, {
   inject: () => inject
 });
 module.exports = __toCommonJS(index_exports);
+var React2 = __toESM(require("react"), 1);
+
+// packages/dsh/client/src/styles.ts
+var THEME_KEY = "agent-memory:theme";
+var TOKENS_CSS = `
+:root {
+  --am-bg: #faf9f7;
+  --am-surface: #ffffff;
+  --am-surface-muted: #f5f4f1;
+  --am-border: #e7e4df;
+  --am-border-strong: #d8d4cd;
+  --am-text: #1f2328;
+  --am-text-secondary: #6b7280;
+  --am-text-tertiary: #9aa0a6;
+  --am-accent: #3452d9;
+  --am-accent-hover: #2b45b8;
+  --am-accent-soft: #eef1ff;
+  --am-danger: #b42318;
+  --am-danger-soft: #fff1f0;
+  --am-warn: #b54708;
+  --am-success: #067647;
+  --am-fact: #2563eb;
+  --am-fact-soft: #eff4ff;
+  --am-pitfall: #b54708;
+  --am-pitfall-soft: #fff8eb;
+  --am-exp: #067647;
+  --am-exp-soft: #ecfdf3;
+  --am-radius: 10px;
+  --am-radius-lg: 14px;
+  --am-shadow: 0 8px 28px rgba(16, 24, 40, 0.08);
+  --am-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --am-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --am-row-height: 46px;
+}
+[data-am-theme="dark"] {
+  --am-bg: #121316;
+  --am-surface: #191b1f;
+  --am-surface-muted: #212429;
+  --am-border: #2b2f36;
+  --am-border-strong: #3a3f47;
+  --am-text: #e9eaec;
+  --am-text-secondary: #9aa1a9;
+  --am-text-tertiary: #6f767e;
+  --am-accent: #8ea2ff;
+  --am-accent-hover: #a8b8ff;
+  --am-accent-soft: #202844;
+  --am-danger: #ff8a80;
+  --am-danger-soft: #2a1a1a;
+  --am-warn: #f5b26b;
+  --am-success: #6ee7b7;
+  --am-fact: #8ea2ff;
+  --am-fact-soft: #1d2540;
+  --am-pitfall: #f5b26b;
+  --am-pitfall-soft: #2a2118;
+  --am-exp: #6ee7b7;
+  --am-exp-soft: #12261f;
+  --am-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+`;
+var GLOBAL_CSS = `
+${TOKENS_CSS}
+.am-root {
+  background: var(--am-bg);
+  color: var(--am-text);
+  font-family: var(--am-font);
+  -webkit-font-smoothing: antialiased;
+}
+.am-page {
+  padding: 28px 40px 56px;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 960px) {
+  .am-page { padding: 20px 20px 44px; }
+}
+.am-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 2px;
+}
+.am-title { font-size: 24px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+.am-subtitle { color: var(--am-text-secondary); font-size: 13px; line-height: 1.7; margin: 4px 0 0; }
+.am-meta { color: var(--am-text-secondary); font-size: 12px; }
+.am-toolbar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin: 18px 0 24px;
+}
+.am-input, .am-textarea {
+  border: 1px solid var(--am-border);
+  background: var(--am-surface);
+  color: var(--am-text);
+  border-radius: 9px;
+  padding: 8px 11px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.am-input:focus, .am-textarea:focus {
+  border-color: var(--am-accent);
+  box-shadow: 0 0 0 3px var(--am-accent-soft);
+}
+.am-btn {
+  height: 32px; padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--am-border);
+  background: var(--am-surface);
+  color: var(--am-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  white-space: nowrap;
+}
+.am-btn:hover { background: var(--am-surface-muted); border-color: var(--am-border-strong); }
+.am-btn:focus-visible { outline: 2px solid var(--am-accent); outline-offset: 2px; }
+.am-btn:disabled { opacity: .5; cursor: not-allowed; }
+.am-btn-primary {
+  background: var(--am-accent); border-color: var(--am-accent); color: #fff;
+}
+.am-btn-primary:hover { background: var(--am-accent-hover); border-color: var(--am-accent-hover); }
+.am-btn-danger { color: var(--am-danger); border-color: var(--am-border); }
+.am-btn-danger:hover { background: var(--am-danger-soft); }
+.am-btn-icon { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+.am-row {
+  display: flex; align-items: center; gap: 12px;
+  min-height: var(--am-row-height);
+  padding: 0 12px;
+  border-radius: var(--am-radius);
+  border: 1px solid transparent;
+  background: var(--am-surface);
+  color: var(--am-text);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-size: 14px;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.am-row:hover { background: var(--am-surface-muted); border-color: var(--am-border); }
+.am-row:focus-visible { outline: 2px solid var(--am-accent); outline-offset: -2px; }
+
+.am-badge {
+  display: inline-flex; align-items: center;
+  height: 22px; padding: 0 8px;
+  border-radius: 999px;
+  font-family: var(--am-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.am-badge-fact { color: var(--am-fact); background: var(--am-fact-soft); }
+.am-badge-pitfall { color: var(--am-pitfall); background: var(--am-pitfall-soft); }
+.am-badge-exp { color: var(--am-exp); background: var(--am-exp-soft); }
+
+.am-card {
+  background: var(--am-surface);
+  border: 1px solid var(--am-border);
+  border-radius: var(--am-radius-lg);
+  padding: 16px;
+}
+.am-detail { margin-top: 18px; }
+.am-group-title {
+  display: flex; align-items: center; gap: 8px;
+  margin: 26px 0 10px;
+  font-size: 13px; font-weight: 650;
+  color: var(--am-text);
+}
+.am-notice { font-size: 12px; color: var(--am-success); margin: 8px 0 0; }
+.am-empty {
+  padding: 40px 16px; text-align: center;
+  color: var(--am-text-secondary);
+  border: 1px dashed var(--am-border);
+  border-radius: var(--am-radius-lg);
+  font-size: 13px;
+}
+.am-skeleton {
+  height: var(--am-row-height);
+  border-radius: var(--am-radius);
+  background: linear-gradient(90deg, var(--am-surface-muted) 25%, var(--am-border) 37%, var(--am-surface-muted) 63%);
+  background-size: 400% 100%;
+  animation: am-shimmer 1.4s ease infinite;
+}
+@keyframes am-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .am-skeleton { animation: none; } }
+
+.am-memory-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--am-text-tertiary) 45%, transparent) transparent;
+  overscroll-behavior: contain;
+}
+.am-memory-scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+.am-memory-scroll::-webkit-scrollbar-track { background: transparent; }
+.am-memory-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--am-text-tertiary) 45%, transparent);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+.am-memory-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--am-text-tertiary) 68%, transparent);
+  background-clip: padding-box;
+}
+
+.am-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(15, 18, 25, .45);
+  display: flex; align-items: center; justify-content: center;
+}
+.am-modal {
+  width: min(560px, calc(100vw - 40px));
+  max-height: 76vh; overflow: auto;
+  background: var(--am-surface);
+  color: var(--am-text);
+  border-radius: var(--am-radius-lg);
+  padding: 22px 24px;
+  border: 1px solid var(--am-border);
+  box-shadow: var(--am-shadow);
+}
+`;
+var STYLE_ID = "am-theme-styles";
+function ensureStyles() {
+  if (typeof document === "undefined" || document.getElementById(STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = GLOBAL_CSS;
+  document.head.appendChild(style);
+}
+function initialTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {
+  }
+  return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function persistTheme(theme) {
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+  }
+}
+
+// packages/dsh/client/src/components.ts
 var React = __toESM(require("react"), 1);
+function AmButton({ variant = "ghost", className = "", children, ...props }) {
+  return React.createElement(
+    "button",
+    { className: `am-btn am-btn-${variant} ${className}`.trim(), ...props },
+    children
+  );
+}
+function AmBadge({ kind, children }) {
+  return React.createElement("span", { className: `am-badge am-badge-${kind}` }, children);
+}
+function AmSkeleton({ rows = 3 }) {
+  return React.createElement(
+    "div",
+    { style: { display: "flex", flexDirection: "column", gap: "6px" } },
+    Array.from({ length: rows }, (_, index) => React.createElement("div", { key: index, className: "am-skeleton" }))
+  );
+}
+
+// packages/dsh/client/src/index.ts
 var PANEL_ID = "agent-memory";
 var KIND_STYLE = {
   fact: { label: "事实", color: "#2563eb", background: "#eff6ff" },
@@ -54,28 +319,28 @@ var styles = {
     maxWidth: "1080px",
     margin: "0 auto",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    color: "var(--dsw-text, #111827)",
+    color: "var(--am-text, #111827)",
     display: "flex",
     flexDirection: "column"
   },
   header: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "4px" },
   h1: { fontSize: "22px", fontWeight: 600, margin: 0 },
-  meta: { color: "var(--dsw-text-secondary, #6b7280)", fontSize: "13px" },
+  meta: { color: "var(--am-text-secondary, #6b7280)", fontSize: "13px" },
   toolbar: { display: "flex", gap: "8px", alignItems: "center", margin: "18px 0 22px" },
   input: {
     flex: "1 1 320px",
     padding: "8px 12px",
     borderRadius: "8px",
-    border: "1px solid var(--dsw-border, #e5e7eb)",
-    background: "var(--dsw-surface, #fff)",
+    border: "1px solid var(--am-border, #e5e7eb)",
+    background: "var(--am-surface, #fff)",
     fontSize: "13px"
   },
   button: {
     padding: "7px 12px",
     borderRadius: "8px",
-    border: "1px solid var(--dsw-border, #e5e7eb)",
+    border: "1px solid var(--am-border, #e5e7eb)",
     background: "transparent",
-    color: "var(--dsw-text, #111827)",
+    color: "var(--am-text, #111827)",
     cursor: "pointer",
     fontSize: "13px",
     whiteSpace: "nowrap"
@@ -83,22 +348,22 @@ var styles = {
   buttonPrimary: {
     padding: "7px 12px",
     borderRadius: "8px",
-    border: "1px solid var(--dsw-accent, #2563eb)",
-    background: "var(--dsw-accent, #2563eb)",
+    border: "1px solid var(--am-accent, #3b5bdb)",
+    background: "var(--am-accent, #3b5bdb)",
     color: "#fff",
     cursor: "pointer",
     fontSize: "13px",
     whiteSpace: "nowrap"
   },
-  small: { fontSize: "12px", color: "var(--dsw-text-secondary, #6b7280)" },
+  small: { fontSize: "12px", color: "var(--am-text-secondary, #6b7280)" },
   danger: { color: "#b91c1c", borderColor: "#fecaca" },
   textarea: {
     width: "100%",
     minHeight: "140px",
     padding: "10px 12px",
     borderRadius: "8px",
-    border: "1px solid var(--dsw-border, #e5e7eb)",
-    background: "var(--dsw-surface, #fff)",
+    border: "1px solid var(--am-border, #e5e7eb)",
+    background: "var(--am-surface, #fff)",
     fontSize: "13px",
     lineHeight: 1.6,
     fontFamily: "inherit",
@@ -107,9 +372,9 @@ var styles = {
   },
   card: {
     padding: "14px 16px",
-    border: "1px solid var(--dsw-border, #e5e7eb)",
+    border: "1px solid var(--am-border, #e5e7eb)",
     borderRadius: "10px",
-    background: "var(--dsw-surface, #fff)",
+    background: "var(--am-surface, #fff)",
     marginBottom: "8px"
   },
   actions: { display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" },
@@ -122,7 +387,7 @@ var styles = {
     fontSize: "13px",
     fontWeight: 600
   },
-  count: { color: "var(--dsw-text-secondary, #6b7280)", fontWeight: 400 },
+  count: { color: "var(--am-text-secondary, #6b7280)", fontWeight: 400 },
   list: { display: "flex", flexDirection: "column", gap: "6px" },
   row: {
     display: "flex",
@@ -131,7 +396,7 @@ var styles = {
     padding: "10px 12px",
     borderRadius: "10px",
     border: "1px solid transparent",
-    background: "var(--dsw-surface, #fff)",
+    background: "var(--am-surface, #fff)",
     cursor: "pointer",
     textAlign: "left",
     width: "100%",
@@ -145,12 +410,12 @@ var styles = {
     whiteSpace: "nowrap"
   },
   abstract: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  date: { fontSize: "12px", color: "var(--dsw-text-secondary, #6b7280)", whiteSpace: "nowrap" },
+  date: { fontSize: "12px", color: "var(--am-text-secondary, #6b7280)", whiteSpace: "nowrap" },
   empty: {
     padding: "40px 16px",
     textAlign: "center",
-    color: "var(--dsw-text-secondary, #6b7280)",
-    border: "1px dashed var(--dsw-border, #e5e7eb)",
+    color: "var(--am-text-secondary, #6b7280)",
+    border: "1px dashed var(--am-border, #e5e7eb)",
     borderRadius: "12px",
     fontSize: "13px"
   },
@@ -158,9 +423,9 @@ var styles = {
     order: 1,
     marginTop: "20px",
     padding: "20px",
-    border: "1px solid var(--dsw-border, #e5e7eb)",
+    border: "1px solid var(--am-border, #e5e7eb)",
     borderRadius: "12px",
-    background: "var(--dsw-surface, #fff)"
+    background: "var(--am-surface, #fff)"
   },
   detailTitle: { fontSize: "16px", fontWeight: 600, margin: "0 0 8px" },
   body: {
@@ -170,14 +435,14 @@ var styles = {
     margin: "12px 0 0",
     padding: "12px",
     borderRadius: "8px",
-    background: "var(--dsw-hover, #f9fafb)",
+    background: "var(--am-surface-muted, #f9fafb)",
     fontFamily: "inherit"
   },
   provenance: {
     marginTop: "12px",
     paddingLeft: "18px",
     fontSize: "12px",
-    color: "var(--dsw-text-secondary, #6b7280)",
+    color: "var(--am-text-secondary, #6b7280)",
     lineHeight: 1.7
   },
   overlay: {
@@ -193,7 +458,7 @@ var styles = {
     width: "min(560px, calc(100vw - 48px))",
     maxHeight: "70vh",
     overflow: "auto",
-    background: "var(--dsw-surface, #fff)",
+    background: "var(--am-surface, #fff)",
     borderRadius: "14px",
     padding: "22px 24px",
     boxShadow: "0 20px 50px rgba(0,0,0,0.2)"
@@ -202,7 +467,7 @@ var styles = {
     margin: "12px 0 0",
     padding: "12px",
     borderRadius: "8px",
-    background: "var(--dsw-hover, #f9fafb)",
+    background: "var(--am-surface-muted, #f9fafb)",
     fontSize: "12px",
     lineHeight: 1.8,
     whiteSpace: "pre-wrap"
@@ -222,30 +487,12 @@ var MANUAL = [
   "日常不需要命令：在「记忆」页里点条目即可查看；修订与偏好修改都会先弹卡片确认。",
   "编号一律是库编号（F-01 / P-01 / E-01），不是长串内部 ID。"
 ].join("\n");
-var SCROLL_CSS = [
-  ".am-memory-scroll{scrollbar-width:thin;scrollbar-color:rgba(120,120,128,.45) transparent;overscroll-behavior:contain}",
-  ".am-memory-scroll::-webkit-scrollbar{width:12px;height:12px}",
-  ".am-memory-scroll::-webkit-scrollbar-track{background:transparent}",
-  ".am-memory-scroll::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9ca3af) 42%,transparent);border:3px solid transparent;background-clip:padding-box;border-radius:999px}",
-  ".am-memory-scroll::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9ca3af) 65%,transparent);background-clip:padding-box}"
-].join("\n");
-function ensureScrollbarStyles() {
-  if (typeof document === "undefined" || document.getElementById("am-memory-scroll")) return;
-  const style = document.createElement("style");
-  style.id = "am-memory-scroll";
-  style.textContent = SCROLL_CSS;
-  document.head.appendChild(style);
-}
 function badge(kind, serial) {
-  const style = KIND_STYLE[kind] || { color: "#374151", background: "#f3f4f6" };
-  return React.createElement(
-    "span",
-    { style: { ...styles.serial, color: style.color, background: style.background } },
-    serial || "—"
-  );
+  const known = KIND_STYLE[kind] ? kind : "fact";
+  return React2.createElement(AmBadge, { kind: known }, serial || "—");
 }
 function metric(label, value) {
-  return React.createElement(
+  return React2.createElement(
     "span",
     { style: styles.meta },
     `${label} ${value == null ? "—" : String(value)}`,
@@ -253,23 +500,27 @@ function metric(label, value) {
   );
 }
 function MemoryPage() {
-  const [state, setState] = React.useState({ loading: true });
-  const [detail, setDetail] = React.useState(null);
-  const [query, setQuery] = React.useState("");
-  const [search, setSearch] = React.useState(null);
-  const [manual, setManual] = React.useState(false);
-  const rootRef = React.useRef(null);
-  const [viewportHeight, setViewportHeight] = React.useState(null);
-  const [panel, setPanel] = React.useState(null);
-  const [proposals, setProposals] = React.useState([]);
-  const [profileText, setProfileText] = React.useState("");
-  const [rulesText, setRulesText] = React.useState("");
-  const [notice, setNotice] = React.useState("");
-  const fileInputRef = React.useRef(null);
-  const [busy, setBusy] = React.useState(false);
-  const [revise, setRevise] = React.useState(null);
-  const [expandedProposal, setExpandedProposal] = React.useState(null);
-  React.useEffect(() => {
+  const [state, setState] = React2.useState({ loading: true });
+  const [detail, setDetail] = React2.useState(null);
+  const [query, setQuery] = React2.useState("");
+  const [search, setSearch] = React2.useState(null);
+  const [manual, setManual] = React2.useState(false);
+  const rootRef = React2.useRef(null);
+  const [viewportHeight, setViewportHeight] = React2.useState(null);
+  const [panel, setPanel] = React2.useState(null);
+  const [proposals, setProposals] = React2.useState([]);
+  const [profileText, setProfileText] = React2.useState("");
+  const [rulesText, setRulesText] = React2.useState("");
+  const [notice, setNotice] = React2.useState("");
+  const fileInputRef = React2.useRef(null);
+  const [busy, setBusy] = React2.useState(false);
+  const [revise, setRevise] = React2.useState(null);
+  const [expandedProposal, setExpandedProposal] = React2.useState(null);
+  const [theme, setTheme] = React2.useState(() => initialTheme());
+  React2.useEffect(() => {
+    persistTheme(theme);
+  }, [theme]);
+  React2.useEffect(() => {
     const measure = () => {
       const element = rootRef.current;
       if (!element) return;
@@ -287,7 +538,7 @@ function MemoryPage() {
       return response.json();
     }).then((data2) => setState({ data: data2 })).catch((error) => setState({ error: String(error) }));
   };
-  React.useEffect(load, []);
+  React2.useEffect(load, []);
   const openItem = (id) => {
     setDetail({ loading: true });
     setRevise(null);
@@ -408,19 +659,20 @@ function MemoryPage() {
   const total = data ? data.total : "—";
   const pending = data ? data.pending : "—";
   const renderRows = (items) => items.map(
-    (item) => React.createElement(
+    (item) => React2.createElement(
       "button",
-      { key: item.id, style: styles.row, onClick: () => openItem(item.id) },
+      { key: item.id, className: "am-row", onClick: () => openItem(item.id) },
       badge(item.kind, item.serial),
-      React.createElement("span", { style: styles.abstract }, item.abstract),
-      React.createElement("span", { style: styles.date }, item.valid_from || item.created_at.slice(0, 10))
+      React2.createElement("span", { style: styles.abstract }, item.abstract),
+      React2.createElement("span", { style: styles.date }, item.valid_from || item.created_at.slice(0, 10))
     )
   );
-  return React.createElement(
+  return React2.createElement(
     "div",
     {
       ref: rootRef,
-      className: "am-memory-scroll",
+      className: "am-root am-memory-scroll",
+      "data-am-theme": theme,
       style: {
         width: "100%",
         height: viewportHeight === null ? "100vh" : viewportHeight,
@@ -429,26 +681,40 @@ function MemoryPage() {
         boxSizing: "border-box"
       }
     },
-    React.createElement(
+    React2.createElement(
       "div",
-      { style: styles.page },
-      React.createElement(
+      { className: "am-page" },
+      React2.createElement(
         "div",
-        { style: styles.header },
-        React.createElement("h1", { style: styles.h1 }, "记忆"),
+        { className: "am-header" },
+        React2.createElement("h1", { className: "am-title" }, "记忆"),
         metric("共", total),
-        metric("待审", pending)
+        metric("待审", pending),
+        React2.createElement(
+          "span",
+          { style: { marginLeft: "auto" } },
+          React2.createElement(
+            AmButton,
+            {
+              variant: "icon",
+              title: theme === "dark" ? "切换到浅色" : "切换到深色",
+              onClick: () => setTheme(theme === "dark" ? "light" : "dark")
+            },
+            theme === "dark" ? "☀" : "☾"
+          )
+        )
       ),
-      React.createElement(
+      React2.createElement(
         "p",
-        { style: { ...styles.meta, margin: "2px 0 0" } },
+        { className: "am-subtitle" },
         data && data.modules && data.modules.some((module2) => !module2.ok) ? `部分模块不可用：${data.modules.filter((module2) => !module2.ok).map((module2) => module2.name).join("、")}` : "这里是助手记住的事。点一条查看原文与出处；修订会先弹卡片确认。"
       ),
-      React.createElement(
+      React2.createElement(
         "div",
-        { style: styles.toolbar },
-        React.createElement("input", {
-          style: styles.input,
+        { className: "am-toolbar" },
+        React2.createElement("input", {
+          className: "am-input",
+          style: { flex: "1 1 320px" },
           placeholder: "搜索记忆（关键词）",
           value: query,
           onChange: (event) => setQuery(event.target.value),
@@ -456,12 +722,12 @@ function MemoryPage() {
             if (event.key === "Enter") runSearch();
           }
         }),
-        React.createElement("button", { style: styles.buttonPrimary, onClick: runSearch }, "搜索"),
-        React.createElement("button", { style: styles.button, onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
-        React.createElement("button", { style: styles.button, onClick: openSettings }, "偏好与规则"),
-        React.createElement("button", { style: styles.button, onClick: () => setManual(true) }, "命令手册"),
-        React.createElement("button", { style: styles.button, onClick: exportNow }, "导出备份"),
-        React.createElement("input", {
+        React2.createElement(AmButton, { variant: "primary", onClick: runSearch }, "搜索"),
+        React2.createElement(AmButton, { variant: "ghost", onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
+        React2.createElement(AmButton, { variant: "ghost", onClick: openSettings }, "偏好与规则"),
+        React2.createElement(AmButton, { variant: "ghost", onClick: () => setManual(true) }, "命令手册"),
+        React2.createElement(AmButton, { variant: "ghost", onClick: exportNow }, "导出备份"),
+        React2.createElement("input", {
           ref: fileInputRef,
           type: "file",
           accept: ".json,application/json",
@@ -471,71 +737,71 @@ function MemoryPage() {
             event.target.value = "";
           }
         }),
-        React.createElement(
-          "button",
-          { style: styles.button, disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
+        React2.createElement(
+          AmButton,
+          { variant: "ghost", disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
           "导入备份"
         )
       ),
-      notice ? React.createElement("p", { style: styles.notice }, notice) : null,
-      panel === "proposals" ? React.createElement(
+      notice ? React2.createElement("p", { style: styles.notice }, notice) : null,
+      panel === "proposals" ? React2.createElement(
         "div",
         null,
-        React.createElement(
+        React2.createElement(
           "div",
           { style: styles.groupTitle },
           "待审提案",
-          React.createElement("span", { style: styles.count }, ` · ${proposals.length}`)
+          React2.createElement("span", { style: styles.count }, ` · ${proposals.length}`)
         ),
-        proposals.length === 0 ? React.createElement("div", { style: styles.empty }, "没有待审提案。") : proposals.map(
-          (proposal) => React.createElement(
+        proposals.length === 0 ? React2.createElement("div", { style: styles.empty }, "没有待审提案。") : proposals.map(
+          (proposal) => React2.createElement(
             "div",
             { key: proposal.id, style: styles.card },
-            React.createElement(
+            React2.createElement(
               "p",
               { style: { margin: 0, fontSize: "14px", fontWeight: 600 } },
               `${proposal.op === "delete" ? "删除" : "修订"} · ${proposal.targets.map((target) => target.display || target.abstract).join("、")}`
             ),
-            React.createElement("p", { style: styles.small }, proposal.reason || "（无说明）"),
+            React2.createElement("p", { style: styles.small }, proposal.reason || "（无说明）"),
             proposal.replacements.map(
-              (replacement, index) => React.createElement(
+              (replacement, index) => React2.createElement(
                 "p",
                 { key: index, style: { ...styles.small, margin: "6px 0 0" } },
                 `新内容：${replacement.display || replacement.abstract}`
               )
             ),
-            expandedProposal === proposal.id ? React.createElement(
+            expandedProposal === proposal.id ? React2.createElement(
               "div",
-              { style: { ...styles.card, marginTop: "10px", background: "var(--dsw-hover, #f9fafb)" } },
+              { style: { ...styles.card, marginTop: "10px", background: "var(--am-surface-muted, #f9fafb)" } },
               proposal.targets.map(
-                (target, index) => React.createElement(
+                (target, index) => React2.createElement(
                   "p",
                   { key: `t-${index}`, style: { ...styles.small, margin: "0 0 6px" } },
                   `目标全文：${target.abstract}`
                 )
               ),
               proposal.replacements.map(
-                (replacement, index) => React.createElement(
+                (replacement, index) => React2.createElement(
                   "div",
                   { key: `r-${index}`, style: { marginTop: "8px" } },
-                  React.createElement(
+                  React2.createElement(
                     "p",
                     { style: { ...styles.small, margin: "0 0 4px" } },
                     `修改后摘要（${KIND_STYLE[replacement.kind] ? KIND_STYLE[replacement.kind].label : replacement.kind}）：${replacement.abstract}`
                   ),
-                  React.createElement("pre", { style: styles.body }, replacement.body || "（正文为空）")
+                  React2.createElement("pre", { style: styles.body }, replacement.body || "（正文为空）")
                 )
               ),
-              React.createElement(
+              React2.createElement(
                 "p",
                 { style: { ...styles.small, margin: "8px 0 0" } },
                 `理由：${proposal.reason || "（无说明）"}`
               )
             ) : null,
-            React.createElement(
+            React2.createElement(
               "div",
               { style: styles.actions },
-              React.createElement(
+              React2.createElement(
                 "button",
                 {
                   style: styles.button,
@@ -543,12 +809,12 @@ function MemoryPage() {
                 },
                 expandedProposal === proposal.id ? "收起详情" : "查看详情"
               ),
-              React.createElement(
+              React2.createElement(
                 "button",
                 { style: styles.buttonPrimary, disabled: busy, onClick: () => decide(proposal.id, "accept") },
                 "采纳"
               ),
-              React.createElement(
+              React2.createElement(
                 "button",
                 { style: styles.button, disabled: busy, onClick: () => decide(proposal.id, "reject") },
                 "驳回"
@@ -556,71 +822,71 @@ function MemoryPage() {
             )
           )
         ),
-        React.createElement("button", { style: styles.button, onClick: () => setPanel(null) }, "返回列表")
-      ) : panel === "settings" ? React.createElement(
+        React2.createElement("button", { style: styles.button, onClick: () => setPanel(null) }, "返回列表")
+      ) : panel === "settings" ? React2.createElement(
         "div",
         null,
-        React.createElement("h2", { style: styles.groupTitle }, "偏好（USER.md）"),
-        React.createElement("textarea", {
+        React2.createElement("h2", { style: styles.groupTitle }, "偏好（USER.md）"),
+        React2.createElement("textarea", {
           style: styles.textarea,
           value: profileText,
           onChange: (event) => setProfileText(event.target.value),
           placeholder: "一条偏好一段，段与段之间用 --- 分隔"
         }),
-        React.createElement(
+        React2.createElement(
           "div",
           { style: styles.actions },
-          React.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveProfileNow }, "保存偏好")
+          React2.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveProfileNow }, "保存偏好")
         ),
-        React.createElement("h2", { style: styles.groupTitle }, "规则（RULES.md，仅限你在此处修改）"),
-        React.createElement("textarea", {
+        React2.createElement("h2", { style: styles.groupTitle }, "规则（RULES.md，仅限你在此处修改）"),
+        React2.createElement("textarea", {
           style: styles.textarea,
           value: rulesText,
           onChange: (event) => setRulesText(event.target.value)
         }),
-        React.createElement(
+        React2.createElement(
           "div",
           { style: styles.actions },
-          React.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveRulesNow }, "保存并重新封存"),
-          React.createElement("span", { style: styles.small }, "保存后立即封存，下一轮注入生效。")
+          React2.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveRulesNow }, "保存并重新封存"),
+          React2.createElement("span", { style: styles.small }, "保存后立即封存，下一轮注入生效。")
         ),
-        React.createElement("button", { style: { ...styles.button, marginTop: "12px" }, onClick: () => setPanel(null) }, "返回列表")
+        React2.createElement("button", { style: { ...styles.button, marginTop: "12px" }, onClick: () => setPanel(null) }, "返回列表")
       ) : null,
-      panel !== null ? null : React.createElement(
+      panel !== null ? null : React2.createElement(
         "div",
         { style: { order: 2 } },
-        state.loading ? React.createElement("p", { style: styles.meta }, "正在读取…") : state.error ? React.createElement("p", { style: styles.meta }, `读取失败：${state.error}`) : search ? React.createElement(
+        state.loading ? React2.createElement(AmSkeleton, { rows: 3 }) : state.error ? React2.createElement("p", { style: styles.meta }, `读取失败：${state.error}`) : search ? React2.createElement(
           "div",
           null,
-          React.createElement("h2", { style: styles.groupTitle }, `搜索「${search.query || query}」`),
-          search.error ? React.createElement("p", { style: styles.meta }, `搜索失败：${search.error}`) : React.createElement(
+          React2.createElement("h2", { style: styles.groupTitle }, `搜索「${search.query || query}」`),
+          search.error ? React2.createElement("p", { style: styles.meta }, `搜索失败：${search.error}`) : React2.createElement(
             "div",
             { style: styles.list },
-            (search.hits || []).length === 0 ? React.createElement("div", { style: styles.empty }, "没有匹配的记忆。") : search.hits.map(
-              (hit) => React.createElement(
+            (search.hits || []).length === 0 ? React2.createElement("div", { style: styles.empty }, "没有匹配的记忆。") : search.hits.map(
+              (hit) => React2.createElement(
                 "button",
-                { key: hit.id, style: styles.row, onClick: () => openItem(hit.id) },
+                { key: hit.id, className: "am-row", onClick: () => openItem(hit.id) },
                 badge(hit.kind, hit.serial),
-                React.createElement("span", { style: styles.abstract }, hit.abstract),
-                React.createElement("span", { style: styles.date }, hit.provenance_verifiable ? "有出处" : "无出处")
+                React2.createElement("span", { style: styles.abstract }, hit.abstract),
+                React2.createElement("span", { style: styles.date }, hit.provenance_verifiable ? "有出处" : "无出处")
               )
             )
           )
         ) : (data.groups || []).map(
-          (group) => React.createElement(
+          (group) => React2.createElement(
             "div",
             { key: group.kind },
-            React.createElement(
+            React2.createElement(
               "h2",
               { style: styles.groupTitle },
               KIND_STYLE[group.kind] ? KIND_STYLE[group.kind].label : group.label,
-              React.createElement("span", { style: styles.count }, ` · ${group.items.length}`)
+              React2.createElement("span", { style: styles.count }, ` · ${group.items.length}`)
             ),
-            group.items.length === 0 ? React.createElement("div", { style: styles.empty }, "这一类还没有记忆。") : React.createElement(
+            group.items.length === 0 ? React2.createElement("div", { style: styles.empty }, "这一类还没有记忆。") : React2.createElement(
               "div",
               null,
-              React.createElement("div", { style: styles.list }, renderRows(group.items.slice(0, 8))),
-              group.items.length > 8 ? React.createElement(
+              React2.createElement("div", { style: styles.list }, renderRows(group.items.slice(0, 8))),
+              group.items.length > 8 ? React2.createElement(
                 "div",
                 {
                   className: "am-memory-scroll",
@@ -631,7 +897,7 @@ function MemoryPage() {
                     overflowY: "auto"
                   }
                 },
-                React.createElement(
+                React2.createElement(
                   "p",
                   { style: { ...styles.small, margin: "0 0 6px" } },
                   `还有 ${group.items.length - 8} 条，向下滚动查看`
@@ -642,62 +908,62 @@ function MemoryPage() {
           )
         )
       ),
-      detail ? React.createElement(
+      detail ? React2.createElement(
         "div",
-        { style: styles.detail },
-        detail.loading ? React.createElement("p", { style: styles.meta }, "正在读取…") : detail.error ? React.createElement("p", { style: styles.meta }, `读取失败：${detail.error}`) : React.createElement(
+        { className: "am-card am-detail", style: { order: 1 } },
+        detail.loading ? React2.createElement(AmSkeleton, { rows: 2 }) : detail.error ? React2.createElement("p", { style: styles.meta }, `读取失败：${detail.error}`) : React2.createElement(
           "div",
           null,
-          React.createElement(
+          React2.createElement(
             "div",
             { style: { display: "flex", alignItems: "center", gap: "8px" } },
             badge(detail.data.kind, detail.data.serial),
-            React.createElement("h2", { style: styles.detailTitle }, detail.data.abstract)
+            React2.createElement("h2", { style: styles.detailTitle }, detail.data.abstract)
           ),
-          React.createElement(
+          React2.createElement(
             "p",
             { style: styles.small },
             `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind} · ${detail.data.author === "human" ? "人工维护" : "助手记录"} · ${detail.data.valid_from}`
           ),
-          React.createElement("pre", { style: styles.body }, detail.data.body),
-          (detail.data.provenance || []).length > 0 ? React.createElement(
+          React2.createElement("pre", { style: styles.body }, detail.data.body),
+          (detail.data.provenance || []).length > 0 ? React2.createElement(
             "ul",
             { style: styles.provenance },
             detail.data.provenance.map(
-              (entry, index) => React.createElement(
+              (entry, index) => React2.createElement(
                 "li",
                 { key: index },
                 `${entry.speaker === "user" ? "用户" : entry.speaker} #${entry.event_seq}：「${entry.quote}」`
               )
             )
           ) : null,
-          revise ? React.createElement(
+          revise ? React2.createElement(
             "div",
             { style: { marginTop: "14px" } },
-            React.createElement("input", {
+            React2.createElement("input", {
               style: styles.input,
               value: revise.abstract,
               onChange: (event) => setRevise({ ...revise, abstract: event.target.value }),
               placeholder: "一句话摘要"
             }),
-            React.createElement("textarea", {
+            React2.createElement("textarea", {
               style: { ...styles.textarea, marginTop: "8px" },
               value: revise.body,
               onChange: (event) => setRevise({ ...revise, body: event.target.value })
             }),
-            React.createElement(
+            React2.createElement(
               "div",
               { style: styles.actions },
-              React.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveRevise }, "保存修订"),
-              React.createElement("button", { style: styles.button, onClick: () => setRevise(null) }, "取消")
+              React2.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveRevise }, "保存修订"),
+              React2.createElement("button", { style: styles.button, onClick: () => setRevise(null) }, "取消")
             )
           ) : null,
-          React.createElement(
+          React2.createElement(
             "div",
             { style: styles.actions },
-            React.createElement("button", { style: styles.button, onClick: startRevise }, "修订"),
-            React.createElement("button", { style: { ...styles.button, ...styles.danger }, onClick: removeItem }, "删除"),
-            React.createElement("button", { style: styles.button, onClick: () => {
+            React2.createElement("button", { style: styles.button, onClick: startRevise }, "修订"),
+            React2.createElement("button", { style: { ...styles.button, ...styles.danger }, onClick: removeItem }, "删除"),
+            React2.createElement("button", { style: styles.button, onClick: () => {
               setDetail(null);
               setRevise(null);
             } }, "收起")
@@ -705,20 +971,20 @@ function MemoryPage() {
         )
       ) : null
     ),
-    manual ? React.createElement(
+    manual ? React2.createElement(
       "div",
-      { style: styles.overlay, onClick: () => setManual(false) },
-      React.createElement(
+      { className: "am-overlay", onClick: () => setManual(false) },
+      React2.createElement(
         "div",
-        { style: styles.modal, onClick: (event) => event.stopPropagation() },
-        React.createElement("h2", { style: styles.detailTitle }, "命令手册"),
-        React.createElement(
+        { className: "am-modal", onClick: (event) => event.stopPropagation() },
+        React2.createElement("h2", { style: styles.detailTitle }, "命令手册"),
+        React2.createElement(
           "p",
           { style: styles.small },
           "高级用法。日常只需要点按钮；命令是可选的快捷方式。"
         ),
-        React.createElement("pre", { style: styles.pre }, MANUAL),
-        React.createElement(
+        React2.createElement("pre", { style: styles.pre }, MANUAL),
+        React2.createElement(
           "button",
           { style: { ...styles.button, marginTop: "14px" }, onClick: () => setManual(false) },
           "关闭"
@@ -728,7 +994,7 @@ function MemoryPage() {
   );
 }
 function MemoryIcon() {
-  return React.createElement(
+  return React2.createElement(
     "span",
     {
       style: {
@@ -740,14 +1006,14 @@ function MemoryIcon() {
         fontSize: "12px",
         fontWeight: 600,
         borderRadius: "6px",
-        border: "1px solid var(--dsw-border, #e5e7eb)"
+        border: "1px solid var(--am-border, #e5e7eb)"
       }
     },
     "记"
   );
 }
 function apply(ctx) {
-  ensureScrollbarStyles();
+  ensureStyles();
   ctx.slots.inject(
     "main",
     () => ctx.slots.register({ name: "main", key: PANEL_ID }, MemoryPage)

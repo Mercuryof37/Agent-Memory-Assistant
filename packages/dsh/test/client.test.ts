@@ -51,6 +51,24 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /am-memory-scroll/);
   assert.match(source, /::-webkit-scrollbar-thumb/);
   assert.match(source, /overflowY: "auto"/);
+  // V3 visual layer: independent tokens, themed root, skeleton and theme toggle.
+  assert.match(source, /am-root/);
+  assert.match(source, /am-page/);
+  assert.match(source, /data-am-theme/);
+  assert.match(source, /am-btn/);
+  assert.match(source, /am-skeleton/);
+  assert.match(source, /--am-accent/);
+  assert.match(source, /切换到浅色|切换到深色/);
+});
+
+test('S16.1 the token layer defines light and dark themes with a responsive page', () => {
+  const styles = readFileSync(join(root, 'client', 'src', 'styles.ts'), 'utf8');
+  assert.match(styles, /\[data-am-theme="dark"\]/);
+  assert.match(styles, /--am-bg:/);
+  assert.match(styles, /--am-accent:/);
+  assert.match(styles, /@media \(max-width: 960px\)/);
+  assert.match(styles, /prefers-color-scheme: dark/);
+  assert.match(styles, /prefers-reduced-motion/);
 });
 
 test('S13.2 package.json declares the client half for the host module graph', () => {
