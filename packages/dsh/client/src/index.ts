@@ -240,6 +240,8 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
       const [focusId, setFocusId] = React.useState(null);
       const [newProjectOpen, setNewProjectOpen] = React.useState(false);
       const [newProjectName, setNewProjectName] = React.useState("");
+      const [selectedIds, setSelectedIds] = React.useState([]);
+      const [moveTarget, setMoveTarget] = React.useState("");
 
       React.useEffect(() => {
         persistTheme(theme);
@@ -293,6 +295,8 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           setDetail(null);
           setNewProjectOpen(false);
           setNewProjectName("");
+          setSelectedIds([]);
+          setMoveTarget("");
         }
       }, [panel]);
 
@@ -616,6 +620,8 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                   setTreeProject(project.name);
                   setFocusId(null);
                   setDetail(null);
+                  setSelectedIds([]);
+                  setMoveTarget("");
                 },
               },
               React.createElement("div", { style: { fontWeight: 600, marginBottom: "4px" } }, project.name),
@@ -628,6 +634,26 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                 { style: { ...styles.small, color: "var(--am-text-tertiary)", marginTop: "2px" } },
                 project.last_updated ? `最近更新 ${project.last_updated}` : "还没有记忆",
               ),
+              project.name === "未归类"
+                ? null
+                : React.createElement(
+                    "span",
+                    {
+                      style: { ...styles.small, color: "var(--am-danger)", marginTop: "6px", display: "inline-block" },
+                      onClick: (event) => {
+                        event.stopPropagation();
+                        if (!window.confirm(`删除项目「${project.name}」？里面的记忆会回到「未归类」，不会被删除。`)) return;
+                        fetch(`/api/agent-memory/projects?name=${encodeURIComponent(project.name)}`, { method: "DELETE" })
+                          .then(async (response) => {
+                            const data = await response.json().catch(() => ({}));
+                            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+                            openTree();
+                          })
+                          .catch((error) => setNotice(`删除项目失败：${String(error.message || error)}`));
+                      },
+                    },
+                    "删除项目",
+                  ),
             ),
           ),
         );
@@ -651,13 +677,6 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
               { style: { ...styles.small, padding: "16px", background: "var(--am-surface-muted)", borderRadius: "12px" } },
               "暂无显式关系；同项目、同标签的条目也没有。给这条记忆加标签或关系后，这里会出现局部图。",
             ),
-            detail && detail.data
-              ? React.createElement(
-                  "div",
-                  { style: { padding: "0 2px" } },
-                  React.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body),
-                )
-              : null,
           );
         }
         const width = 460;
@@ -716,15 +735,6 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
               ),
             ]),
           ),
-          detail && detail.data
-            ? React.createElement(
-                "div",
-                { style: { padding: "0 2px" } },
-                React.createElement("div", { style: styles.small }, `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind}`),
-                React.createElement("div", { style: { fontWeight: 600, margin: "6px 0" } }, detail.data.abstract),
-                React.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body),
-              )
-            : null,
         );
       };
 
@@ -787,15 +797,62 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           );
         }
         const docs = graphNodes.filter((node) => node.project === treeProject);
+        const detailCard = focusNode && detail && detail.data
+          ? React.createElement(
+              "div",
+              { style: { border: "1px solid var(--am-border)", background: "var(--am-surface)", borderRadius: "12px", padding: "16px", marginBottom: "14px" } },
+              React.createElement("div", { style: styles.small }, `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind} · ${detail.data.valid_from}`),
+              React.createElement("h2", { style: { margin: "6px 0 8px", fontSize: "18px" } }, detail.data.abstract),
+              React.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body),
+            )
+          : null;
         return React.createElement(
           "div",
           null,
+          detailCard,
           React.createElement(
             "div",
-            { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" } },
-            React.createElement(AmButton, { variant: "ghost", onClick: () => { setTreeProject(null); setFocusId(null); setDetail(null); } }, "← 全部项目"),
+            { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" } },
+            React.createElement(AmButton, { variant: "ghost", onClick: () => { setTreeProject(null); setFocusId(null); setDetail(null); setSelectedIds([]); } }, "← 全部项目"),
             React.createElement("h2", { style: { ...styles.groupTitle, margin: 0 } }, treeProject),
             React.createElement("span", { style: styles.small }, `${docs.length} 条`),
+            React.createElement("span", { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" } },
+              React.createElement("label", { style: styles.small },
+                React.createElement("input", {
+                  type: "checkbox",
+                  checked: docs.length > 0 && selectedIds.length === docs.length,
+                  onChange: (event) => setSelectedIds(event.target.checked ? docs.map((node) => node.id) : []),
+                }),
+                " 全选",
+              ),
+              React.createElement("span", { style: styles.small }, `已选 ${selectedIds.length}`),
+              React.createElement("select", {
+                className: "am-input",
+                style: { width: "150px" },
+                value: moveTarget,
+                onChange: (event) => setMoveTarget(event.target.value),
+              },
+                React.createElement("option", { value: "" }, "移动到…"),
+                React.createElement("option", { value: "__none__" }, "未归类"),
+                ...graphData.projects.filter((project) => project.name !== treeProject).map((project) =>
+                  React.createElement("option", { key: project.name, value: project.name }, project.name),
+                ),
+              ),
+              React.createElement(AmButton, {
+                variant: "primary",
+                disabled: selectedIds.length === 0 || moveTarget === "",
+                onClick: () => {
+                  const target = moveTarget === "__none__" ? null : moveTarget;
+                  postJson("/api/agent-memory/projects/move", { ids: selectedIds, project: target })
+                    .then(() => {
+                      setSelectedIds([]);
+                      setMoveTarget("");
+                      openTree();
+                    })
+                    .catch((error) => setNotice(`移动失败：${String(error.message || error)}`));
+                },
+              }, "移动"),
+            ),
           ),
           React.createElement(
             "div",
@@ -812,27 +869,39 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                   React.createElement("div", { style: { ...styles.small, fontWeight: 600, marginBottom: "4px" } }, KIND_STYLE[kind] ? KIND_STYLE[kind].label : kind),
                   ...rows.map((node) =>
                     React.createElement(
-                      "button",
-                      {
-                        key: node.id,
-                        className: "am-row",
-                        style: {
-                          display: "block",
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "7px 9px",
-                          marginBottom: "2px",
-                          cursor: "pointer",
-                          background: focusId === node.id ? "var(--am-accent-soft)" : "transparent",
-                          border: "none",
+                      "div",
+                      { key: node.id, style: { display: "flex", alignItems: "center", gap: "5px" } },
+                      React.createElement("input", {
+                        type: "checkbox",
+                        checked: selectedIds.includes(node.id),
+                        onChange: (event) =>
+                          setSelectedIds((current) =>
+                            event.target.checked ? [...current, node.id] : current.filter((id) => id !== node.id),
+                          ),
+                      }),
+                      React.createElement(
+                        "button",
+                        {
+                          className: "am-row",
+                          style: {
+                            display: "block",
+                            flex: "1 1 auto",
+                            minWidth: 0,
+                            textAlign: "left",
+                            padding: "7px 9px",
+                            marginBottom: "2px",
+                            cursor: "pointer",
+                            background: focusId === node.id ? "var(--am-accent-soft)" : "transparent",
+                            border: "none",
+                          },
+                          onClick: () => {
+                            setFocusId(node.id);
+                            openItem(node.id);
+                          },
                         },
-                        onClick: () => {
-                          setFocusId(node.id);
-                          openItem(node.id);
-                        },
-                      },
-                      React.createElement("div", { style: { fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, node.display),
-                      React.createElement("div", { style: { ...styles.small, marginTop: "1px" } }, `${node.valid_from}${node.tags.length ? ` · ${node.tags.slice(0, 2).join(" ")}` : ""}`),
+                        React.createElement("div", { style: { fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, node.display),
+                        React.createElement("div", { style: { ...styles.small, marginTop: "1px" } }, `${node.valid_from}${node.tags.length ? ` · ${node.tags.slice(0, 2).join(" ")}` : ""}`),
+                      ),
                     ),
                   ),
                 );
@@ -1457,21 +1526,21 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
 
     function MemoryIcon() {
       return React.createElement(
-        "span",
+        "svg",
         {
-          style: {
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "20px",
-            height: "20px",
-            fontSize: "12px",
-            fontWeight: 600,
-            borderRadius: "6px",
-            border: "1px solid var(--am-border, #e5e7eb)",
-          },
+          width: 18,
+          height: 18,
+          viewBox: "0 0 24 24",
+          fill: "none",
+          stroke: "currentColor",
+          strokeWidth: 1.8,
+          strokeLinecap: "round",
+          strokeLinejoin: "round",
+          "aria-hidden": true,
+          style: { display: "block" },
         },
-        "记",
+        React.createElement("path", { d: "M6 4.5h12a1 1 0 0 1 1 1V19.5l-7-3.5-7 3.5V5.5a1 1 0 0 1 1-1Z" }),
+        React.createElement("path", { d: "M9 8.5h6" }),
       );
     }
 

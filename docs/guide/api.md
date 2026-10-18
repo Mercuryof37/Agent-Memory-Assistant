@@ -19,6 +19,9 @@
 | GET | `/api/agent-memory/list` | 活动记忆列表 |
 | GET | `/api/agent-memory/item?id=` | 单条详情 |
 | GET | `/api/agent-memory/search?q=` | 检索（hybrid 时走 `recallAsync`） |
+| GET | `/api/agent-memory/graph` | 工作树投影（项目/节点/边/相似提示） |
+| GET/POST/DELETE | `/api/agent-memory/projects` | 项目列表 / 新建 / 删除标签（记忆回未归类） |
+| POST | `/api/agent-memory/projects/move` | 多选移动 `{ids, project}` |
 | GET | `/api/agent-memory/proposals` | 待审提案 |
 | POST | `/api/agent-memory/proposals/decide` | 人决定（accept/reject） |
 | GET | `/api/agent-memory/rules` | RULES 原文 |

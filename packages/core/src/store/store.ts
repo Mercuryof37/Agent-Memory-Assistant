@@ -387,6 +387,76 @@ export class MemoryStore {
     }
   }
 
+  /**
+   * Move records between project labels by rewriting only the `project` field.
+   * This is an organisational change, not a supersede: the id and history stay,
+   * and the journal records the new content hash plus an audit line.
+   */
+  moveProjects(
+    ids: readonly MemoryId[],
+    project: string | null,
+  ): { moved: MemoryId[]; failed: { id: MemoryId; reason: string }[] } {
+    const projectIssue = projectProblem(project);
+    if (projectIssue !== undefined) throw new MemoryStoreError('INVALID', projectIssue);
+    const lock = acquireLock({
+      file: this.paths.lockFile,
+      config: {
+        heartbeatMs: this.config.lock.heartbeat_ms,
+        staleMs: this.config.lock.stale_ms,
+        timeoutMs: this.config.lock.timeout_ms,
+      },
+      now: () => this.now().getTime(),
+    });
+    try {
+      this.reload();
+      if (this.issues.length > 0) {
+        throw new MemoryStoreError('CONFLICT', `journal is inconsistent, writes are blocked: ${this.issues[0]}`);
+      }
+      const moved: MemoryId[] = [];
+      const failed: { id: MemoryId; reason: string }[] = [];
+      for (const id of ids) {
+        const doc = this.docs.get(id);
+        if (doc === undefined) {
+          failed.push({ id, reason: 'not found' });
+          continue;
+        }
+        const next = {
+          id: doc.id,
+          mem_schema: doc.mem_schema,
+          kind: doc.kind,
+          scope: doc.scope,
+          project,
+          tags: doc.tags ?? [],
+          relations: doc.relations ?? [],
+          source: doc.source ?? null,
+          abstract: doc.abstract,
+          created_at: doc.created_at,
+          valid_from: doc.valid_from,
+          valid_until: doc.valid_until,
+          supersedes: doc.supersedes,
+          author: doc.author,
+          evidence_level: doc.evidence_level,
+          error_signatures: doc.error_signatures,
+          provenance: doc.provenance,
+          body: doc.body,
+        };
+        const text = serializeMemory(next);
+        const file = join(this.paths.memoriesDir, doc.kind, `${doc.id}.md`);
+        this.beforeStep?.('before-write');
+        writeFileAtomic(file, text);
+        const hash = hashContent(text);
+        this.journal.append({ op: 'record', data: { id, sha256: hash } });
+        this.journal.append({ op: 'audit', data: { event: 'project-move', id, project } });
+        moved.push(id);
+      }
+      this.reload();
+      this.writeDerived();
+      return { moved, failed };
+    } finally {
+      lock.release();
+    }
+  }
+
   stats(): Stats {
     return {
       active: this.active().length,

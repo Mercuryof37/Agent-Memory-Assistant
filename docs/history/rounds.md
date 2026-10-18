@@ -347,3 +347,13 @@
 - **L1/L2**：项目树按 kind 分组；选中节点显示 1 跳 SVG 局部图与详情；三种边 supersedes/relates_to/derived_from。
 - **冲突提示**：同项目、共享标签、摘要字符重叠 ≥0.8 标记「相似提示」，不自动合并。
 - **验证**：S23.1 图投影；S14.4 路由表；client 构建通过；`npm test` 277 pass / 1 skip；ADR-0038。
+
+### 第 40 轮 · V4.0 收口：项目生命周期、侧边栏与 0.3.0（2026-10-18）
+
+- **详情置顶**：工作树详情卡片固定在上方；离开项目/切换到列表时自动清空，不再把旧内容带到新视图。
+- **新建项目**：改为内联输入 + 创建/取消，不再依赖 WebView 禁用的 `window.prompt`。
+- **删除项目**：只删 `projects.json` 标签；记忆不动，图投影把未知 project 映射为「未归类」；`DELETE /projects`。
+- **多选移动**：项目树勾选 + 移动到其他项目/未归类；`store.moveProjects` 重写 project 并写 journal（record + audit），ID/历史不变；`POST /projects/move`。
+- **侧边栏**：图标改为宿主线图标风格，去掉自绘方框。
+- **发布**：`0.3.0`，`npm run pack` 产出 `agent_memory-dsh-0.3.0.tgz`；公告 `docs/development/v4.0-announcement.md`。
+- **验收**：ci、stage S7、smoke 全绿；S19.10/S19.11/S23.1/S14.4 覆盖；ADR-0039。

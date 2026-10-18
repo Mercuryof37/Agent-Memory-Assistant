@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { initStore } from '../../src/init.ts';
-import { createProject, listProjects, ProjectError } from '../../src/projects/projects.ts';
+import { createProject, deleteProject, listProjects, ProjectError } from '../../src/projects/projects.ts';
 import { cleanupHome, tempHome } from '../helpers.ts';
 
 test('S19.4 projects are user-created, persisted and unique by name', (t) => {
@@ -31,6 +31,16 @@ test('S19.4 projects are user-created, persisted and unique by name', (t) => {
   const raw = readFileSync(join(home, 'projects.json'), 'utf8');
   assert.match(raw, /"schema": 1/);
   assert.deepEqual(listProjects(home).map((project) => project.name), ['Agent Memory']);
+});
+
+test('S19.10 deleting a project only removes the label', (t) => {
+  const home = tempHome();
+  t.after(() => cleanupHome(home));
+  initStore({ home });
+  createProject({ home, name: 'Agent Memory' });
+  assert.equal(deleteProject(home, 'Agent Memory'), true);
+  assert.equal(deleteProject(home, 'Agent Memory'), false);
+  assert.deepEqual(listProjects(home), []);
 });
 
 test('S19.5 a malformed projects.json refuses rather than guessing', (t) => {

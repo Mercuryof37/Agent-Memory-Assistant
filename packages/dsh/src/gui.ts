@@ -2,6 +2,7 @@ import {
   createProposal,
   createProject,
   decideProposal,
+  deleteProject,
   importBundle,
   listProjects,
   listProposals,
@@ -286,10 +287,13 @@ export function buildGraph(store: MemoryStore, home: string) {
   const active = store.active();
   const serials = serialsFor(active);
   const registered = listProjects(home).map((project) => project.name);
+  const registeredSet = new Set(registered);
+  const effectiveProject = (doc: MemoryDoc): string =>
+    doc.project !== null && doc.project !== undefined && registeredSet.has(doc.project) ? doc.project : '未归类';
   const names = new Set(registered);
-  for (const doc of active) names.add(doc.project ?? '未归类');
+  for (const doc of active) names.add(effectiveProject(doc));
   const projects: GraphProject[] = [...names].map((name) => {
-    const docs = active.filter((doc) => (doc.project ?? '未归类') === name);
+    const docs = active.filter((doc) => effectiveProject(doc) === name);
     const last = docs.map((doc) => doc.valid_from).sort().at(-1) ?? null;
     return { name, count: docs.length, last_updated: last };
   });
@@ -307,7 +311,7 @@ export function buildGraph(store: MemoryStore, home: string) {
       serial,
       display: displayName(serial, doc.abstract),
       kind: doc.kind,
-      project: doc.project ?? '未归类',
+      project: effectiveProject(doc),
       tags: doc.tags ?? [],
       relations: (doc.relations ?? []).map((relation) => ({ type: relation.type, target: relation.target })),
       supersedes: doc.supersedes,
@@ -328,7 +332,7 @@ export function buildGraph(store: MemoryStore, home: string) {
     for (let right = left + 1; right < limited.length; right += 1) {
       const a = limited[left] as MemoryDoc;
       const b = limited[right] as MemoryDoc;
-      if ((a.project ?? '未归类') !== (b.project ?? '未归类')) continue;
+      if (effectiveProject(a) !== effectiveProject(b)) continue;
       const shared = (a.tags ?? []).some((tag) => (b.tags ?? []).includes(tag));
       if (!shared) continue;
       const charsA = new Set([...a.abstract.replace(/\s+/g, '')]);
@@ -337,7 +341,7 @@ export function buildGraph(store: MemoryStore, home: string) {
       for (const char of charsA) if (charsB.has(char)) overlap += 1;
       const similarity = overlap / Math.max(1, new Set([...charsA, ...charsB]).size);
       if (similarity >= 0.8) {
-        conflicts.push({ a: a.id, b: b.id, project: a.project ?? '未归类', reason: '同项目同标签且摘要高度重叠' });
+        conflicts.push({ a: a.id, b: b.id, project: effectiveProject(a), reason: '同项目同标签且摘要高度重叠' });
       }
     }
   }
@@ -588,10 +592,15 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
 
   const projects = {
     path: '/api/agent-memory/projects',
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'DELETE'],
     requestBody: 'buffered',
     fetch: async (request: Request) => {
       if (request.method === 'GET') return json({ projects: listProjects(deps.home) });
+      if (request.method === 'DELETE') {
+        const name = new URL(request.url).searchParams.get('name') ?? '';
+        if (name === '') return errorResponse('name is required');
+        return deleteProject(deps.home, name) ? json({ ok: true }) : errorResponse('project not found', 404);
+      }
       const body = await readJson(request);
       if (typeof body.name !== 'string' || body.name.trim() === '') return errorResponse('name is required');
       try {
@@ -601,6 +610,31 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
           ...(typeof body.description === 'string' ? { description: body.description } : {}),
         });
         return json({ project });
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 409);
+      }
+    },
+  };
+
+  const moveProject = {
+    path: '/api/agent-memory/projects/move',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      const body = await readJson(request);
+      if (!Array.isArray(body.ids) || body.ids.some((id) => typeof id !== 'string')) {
+        return errorResponse('ids must be a string array');
+      }
+      if (body.project !== null && typeof body.project !== 'string') {
+        return errorResponse('project must be a string or null');
+      }
+      const target = body.project as string | null;
+      if (target !== null && !listProjects(deps.home).some((project) => project.name === target)) {
+        return errorResponse(`unknown project: ${target}`, 409);
+      }
+      try {
+        const result = deps.store.moveProjects(body.ids as string[], target);
+        return json({ ok: true, ...result });
       } catch (error) {
         return errorResponse(error instanceof Error ? error.message : String(error), 409);
       }
@@ -824,6 +858,7 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     list,
     graph,
     projects,
+    moveProject,
     item,
     search,
     exportRoute,

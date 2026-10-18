@@ -127,3 +127,17 @@ export function ensureProjectsFile(home: string): boolean {
   writeRegistry(home, { schema: 1, projects: [] });
   return true;
 }
+
+/**
+ * Remove a project label. Memories keep their frontmatter untouched; callers
+ * map an unknown project to the "未归类" bucket. If the name is later recreated,
+ * those memories become visible under it again by design.
+ */
+export function deleteProject(home: string, name: string): boolean {
+  const registry = readRegistry(home);
+  const lower = name.toLocaleLowerCase();
+  const kept = registry.projects.filter((project) => project.name.toLocaleLowerCase() !== lower);
+  if (kept.length === registry.projects.length) return false;
+  writeRegistry(home, { schema: 1, projects: kept });
+  return true;
+}

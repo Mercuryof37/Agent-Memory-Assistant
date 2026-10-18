@@ -33,6 +33,7 @@
 
 ## 发布
 
+- [V4.0 更新公告](development/v4.0-announcement.md)
 - [发布检查单](development/release.md)
 - [发布验收记录](development/release-verification.md)
 - [CHANGELOG](../CHANGELOG.md)

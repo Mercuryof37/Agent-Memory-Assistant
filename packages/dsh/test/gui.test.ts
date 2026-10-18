@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createProposal, importBundle, initStore } from '../../core/src/index.ts';
+import { createProposal, createProject, importBundle, initStore } from '../../core/src/index.ts';
 import { MemoryStore } from '../../core/src/store/store.ts';
 import { loadConfig } from '../../core/src/config/load.ts';
 import { cleanupHome, tempHome } from '../../core/test/helpers.ts';
@@ -85,6 +85,7 @@ test('S14.2 list groups by kind with counts and serials', (t) => {
 
 test('S23.1 the graph projection groups by project and keeps three edge types', (t) => {
   const { home, store } = fixture(t);
+  createProject({ home, name: 'Agent Memory' });
   const first = store.add(
     { kind: 'fact', abstract: 'worktree groups memories', body: 'b', project: 'Agent Memory', tags: ['v4'], evidence_level: 'observed' },
     { author: 'human' },
@@ -125,6 +126,7 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
     '/api/agent-memory/policy/seal',
     '/api/agent-memory/profile',
     '/api/agent-memory/projects',
+    '/api/agent-memory/projects/move',
     '/api/agent-memory/proposals',
     '/api/agent-memory/proposals/decide',
     '/api/agent-memory/revise',
@@ -136,7 +138,7 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
   ]);
   for (const route of routes) {
     assert.ok(route.methods.length >= 1);
-    for (const method of route.methods) assert.ok(['GET', 'POST'].includes(method));
+    for (const method of route.methods) assert.ok(['GET', 'POST', 'DELETE'].includes(method));
   }
 });
 

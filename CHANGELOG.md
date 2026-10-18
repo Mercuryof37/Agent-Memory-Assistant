@@ -4,7 +4,7 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-18
 
 ### Added
 
@@ -21,6 +21,12 @@ SemVer.
   reconciled MCP documentation.
 - Project worktree UI (L0–L2): project cards, project tree, focus relation graph
   and similarity hints.
+- Project deletion (memories fall back to 未归类) and multi-select move between
+  projects.
+
+### Changed
+
+- Sidebar icon now matches the host's line-icon style.
 
 ## [0.2.1] - 2026-10-18
 

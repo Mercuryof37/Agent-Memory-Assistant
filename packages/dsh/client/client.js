@@ -544,6 +544,8 @@ function MemoryPage() {
   const [focusId, setFocusId] = React2.useState(null);
   const [newProjectOpen, setNewProjectOpen] = React2.useState(false);
   const [newProjectName, setNewProjectName] = React2.useState("");
+  const [selectedIds, setSelectedIds] = React2.useState([]);
+  const [moveTarget, setMoveTarget] = React2.useState("");
   React2.useEffect(() => {
     persistTheme(theme);
   }, [theme]);
@@ -583,6 +585,8 @@ function MemoryPage() {
       setDetail(null);
       setNewProjectOpen(false);
       setNewProjectName("");
+      setSelectedIds([]);
+      setMoveTarget("");
     }
   }, [panel]);
   React2.useEffect(load, []);
@@ -811,6 +815,8 @@ ${lines.join("\n")}`);
               setTreeProject(project.name);
               setFocusId(null);
               setDetail(null);
+              setSelectedIds([]);
+              setMoveTarget("");
             }
           },
           React2.createElement("div", { style: { fontWeight: 600, marginBottom: "4px" } }, project.name),
@@ -820,6 +826,22 @@ ${lines.join("\n")}`);
             "div",
             { style: { ...styles.small, color: "var(--am-text-tertiary)", marginTop: "2px" } },
             project.last_updated ? `最近更新 ${project.last_updated}` : "还没有记忆"
+          ),
+          project.name === "未归类" ? null : React2.createElement(
+            "span",
+            {
+              style: { ...styles.small, color: "var(--am-danger)", marginTop: "6px", display: "inline-block" },
+              onClick: (event) => {
+                event.stopPropagation();
+                if (!window.confirm(`删除项目「${project.name}」？里面的记忆会回到「未归类」，不会被删除。`)) return;
+                fetch(`/api/agent-memory/projects?name=${encodeURIComponent(project.name)}`, { method: "DELETE" }).then(async (response) => {
+                  const data2 = await response.json().catch(() => ({}));
+                  if (!response.ok) throw new Error(data2.error || `HTTP ${response.status}`);
+                  openTree();
+                }).catch((error) => setNotice(`删除项目失败：${String(error.message || error)}`));
+              }
+            },
+            "删除项目"
           )
         )
       )
@@ -842,12 +864,7 @@ ${lines.join("\n")}`);
           "div",
           { style: { ...styles.small, padding: "16px", background: "var(--am-surface-muted)", borderRadius: "12px" } },
           "暂无显式关系；同项目、同标签的条目也没有。给这条记忆加标签或关系后，这里会出现局部图。"
-        ),
-        detail && detail.data ? React2.createElement(
-          "div",
-          { style: { padding: "0 2px" } },
-          React2.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body)
-        ) : null
+        )
       );
     }
     const width = 460;
@@ -905,14 +922,7 @@ ${lines.join("\n")}`);
             label(entry.node)
           )
         ])
-      ),
-      detail && detail.data ? React2.createElement(
-        "div",
-        { style: { padding: "0 2px" } },
-        React2.createElement("div", { style: styles.small }, `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind}`),
-        React2.createElement("div", { style: { fontWeight: 600, margin: "6px 0" } }, detail.data.abstract),
-        React2.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body)
-      ) : null
+      )
     );
   };
   const renderTreePanel = () => {
@@ -971,19 +981,69 @@ ${lines.join("\n")}`);
       );
     }
     const docs = graphNodes.filter((node) => node.project === treeProject);
+    const detailCard = focusNode && detail && detail.data ? React2.createElement(
+      "div",
+      { style: { border: "1px solid var(--am-border)", background: "var(--am-surface)", borderRadius: "12px", padding: "16px", marginBottom: "14px" } },
+      React2.createElement("div", { style: styles.small }, `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind} · ${detail.data.valid_from}`),
+      React2.createElement("h2", { style: { margin: "6px 0 8px", fontSize: "18px" } }, detail.data.abstract),
+      React2.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body)
+    ) : null;
     return React2.createElement(
       "div",
       null,
+      detailCard,
       React2.createElement(
         "div",
-        { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" } },
+        { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" } },
         React2.createElement(AmButton, { variant: "ghost", onClick: () => {
           setTreeProject(null);
           setFocusId(null);
           setDetail(null);
+          setSelectedIds([]);
         } }, "← 全部项目"),
         React2.createElement("h2", { style: { ...styles.groupTitle, margin: 0 } }, treeProject),
-        React2.createElement("span", { style: styles.small }, `${docs.length} 条`)
+        React2.createElement("span", { style: styles.small }, `${docs.length} 条`),
+        React2.createElement(
+          "span",
+          { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" } },
+          React2.createElement(
+            "label",
+            { style: styles.small },
+            React2.createElement("input", {
+              type: "checkbox",
+              checked: docs.length > 0 && selectedIds.length === docs.length,
+              onChange: (event) => setSelectedIds(event.target.checked ? docs.map((node) => node.id) : [])
+            }),
+            " 全选"
+          ),
+          React2.createElement("span", { style: styles.small }, `已选 ${selectedIds.length}`),
+          React2.createElement(
+            "select",
+            {
+              className: "am-input",
+              style: { width: "150px" },
+              value: moveTarget,
+              onChange: (event) => setMoveTarget(event.target.value)
+            },
+            React2.createElement("option", { value: "" }, "移动到…"),
+            React2.createElement("option", { value: "__none__" }, "未归类"),
+            ...graphData.projects.filter((project) => project.name !== treeProject).map(
+              (project) => React2.createElement("option", { key: project.name, value: project.name }, project.name)
+            )
+          ),
+          React2.createElement(AmButton, {
+            variant: "primary",
+            disabled: selectedIds.length === 0 || moveTarget === "",
+            onClick: () => {
+              const target = moveTarget === "__none__" ? null : moveTarget;
+              postJson("/api/agent-memory/projects/move", { ids: selectedIds, project: target }).then(() => {
+                setSelectedIds([]);
+                setMoveTarget("");
+                openTree();
+              }).catch((error) => setNotice(`移动失败：${String(error.message || error)}`));
+            }
+          }, "移动")
+        )
       ),
       React2.createElement(
         "div",
@@ -1000,27 +1060,38 @@ ${lines.join("\n")}`);
               React2.createElement("div", { style: { ...styles.small, fontWeight: 600, marginBottom: "4px" } }, KIND_STYLE[kind] ? KIND_STYLE[kind].label : kind),
               ...rows.map(
                 (node) => React2.createElement(
-                  "button",
-                  {
-                    key: node.id,
-                    className: "am-row",
-                    style: {
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "7px 9px",
-                      marginBottom: "2px",
-                      cursor: "pointer",
-                      background: focusId === node.id ? "var(--am-accent-soft)" : "transparent",
-                      border: "none"
+                  "div",
+                  { key: node.id, style: { display: "flex", alignItems: "center", gap: "5px" } },
+                  React2.createElement("input", {
+                    type: "checkbox",
+                    checked: selectedIds.includes(node.id),
+                    onChange: (event) => setSelectedIds(
+                      (current) => event.target.checked ? [...current, node.id] : current.filter((id) => id !== node.id)
+                    )
+                  }),
+                  React2.createElement(
+                    "button",
+                    {
+                      className: "am-row",
+                      style: {
+                        display: "block",
+                        flex: "1 1 auto",
+                        minWidth: 0,
+                        textAlign: "left",
+                        padding: "7px 9px",
+                        marginBottom: "2px",
+                        cursor: "pointer",
+                        background: focusId === node.id ? "var(--am-accent-soft)" : "transparent",
+                        border: "none"
+                      },
+                      onClick: () => {
+                        setFocusId(node.id);
+                        openItem(node.id);
+                      }
                     },
-                    onClick: () => {
-                      setFocusId(node.id);
-                      openItem(node.id);
-                    }
-                  },
-                  React2.createElement("div", { style: { fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, node.display),
-                  React2.createElement("div", { style: { ...styles.small, marginTop: "1px" } }, `${node.valid_from}${node.tags.length ? ` · ${node.tags.slice(0, 2).join(" ")}` : ""}`)
+                    React2.createElement("div", { style: { fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, node.display),
+                    React2.createElement("div", { style: { ...styles.small, marginTop: "1px" } }, `${node.valid_from}${node.tags.length ? ` · ${node.tags.slice(0, 2).join(" ")}` : ""}`)
+                  )
                 )
               )
             );
@@ -1585,21 +1656,21 @@ ${lines.join("\n")}`);
 }
 function MemoryIcon() {
   return React2.createElement(
-    "span",
+    "svg",
     {
-      style: {
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "20px",
-        height: "20px",
-        fontSize: "12px",
-        fontWeight: 600,
-        borderRadius: "6px",
-        border: "1px solid var(--am-border, #e5e7eb)"
-      }
+      width: 18,
+      height: 18,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.8,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": true,
+      style: { display: "block" }
     },
-    "记"
+    React2.createElement("path", { d: "M6 4.5h12a1 1 0 0 1 1 1V19.5l-7-3.5-7 3.5V5.5a1 1 0 0 1 1-1Z" }),
+    React2.createElement("path", { d: "M9 8.5h6" })
   );
 }
 function apply(ctx) {
