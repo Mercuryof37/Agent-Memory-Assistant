@@ -93,10 +93,17 @@ test('a missing explicit config is an error', (t) => {
 });
 
 test('home resolution follows the documented order', () => {
-  assert.equal(resolveHome({ home: 'relative/home', env: {}, cwd: 'C:\\work' }), 'C:\\work\\relative\\home');
-  assert.equal(resolveHome({ env: { AGENT_MEMORY_HOME: 'C:\\explicit' }, cwd: 'C:\\work' }), 'C:\\explicit');
-  assert.equal(resolveHome({ env: { DSH_HOME: 'C:\\dsh' }, cwd: 'C:\\work' }), 'C:\\dsh\\memory');
-  assert.match(resolveHome({ env: {}, cwd: 'C:\\work' }), /\.dsh[\\/]memory$/);
+  // The CI runner is Linux while the daily environment is Windows; use
+  // platform-appropriate absolute paths instead of assuming drive letters.
+  const isWindows = process.platform === 'win32';
+  const cwd = isWindows ? 'C:\\work' : '/work';
+  const relative = isWindows ? 'C:\\work\\relative\\home' : '/work/relative/home';
+  const explicit = isWindows ? 'C:\\explicit' : '/explicit';
+  const dshHome = isWindows ? 'C:\\dsh' : '/dsh';
+  assert.equal(resolveHome({ home: 'relative/home', env: {}, cwd }), relative);
+  assert.equal(resolveHome({ env: { AGENT_MEMORY_HOME: explicit }, cwd }), explicit);
+  assert.equal(resolveHome({ env: { DSH_HOME: dshHome }, cwd }), join(dshHome, 'memory'));
+  assert.match(resolveHome({ env: {}, cwd }), /\.dsh[\\/]memory$/);
 });
 
 test('the DSH adapter exposes settings without touching files itself', (t) => {
