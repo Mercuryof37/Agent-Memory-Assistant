@@ -22,7 +22,7 @@ V1.0 已完成；V2/V3 的功能迭代见 [开发历程](../history/rounds.md) �
 | 阶段 | 内容 | 状态 | 记录 |
 |---|---|---|---|
 | V4.0-S1 | v1.4 数据格式、用户自建项目、Mem0 导入前置 | ✅ 完成（未发布） | [ADR-0033](../adr/0033-v4-data-projects.md) |
-| V4.0-S2 | ONNX embedding、hybrid、LongMemEval 子集 | ✅ 完成（sidecar；ONNX 运行时由用户提供） | [ADR-0034](../adr/0034-v4-s2a-hybrid.md) / [0035](../adr/0035-v4-s2b-sidecar.md) |
+| V4.0-S2 | ONNX embedding、hybrid、LongMemEval 子集 | S2a/S2b ✅；LongMemEval 子集待 S2c | [ADR-0034](../adr/0034-v4-s2a-hybrid.md) / [0035](../adr/0035-v4-s2b-sidecar.md) |
 | V4.0-S3 | Mem0 导入、Memory API v1、MCP 对齐 | 待开始 | — |
 | V4.0-S4 | 工作树 L0–L2、焦点局部图、冲突提示 | 待开始 | — |
 
