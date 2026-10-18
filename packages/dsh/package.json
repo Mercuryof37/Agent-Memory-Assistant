@@ -7,16 +7,26 @@
   "main": "./dist/plugin.mjs",
   "exports": {
     ".": "./dist/plugin.mjs",
-    "./settings": "./src/settings.ts"
+    "./settings": "./src/settings.ts",
+    "./client": "./client/client.js"
   },
   "files": [
     "dist",
+    "client",
     "cordis.patch.yml",
     "locale/*.json"
   ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ],
+      "platform": "web"
     }
   }
 }
