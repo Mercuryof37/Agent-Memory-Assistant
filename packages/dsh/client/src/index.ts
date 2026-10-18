@@ -276,12 +276,7 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           .catch((error) => setState({ error: String(error) }));
       };
 
-      const openTree = () => {
-        setPanel("tree");
-        setTree({ loading: true });
-        setTreeProject(null);
-        setFocusId(null);
-        setDetail(null);
+      const refreshGraph = () =>
         fetch("/api/agent-memory/graph", { headers: { accept: "application/json" } })
           .then((response) => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -289,6 +284,14 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           })
           .then((data) => setTree({ data }))
           .catch((error) => setTree({ error: String(error) }));
+
+      const openTree = () => {
+        setPanel("tree");
+        setTree({ loading: true });
+        setTreeProject(null);
+        setFocusId(null);
+        setDetail(null);
+        refreshGraph();
       };
 
       React.useEffect(() => {
@@ -815,12 +818,18 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
               const saveTags = () => {
                 const tags = tagDraft.split(",").map((tag) => tag.trim()).filter((tag) => tag !== "");
                 postJson("/api/agent-memory/meta", { id: current.id, tags })
-                  .then(() => openItem(current.id))
+                  .then(() => {
+                    refreshGraph();
+                    openItem(current.id);
+                  })
                   .catch((error) => setNotice(`保存标签失败：${String(error.message || error)}`));
               };
               const saveRelations = (next) => {
                 postJson("/api/agent-memory/meta", { id: current.id, relations: next })
-                  .then(() => openItem(current.id))
+                  .then(() => {
+                    refreshGraph();
+                    openItem(current.id);
+                  })
                   .catch((error) => setNotice(`保存关系失败：${String(error.message || error)}`));
               };
               return React.createElement(

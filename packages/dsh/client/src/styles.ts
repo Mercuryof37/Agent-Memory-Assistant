@@ -162,7 +162,13 @@ ${TOKENS_CSS}
   background: var(--am-accent-soft);
   border-color: color-mix(in srgb, var(--am-accent) 25%, transparent);
 }
-.am-tree-row input[type="checkbox"] { margin-top: 3px; accent-color: var(--am-accent); }
+.am-tree-row input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  margin: 3px 0 0;
+  flex: none;
+  accent-color: var(--am-accent);
+}
 .am-tree-link {
   flex: 1 1 auto; min-width: 0; display: block;
   border: none; background: transparent; color: var(--am-text);
