@@ -10,7 +10,7 @@ test('S18.1 the published package is public, versioned and complete', () => {
   assert.equal(pkg.name, '@agent_memory/dsh');
   assert.equal(pkg.private, false);
   assert.equal(pkg.license, 'MIT');
-  assert.equal(pkg.version, '0.3.0');
+  assert.equal(pkg.version, '0.4.0');
   assert.equal(pkg.publishConfig?.access, 'public');
   for (const file of ['dist', 'client/client.js', 'cordis.patch.yml', 'README.md', 'LICENSE']) {
     assert.ok(pkg.files?.includes(file), `files must include ${file}`);
