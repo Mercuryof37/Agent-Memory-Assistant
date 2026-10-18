@@ -1,0 +1,27 @@
+# 阶段状态（维护者）
+
+> 面向用户的 README 不再记录逐轮开发；状态表与逐轮记录分开维护。
+> 逐轮细节见 [开发历程](../history/rounds.md)。
+
+| 阶段 | 目标 | 关键产出 | 验收 | 估时 | 状态 | 记录 |
+|---|---|---|---|---|---|---|
+| **S0** | 锁定宿主与接口 | 版本/API/沙箱边界实测；最小探针插件 | M1–M4 | 2–3 d | ✅ 完成 | [ADR-0003](../adr/0003-dsh-compat.md) |
+| **S1** | 能启动、能拒绝坏配置 | workspaces、受限 TOML、严格 schema、策略封存、门禁、CLI 3 命令 | 未知键拒绝、哈希不符拒绝、core 纯净 | — | ✅ 完成 | [ADR-0001](../adr/0001-skeleton.md)/[0002](../adr/0002-optimized-plan-deltas.md) |
+| **S2a** | 写入→读出→重建闭环 | journal、锁、模型、store、子串召回、CLI 4 命令、配置冻结 | S2a.1–S2a.6 | 4–5 d | ✅ 完成 | [ADR-0005](../adr/0005-s2a-store.md) |
+| **S2b** | 坏文件不拖垮、可修 | 隔离/adopt、路径红队、journal 一致性、`sealed_files`、备份演练 | S2b.1–S2b.5 | 3–4 d | ✅ 完成 | [ADR-0006](../adr/0006-s2b-integrity.md) |
+| **S3** | 每轮看得见该看的 | BM25、section 注入、快照、RULES 解析、token 预算 | S3.1–S3.6 | 4–5 d | ✅ 完成 | [ADR-0007](../adr/0007-s3-recall-inject-rules.md) |
+| **S4** | 只能从一个门进出 | 模型工具、可信来源绑定、提案/决定、T0/T1/T2、扫描 | S4.1–S4.6 | 4.5–5.5 d | ✅ 完成 | [ADR-0008](../adr/0008-s4-tools.md) |
+| **S6** | 项目收尾有候选可采纳 | L0 打标、`/closeout`、决定界面、去重 | S6.1–S6.5 | 3–3.5 d | ✅ 完成 | [ADR-0009](../adr/0009-s6-closeout.md) |
+| **S7** | 可备份、可回滚、可发布 | `inspect`/`export`/`purge`、备份、`mem pack`、真实 DSH smoke | S7.1–S7.6 | 3–4 d | ✅ 完成 | [ADR-0010](../adr/0010-s7-ops.md) |
+
+V1.0 已完成；V2/V3 的功能迭代见 [开发历程](../history/rounds.md) 与各期方案。
+阶段门禁：`node scripts/stage.mjs <S>`（ci + smoke + ADR + 验收编号 + 闭环）。
+
+## 闭环检查
+
+`scripts/closure.mjs`（已并入阶段门禁）机械确认：
+
+- 状态表里标 ✅ 的阶段都有存在的 ADR 链接与「第 N 轮」记录（记录读 `docs/history/rounds.md`）；
+- 到期 `todo.md` 条目不得是「待办」（`顺延` 必须带理由）；
+- 到期 open question 必须「已解决/顺延」；
+- README 仍链接 todo 与 open-questions。

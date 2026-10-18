@@ -39,8 +39,14 @@ function check(ok, name, detail) {
 const readme = readFileSync(join(root, 'README.md'), 'utf8');
 
 // 1. Roadmap rows marked done -> ADR exists + completed-features entry exists.
+// The user-facing README no longer carries the roadmap; maintainers keep it in
+// docs/plan/status.md and the per-round log in docs/history/rounds.md.
+const statusPath = join(root, 'docs', 'plan', 'status.md');
+const historyPath = join(root, 'docs', 'history', 'rounds.md');
+const roadmapText = existsSync(statusPath) ? readFileSync(statusPath, 'utf8') : readme;
+const roadmapBase = existsSync(statusPath) ? join(root, 'docs', 'plan') : root;
 const doneRows = [];
-for (const line of readme.split('\n')) {
+for (const line of roadmapText.split('\n')) {
   const match = /^\|\s*\*\*(S\w+)\*\*\s*\|/.exec(line);
   if (match === null) continue;
   const columns = line.split('|').map((cell) => cell.trim());
@@ -50,10 +56,12 @@ for (const line of readme.split('\n')) {
 }
 check(doneRows.length > 0, 'roadmap has at least one completed stage');
 
-const completedSection = readme.slice(readme.indexOf('## 已完成功能'));
+const completedSection = existsSync(historyPath)
+  ? readFileSync(historyPath, 'utf8')
+  : readme.slice(readme.indexOf('## 已完成功能'));
 for (const row of doneRows) {
   const adrLinks = [...row.line.matchAll(/\]\(([^)]+\.md)\)/g)].map((match) => match[1]);
-  const adrOk = adrLinks.length > 0 && adrLinks.every((link) => existsSync(join(root, link)));
+  const adrOk = adrLinks.length > 0 && adrLinks.every((link) => existsSync(join(roadmapBase, link)));
   check(adrOk, `${row.stage}: ADR link exists`, `${row.stage} is ✅ but its ADR link is missing or broken`);
 
   const roundOk = new RegExp(`第\\s*\\d+\\s*轮\\s*·\\s*${row.stage}`).test(completedSection);

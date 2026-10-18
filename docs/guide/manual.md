@@ -87,7 +87,7 @@ args = ["<仓库或安装目录>\\packages\\cli\\bin\\mem.mjs", "mcp"]
 
 改完重启生效。无论哪种模式，**删除与彻底清除都只能由你执行**。
 
-如果想按会话切换，而不是全局改配置：用 `npm run preset -- --id memory-ro --mode readonly --out memory-ro.patch.yml` 生成一份 preset 补丁，按 [presets 说明](presets/README.md) 追加到 profile，重启后在「设置 → 通用 → Agent preset」里选择；只读 preset 里助手连写工具都看不到。
+如果想按会话切换，而不是全局改配置：用 `npm run preset -- --id memory-ro --mode readonly --out memory-ro.patch.yml` 生成一份 preset 补丁，按 [presets 说明](../presets/README.md) 追加到 profile，重启后在「设置 → 通用 → Agent preset」里选择；只读 preset 里助手连写工具都看不到。
 
 ## 日常怎么用
 

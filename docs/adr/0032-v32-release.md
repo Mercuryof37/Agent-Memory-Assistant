@@ -19,7 +19,7 @@ V2 只会 `npm run pack` 出一个本地 tgz，包元数据还是 `private: true
    - `pnpm add <tgz>` → 校验 `node_modules/@agent_memory/dsh` → 追加 `dsh.profile.bundles`；
    - `--revert <backupDir>` 还原并 `pnpm install`。
 3. **发布流水线** `.github/workflows/release.yml`：tag `v*` → 安装依赖 → ci → pack → 上传 artifact → GitHub Release；仓库变量 `NPM_PUBLISH=true` 时 `npm publish --provenance`（需 `NPM_TOKEN`）。
-4. **发布检查单** `docs/release.md`：版本/CHANGELOG → 门禁 → 干净 profile 演练 → npm → GitHub Release → 回滚；`CHANGELOG.md` 记录 0.2.0 内容。
+4. **发布检查单** `docs/development/release.md`：版本/CHANGELOG → 门禁 → 干净 profile 演练 → npm → GitHub Release → 回滚；`CHANGELOG.md` 记录 0.2.0 内容。
 
 ## 被否方案
 

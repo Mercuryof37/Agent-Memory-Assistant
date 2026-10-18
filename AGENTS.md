@@ -46,14 +46,14 @@ policy.json 的字段同理，改 `policySchema` + `docs/policy.md`。
 
 - 一个 S 阶段一条主提交，提交信息英文；**不自动提交**，等明确指令；
 - 每个阶段在 `docs/adr/` 留一条决策记录（改了什么、为什么、与方案的偏差）；
-- **每轮开工前先做对齐**：读 README 路线图、`docs/plan/todo.md`、`docs/plan/open-questions.md`，确认本轮应关闭哪些旧项；把"本轮关闭了 T*/Q*"写进本轮 ADR 的「闭环」段；
+- **每轮开工前先做对齐**：读 `docs/plan/status.md` 的阶段表、`docs/plan/todo.md`、`docs/plan/open-questions.md`，确认本轮应关闭哪些旧项；把"本轮关闭了 T*/Q*"写进本轮 ADR 的「闭环」段；
 - 阶段完成的定义是：`node scripts/stage.mjs <S>` 全绿（ci + smoke + ADR + 验收编号 + **闭环检查**）+ `npm run smoke` 成功；缺一项就别说"完成"；
 - **闭环检查**（`scripts/closure.mjs`，已并入阶段门禁）机械地确认：
-  - README 里每个标 ✅ 的阶段都有存在的 ADR 链接与「第 N 轮」记录；
+  - `docs/plan/status.md` 里每个标 ✅ 的阶段都有存在的 ADR 链接与 `docs/history/rounds.md` 中的「第 N 轮」记录；
   - `todo.md` 中阶段不晚于当前的条目不得是 `待办`，`顺延` 必须带括号理由；
   - `open-questions.md` 中"最晚阶段"不晚于当前的条目必须"已解决"或"顺延"；
   - README 仍链接 todo 与 open-questions 两个文件。
-- **阶段完成时更新 README 路线图**：把状态列改成 ✅，并在「已完成功能」末尾**追加**新一轮（日期、阶段、新增功能、验证方式、ADR），只追加不改写历史。
+- **阶段完成时更新状态与历程**：把 `docs/plan/status.md` 的状态列改成 ✅，并在 `docs/history/rounds.md` 末尾**追加**新一轮（日期、阶段、新增功能、验证方式、ADR）；README 只保留面向用户的内容，只追加不改写历史。
 
 ## 数据目录
 

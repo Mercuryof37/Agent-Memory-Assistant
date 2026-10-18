@@ -1,6 +1,6 @@
 # 分发与安装（V3.2）
 
-> 目标：一个 `.tgz` 包或 npm 包，设置 → 插件一键安装，失败可回滚。发布检查单见 [release.md](release.md)。
+> 目标：一个 `.tgz` 包或 npm 包，设置 → 插件一键安装，失败可回滚。发布检查单见 [release.md](../development/release.md)。
 
 ## 1. 打包
 

@@ -12,7 +12,7 @@ P2 之后功能齐了，但只有开发者能从仓库链接安装；其他平�
 ## 选择
 
 1. **打包**：`npm run pack`（`scripts/pack.mjs`）先跑 build，再用 `npm pack` 产出 `release/agent-memory-dsh-<version>.tgz`，检查 `dist/plugin.mjs`、`client/client.js`、`cordis.patch.yml` 三件套是否在包内，缺一即失败。
-2. **安装**：优先 设置 → 插件 → 从文件安装；命令行 `dsh plugin add <tgz>`；开发期仍可 `npm run plugin:install`。升级/回滚/卸载写入 [docs/distribution.md](../distribution.md)，数据目录不动。
+2. **安装**：优先 设置 → 插件 → 从文件安装；命令行 `dsh plugin add <tgz>`；开发期仍可 `npm run plugin:install`。升级/回滚/卸载写入 [docs/guide/install.md](../guide/install.md)，数据目录不动。
 3. **MCP**：`mem mcp` 启动**换行分隔 JSON-RPC** 的 MCP stdio server。工具面固定为 `memory_search` / `memory_read` / `memory_list` / `memory_propose`；**没有 `memory_record`，没有 `memory_decide`**。外部提案进同一 pending 队列，人在 DSH GUI/聊天卡里决定。
 4. **证据**：外部 agent 没有 DSH event_seq，MCP 提案的 provenance 为空，**不伪造**；提案与决定仍写 journal。
 5. **共用数据目录**：默认 `~/.dsh/memory`，`--home` 可指定；MCP 走 core 的文件锁，与 DSH 单写者排队。
@@ -29,7 +29,7 @@ P2 之后功能齐了，但只有开发者能从仓库链接安装；其他平�
 
 - `ci` 全绿：**244 个测试**。新增 `S15.1`（initialize/tools 列表无 decide/record）、`S15.2`（search 与 propose 走 core，提案 provenance 为空）、`S15.3`（decide 工具不存在）、`S15.4`（未知方法 -32601、通知静默）。
 - `npm run pack` 产出 168 KB tgz；`node packages/cli/bin/mem.mjs mcp` 对 `initialize` 返回 `agent-memory 0.1.0`。
-- 手册/文档：[docs/mcp.md](../mcp.md)、[docs/distribution.md](../distribution.md)。
+- 手册/文档：[docs/guide/mcp.md](../guide/mcp.md)、[docs/guide/install.md](../guide/install.md)。
 
 ## 偏差与回滚
 
