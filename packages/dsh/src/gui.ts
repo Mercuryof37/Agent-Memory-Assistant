@@ -4,6 +4,7 @@ import {
   importBundle,
   listProposals,
   loadProfile,
+  memoryPaths,
   readRulesFile,
   saveProfile,
   saveRulesFile,
@@ -54,6 +55,133 @@ export function summarize(text: string, limit = 12): string {
 export function displayName(serial: string, abstract: string): string {
   const text = summarize(abstract);
   return serial === '' ? text : `${serial} ${text}`;
+}
+
+/** Human GUI "new memory": content-only dedupe applies, audit marks the GUI. */
+export function createGui(
+  store: MemoryStore,
+  input: {
+    kind: string;
+    abstract: string;
+    body?: string;
+    valid_from?: string;
+    error_signatures?: readonly string[];
+  },
+) {
+  if (!KIND_ORDER.includes(input.kind as (typeof KIND_ORDER)[number])) {
+    throw new Error(`kind must be one of ${KIND_ORDER.join(', ')}`);
+  }
+  const abstract = typeof input.abstract === 'string' ? input.abstract.trim() : '';
+  if (abstract === '') throw new Error('abstract is required');
+  const result = store.add(
+    {
+      kind: input.kind as (typeof KIND_ORDER)[number],
+      abstract,
+      body: typeof input.body === 'string' ? input.body : '',
+      evidence_level: 'user_explicit',
+      ...(typeof input.valid_from === 'string' && input.valid_from !== ''
+        ? { valid_from: input.valid_from }
+        : {}),
+      ...(Array.isArray(input.error_signatures)
+        ? { error_signatures: input.error_signatures.filter((entry): entry is string => typeof entry === 'string') }
+        : {}),
+    },
+    { author: 'human' },
+  );
+  store.appendJournal('audit', {
+    event: 'gui-create',
+    id: result.id,
+    deduplicated: result.deduplicated,
+  });
+  const serial = serialsFor(store.active()).get(result.id) ?? '';
+  return {
+    id: result.id,
+    deduplicated: result.deduplicated,
+    display: displayName(serial, abstract),
+  };
+}
+
+export interface SummarySuggestion {
+  readonly id: string;
+  readonly text: string;
+  readonly category: string;
+  readonly basis: readonly string[];
+  readonly confidence: '高' | '中' | '低';
+}
+
+/**
+ * Deterministic "整理记忆" projection. Read-only: it never writes RULES.
+ * Suggestions are candidate model-guide lines; a human must select them and
+ * still press save in the RULES editor.
+ */
+export function summarizeGui(store: MemoryStore) {
+  const docs = store.active();
+  const serials = serialsFor(docs);
+  const byKind = { fact: 0, pitfall: 0, exp: 0 };
+  for (const doc of docs) byKind[doc.kind] += 1;
+
+  const sorted = [...docs].sort(byDateDesc);
+  const recent = sorted.slice(0, 5).map((doc) => ({
+    serial: serials.get(doc.id) ?? '',
+    kind: doc.kind,
+    abstract: doc.abstract,
+  }));
+
+  const signatures = new Map<string, { count: number; ids: string[] }>();
+  for (const doc of docs) {
+    if (doc.kind !== 'pitfall') continue;
+    for (const signature of doc.error_signatures) {
+      const entry = signatures.get(signature) ?? { count: 0, ids: [] };
+      entry.count += 1;
+      entry.ids.push(doc.id);
+      signatures.set(signature, entry);
+    }
+  }
+  const topSignatures = [...signatures.entries()]
+    .map(([signature, entry]) => ({
+      signature,
+      count: entry.count,
+      basis: entry.ids.map((id) => serials.get(id) ?? ''),
+    }))
+    .sort((left, right) => right.count - left.count || left.signature.localeCompare(right.signature))
+    .slice(0, 5);
+
+  const suggestions: SummarySuggestion[] = [];
+  for (const item of topSignatures) {
+    if (item.count < 2) continue;
+    suggestions.push({
+      id: `sig-${suggestions.length + 1}`,
+      text: `遇到「${item.signature}」时，先按已有经验排查，避免重复踩坑。`,
+      category: '模型指引',
+      basis: item.basis,
+      confidence: '高',
+    });
+  }
+  if (suggestions.length === 0) {
+    suggestions.push({
+      id: 'generic-1',
+      text: '新增记忆前先检索是否已有同类结论，避免重复记录。',
+      category: '模型指引',
+      basis: recent.slice(0, 3).map((entry) => entry.serial).filter((serial) => serial !== ''),
+      confidence: '中',
+    });
+  }
+
+  return {
+    total: docs.length,
+    by_kind: byKind,
+    recent,
+    top_signatures: topSignatures,
+    suggestions: suggestions.slice(0, 8),
+  };
+}
+
+/** Path only: the GUI never reads or writes SOUL.md. */
+export function soulPathGui(home: string): { path: string; hint: string } {
+  return {
+    path: memoryPaths(home).soulFile,
+    hint: '此文件只由你编辑；本插件不读取、不修改它。改完请在终端执行 mem policy seal --accept。',
+  };
 }
 
 function summary(doc: MemoryDoc, serial: string) {
@@ -468,6 +596,44 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     },
   };
 
+  const createRoute = {
+    path: '/api/agent-memory/create',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      const body = await readJson(request);
+      try {
+        return json(
+          createGui(deps.store, {
+            kind: typeof body.kind === 'string' ? body.kind : '',
+            abstract: typeof body.abstract === 'string' ? body.abstract : '',
+            ...(typeof body.body === 'string' ? { body: body.body } : {}),
+            ...(typeof body.valid_from === 'string' ? { valid_from: body.valid_from } : {}),
+            ...(Array.isArray(body.error_signatures)
+              ? { error_signatures: body.error_signatures.filter((entry): entry is string => typeof entry === 'string') }
+              : {}),
+          }),
+        );
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error));
+      }
+    },
+  };
+
+  const summarizeRoute = {
+    path: '/api/agent-memory/summarize',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async () => json(summarizeGui(deps.store)),
+  };
+
+  const soulPathRoute = {
+    path: '/api/agent-memory/soul-path',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async () => json(soulPathGui(deps.home)),
+  };
+
   const profileRoute = {
     path: '/api/agent-memory/profile',
     methods: ['GET', 'POST'],
@@ -515,6 +681,9 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     reviseRoute,
     deleteRoute,
     importRoute,
+    createRoute,
+    summarizeRoute,
+    soulPathRoute,
     profileRoute,
     rulesRoute,
   ];

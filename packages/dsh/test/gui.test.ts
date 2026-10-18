@@ -8,6 +8,7 @@ import {
   buildList,
   buildProposals,
   buildSearch,
+  createGui,
   decideGui,
   deleteGui,
   displayName,
@@ -19,7 +20,9 @@ import {
   saveProfileGui,
   saveRulesGui,
   serialsFor,
+  soulPathGui,
   summarize,
+  summarizeGui,
 } from '../src/gui.ts';
 import type { MemoryDoc } from '../../core/src/model/types.ts';
 
@@ -85,6 +88,7 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
     methods: string[];
   }>;
   assert.deepEqual(routes.map((route) => route.path).sort(), [
+    '/api/agent-memory/create',
     '/api/agent-memory/delete',
     '/api/agent-memory/export',
     '/api/agent-memory/import',
@@ -96,7 +100,9 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
     '/api/agent-memory/revise',
     '/api/agent-memory/rules',
     '/api/agent-memory/search',
+    '/api/agent-memory/soul-path',
     '/api/agent-memory/status',
+    '/api/agent-memory/summarize',
   ]);
   for (const route of routes) {
     assert.ok(route.methods.length >= 1);
@@ -267,4 +273,61 @@ test('S14.12 lists sort by valid_from, newest first', (t) => {
   assert.equal(serials.get(newer.id as never), 'F-01');
   assert.equal(serials.get(older.id as never), 'F-02');
   assert.equal(buildList(store).groups[0]?.items[0]?.abstract, '较晚的事');
+});
+
+test('S14.14 GUI create writes a human entry and dedupes by content', (t) => {
+  const { store } = fixture(t);
+  const first = createGui(store, {
+    kind: 'fact',
+    abstract: '手动新增的事实',
+    body: '正文',
+    valid_from: '2026-10-18',
+  });
+  assert.ok(first.display.startsWith('F-01 '));
+  assert.equal(first.deduplicated, false);
+
+  const second = createGui(store, {
+    kind: 'fact',
+    abstract: '手动新增的事实',
+    body: '正文',
+    valid_from: '2026-10-19',
+  });
+  assert.equal(second.deduplicated, true);
+  assert.equal(store.active().length, 1);
+
+  assert.throws(
+    () => createGui(store, { kind: 'pitfall', abstract: '没有错误特征的坑', body: 'b' }),
+    /error_signatures/,
+  );
+});
+
+test('S14.15 summarize is read-only and suggests RULES from repeated signatures', (t) => {
+  const { home, store } = fixture(t);
+  createGui(store, {
+    kind: 'pitfall',
+    abstract: '迁移时连错库',
+    body: 'b',
+    error_signatures: ['ECONNREFUSED 5432'],
+  });
+  createGui(store, {
+    kind: 'pitfall',
+    abstract: '迁移时又连错库',
+    body: 'b',
+    error_signatures: ['ECONNREFUSED 5432'],
+  });
+  const before = readRulesGui(home).text;
+  const summary = summarizeGui(store);
+  assert.equal(summary.total, 2);
+  assert.equal(summary.by_kind.pitfall, 2);
+  assert.equal(summary.top_signatures[0]?.signature, 'ECONNREFUSED 5432');
+  assert.equal(summary.suggestions[0]?.basis.length, 2);
+  assert.match(summary.suggestions[0]?.text ?? '', /ECONNREFUSED 5432/);
+  assert.equal(readRulesGui(home).text, before);
+});
+
+test('S14.16 SOUL path is returned without touching the file', (t) => {
+  const { home } = fixture(t);
+  const soul = soulPathGui(home);
+  assert.match(soul.path, /SOUL\.md$/);
+  assert.match(soul.hint, /不读取、不修改/);
 });

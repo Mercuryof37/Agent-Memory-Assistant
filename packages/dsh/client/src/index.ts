@@ -218,6 +218,11 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
       const [busy, setBusy] = React.useState(false);
       const [revise, setRevise] = React.useState(null);
       const [expandedProposal, setExpandedProposal] = React.useState(null);
+      const [createKind, setCreateKind] = React.useState("fact");
+      const [createForm, setCreateForm] = React.useState({ abstract: "", body: "", valid_from: "", signatures: "" });
+      const [summary, setSummary] = React.useState(null);
+      const [selectedSuggestions, setSelectedSuggestions] = React.useState([]);
+      const [soulPath, setSoulPath] = React.useState(null);
       const [theme, setTheme] = React.useState(() => initialTheme());
 
       React.useEffect(() => {
@@ -345,6 +350,102 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           .then((response) => response.json())
           .then((data) => setRulesText(data.text || ""))
           .catch(() => setNotice("读取规则失败"));
+        fetch("/api/agent-memory/soul-path", { headers: { accept: "application/json" } })
+          .then((response) => response.json())
+          .then((data) => setSoulPath(data))
+          .catch(() => setSoulPath(null));
+      };
+
+      const openCreate = (kind) => {
+        setPanel("create");
+        setCreateKind(kind);
+        setCreateForm({ abstract: "", body: "", valid_from: "", signatures: "" });
+        setNotice("");
+        setDetail(null);
+        setRevise(null);
+      };
+
+      const saveCreate = () => {
+        const abstract = createForm.abstract.trim();
+        if (abstract === "") {
+          setNotice("请先填写一句摘要。");
+          return;
+        }
+        const payload = { kind: createKind, abstract, body: createForm.body };
+        if (createForm.valid_from !== "") payload.valid_from = createForm.valid_from;
+        if (createKind === "pitfall") {
+          const signatures = createForm.signatures
+            .split(/[,，]/)
+            .map((signature) => signature.trim())
+            .filter((signature) => signature !== "");
+          if (signatures.length === 0) {
+            setNotice("坑至少需要一条错误特征。");
+            return;
+          }
+          payload.error_signatures = signatures;
+        }
+        setBusy(true);
+        postJson("/api/agent-memory/create", payload)
+          .then((result) => {
+            setNotice(result.deduplicated ? `已存在：${result.display}` : "已新增。");
+            setPanel(null);
+            allReload();
+          })
+          .catch((error) => setNotice(`新增失败：${String(error.message || error)}`))
+          .finally(() => setBusy(false));
+      };
+
+      const openSummary = () => {
+        setPanel("summary");
+        setSummary(null);
+        setSelectedSuggestions([]);
+        setDetail(null);
+        setRevise(null);
+        setNotice("");
+        fetch("/api/agent-memory/summarize", { headers: { accept: "application/json" } })
+          .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          })
+          .then((data) => setSummary(data))
+          .catch((error) => setNotice(`整理失败：${String(error.message || error)}`));
+      };
+
+      const toggleSuggestion = (id) => {
+        setSelectedSuggestions((current) =>
+          current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+        );
+      };
+
+      const applySuggestions = () => {
+        if (!summary) return;
+        const picked = summary.suggestions.filter((suggestion) => selectedSuggestions.includes(suggestion.id));
+        if (picked.length === 0) return;
+        const current = rulesText || "";
+        const maxNumber = current
+          .split(/\r?\n/)
+          .map((line) => /^(\d+)\./.exec(line))
+          .filter(Boolean)
+          .reduce((max, match) => Math.max(max, Number(match[1])), 0);
+        let next = maxNumber;
+        const lines = picked.map((suggestion) => {
+          next += 1;
+          return `${next}. [模型指引] ${suggestion.text}`;
+        });
+        setRulesText(current.trim() === "" ? lines.join("\n") : `${current.trimEnd()}\n${lines.join("\n")}`);
+        setPanel("settings");
+        setNotice("建议已放入规则草稿；点「保存并重新封存」后才生效。");
+      };
+
+      const copySoulPath = () => {
+        if (!soulPath || !navigator.clipboard) {
+          setNotice("无法访问剪贴板，请手动选择路径。");
+          return;
+        }
+        navigator.clipboard
+          .writeText(soulPath.path)
+          .then(() => setNotice("路径已复制。"))
+          .catch(() => setNotice("复制失败，请手动选择路径。"));
       };
 
       const decide = (id, decision) => {
@@ -499,6 +600,8 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
             },
           }),
           React.createElement(AmButton, { variant: "primary", onClick: runSearch }, "搜索"),
+          React.createElement(AmButton, { variant: "ghost", onClick: () => openCreate("fact") }, "＋ 新增"),
+          React.createElement(AmButton, { variant: "ghost", onClick: openSummary }, "整理"),
           React.createElement(AmButton, { variant: "ghost", onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
           React.createElement(AmButton, { variant: "ghost", onClick: openSettings }, "偏好与规则"),
           React.createElement(AmButton, { variant: "ghost", onClick: () => setManual(true) }, "命令手册"),
@@ -520,7 +623,132 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           ),
         ),
         notice ? React.createElement("p", { style: styles.notice }, notice) : null,
-        panel === "proposals"
+        panel === "create"
+          ? React.createElement(
+              "div",
+              null,
+              React.createElement("h2", { style: styles.groupTitle }, "新增一条记忆"),
+              React.createElement(
+                "p",
+                { style: styles.small },
+                "你手写的条目会记为「人工维护」；同内容的已有条目会自动跳过。",
+              ),
+              React.createElement(
+                "select",
+                {
+                  className: "am-input",
+                  style: { marginTop: "12px", width: "180px" },
+                  value: createKind,
+                  onChange: (event) => setCreateKind(event.target.value),
+                },
+                React.createElement("option", { value: "fact" }, "事实"),
+                React.createElement("option", { value: "pitfall" }, "坑"),
+                React.createElement("option", { value: "exp" }, "经验"),
+              ),
+              React.createElement("input", {
+                className: "am-input",
+                style: { marginTop: "8px", width: "100%", boxSizing: "border-box" },
+                placeholder: "一句话摘要（必填）",
+                value: createForm.abstract,
+                onChange: (event) => setCreateForm({ ...createForm, abstract: event.target.value }),
+              }),
+              React.createElement("textarea", {
+                className: "am-textarea",
+                style: { marginTop: "8px", width: "100%", minHeight: "120px", boxSizing: "border-box" },
+                placeholder: "正文（可选）",
+                value: createForm.body,
+                onChange: (event) => setCreateForm({ ...createForm, body: event.target.value }),
+              }),
+              React.createElement("input", {
+                className: "am-input",
+                type: "date",
+                style: { marginTop: "8px" },
+                value: createForm.valid_from,
+                onChange: (event) => setCreateForm({ ...createForm, valid_from: event.target.value }),
+              }),
+              createKind === "pitfall"
+                ? React.createElement("input", {
+                    className: "am-input",
+                    style: { marginTop: "8px", width: "100%", boxSizing: "border-box" },
+                    placeholder: "错误特征，逗号分隔（坑必填）",
+                    value: createForm.signatures,
+                    onChange: (event) => setCreateForm({ ...createForm, signatures: event.target.value }),
+                  })
+                : null,
+              React.createElement(
+                "div",
+                { style: { ...styles.actions, marginTop: "14px" } },
+                React.createElement(AmButton, { variant: "primary", disabled: busy, onClick: saveCreate }, "保存"),
+                React.createElement(AmButton, { variant: "ghost", onClick: () => setPanel(null) }, "取消"),
+              ),
+            )
+          : panel === "summary"
+            ? React.createElement(
+                "div",
+                null,
+                React.createElement("h2", { style: styles.groupTitle }, "整理记忆"),
+                summary === null
+                  ? React.createElement(AmSkeleton, { rows: 3 })
+                  : React.createElement(
+                      "div",
+                      null,
+                      React.createElement(
+                        "p",
+                        { style: styles.small },
+                        `共 ${summary.total} 条：事实 ${summary.by_kind.fact} · 坑 ${summary.by_kind.pitfall} · 经验 ${summary.by_kind.exp}`,
+                      ),
+                      React.createElement(
+                        "h3",
+                        { style: styles.groupTitle },
+                        "建议写入规则（勾选后只是放入草稿）",
+                      ),
+                      summary.suggestions.map((suggestion) =>
+                        React.createElement(
+                          "label",
+                          {
+                            key: suggestion.id,
+                            style: { ...styles.card, display: "flex", gap: "10px", cursor: "pointer", marginBottom: "8px" },
+                          },
+                          React.createElement("input", {
+                            type: "checkbox",
+                            checked: selectedSuggestions.includes(suggestion.id),
+                            onChange: () => toggleSuggestion(suggestion.id),
+                            style: { marginTop: "4px" },
+                          }),
+                          React.createElement(
+                            "span",
+                            null,
+                            React.createElement("span", { style: { fontSize: "13px" } }, suggestion.text),
+                            React.createElement(
+                              "span",
+                              { style: { ...styles.small, display: "block", marginTop: "4px" } },
+                              `${suggestion.category} · 置信度 ${suggestion.confidence}${suggestion.basis.length > 0 ? ` · 依据 ${suggestion.basis.join("、")}` : ""}`,
+                            ),
+                          ),
+                        ),
+                      ),
+                      React.createElement(
+                        "div",
+                        { style: { ...styles.actions, marginTop: "12px" } },
+                        React.createElement(
+                          AmButton,
+                          {
+                            variant: "primary",
+                            disabled: selectedSuggestions.length === 0,
+                            onClick: applySuggestions,
+                          },
+                          "加入规则草稿",
+                        ),
+                        React.createElement(AmButton, { variant: "ghost", onClick: () => setPanel(null) }, "返回"),
+                      ),
+                      React.createElement(
+                        "p",
+                        { style: styles.small },
+                        "草稿只进入规则编辑器；必须再点「保存并重新封存」才会生效。",
+                      ),
+                    ),
+              )
+            : panel === "proposals"
           ? React.createElement(
               "div",
               null,
@@ -636,6 +864,34 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                   React.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveRulesNow }, "保存并重新封存"),
                   React.createElement("span", { style: styles.small }, "保存后立即封存，下一轮注入生效。"),
                 ),
+                React.createElement("h2", { style: styles.groupTitle }, "人格（SOUL.md，只读路径）"),
+                soulPath === null
+                  ? React.createElement("p", { style: styles.small }, "正在读取路径…")
+                  : React.createElement(
+                      "div",
+                      null,
+                      React.createElement(
+                        "code",
+                        {
+                          style: {
+                            display: "block",
+                            padding: "10px 12px",
+                            borderRadius: "8px",
+                            background: "var(--am-surface-muted, #f1f3f4)",
+                            fontFamily: "var(--am-mono, monospace)",
+                            fontSize: "12px",
+                            wordBreak: "break-all",
+                          },
+                        },
+                        soulPath.path,
+                      ),
+                      React.createElement(
+                        "div",
+                        { style: styles.actions },
+                        React.createElement(AmButton, { variant: "ghost", onClick: copySoulPath }, "复制路径"),
+                      ),
+                      React.createElement("p", { style: styles.small }, soulPath.hint),
+                    ),
                 React.createElement("button", { style: { ...styles.button, marginTop: "12px" }, onClick: () => setPanel(null) }, "返回列表"),
               )
             : null,
@@ -676,9 +932,22 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                           { key: group.kind },
                           React.createElement(
                             "h2",
-                            { style: styles.groupTitle },
-                            KIND_STYLE[group.kind] ? KIND_STYLE[group.kind].label : group.label,
-                            React.createElement("span", { style: styles.count }, ` · ${group.items.length}`),
+                            { style: { ...styles.groupTitle, justifyContent: "space-between" } },
+                            React.createElement(
+                              "span",
+                              null,
+                              KIND_STYLE[group.kind] ? KIND_STYLE[group.kind].label : group.label,
+                              React.createElement("span", { style: styles.count }, ` · ${group.items.length}`),
+                            ),
+                            React.createElement(
+                              AmButton,
+                              {
+                                variant: "icon",
+                                title: `新增${KIND_STYLE[group.kind] ? KIND_STYLE[group.kind].label : ""}`,
+                                onClick: () => openCreate(group.kind),
+                              },
+                              "＋",
+                            ),
                           ),
                           group.items.length === 0
                             ? React.createElement("div", { style: styles.empty }, "这一类还没有记忆。")
