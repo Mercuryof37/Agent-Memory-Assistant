@@ -79,6 +79,9 @@ export class MemoryStore {
   private lastReloadMs = 0;
   private lastCheckpointSeq = 0;
   private checkpointState: { seq: number; created_at: string } | null = null;
+  private cachedIndex: { revision: number; asOf: string; index: ReturnType<typeof buildIndex> } | null = null;
+  private revision = 0;
+  private fileMeta = new Map<MemoryId, { mtimeMs: number; size: number }>();
 
   constructor(options: StoreOptions) {
     this.paths = memoryPaths(options.home);
@@ -99,11 +102,16 @@ export class MemoryStore {
   /** Re-read the journal checkpoint and the memory files; classify each file. */
   reload(): void {
     const started = performance.now();
+    const previousDocs = this.docs;
+    const previousMeta = this.fileMeta;
     this.issues = [];
     this.docs = new Map();
     this.quarantined = new Map();
     this.deleted = new Set();
     this.accounted = new Map();
+    this.revision += 1;
+    this.cachedIndex = null;
+    this.fileMeta = new Map();
 
     const latest = new Map<MemoryId, { hash: string; deleted: boolean }>();
     const checkpointRead = readCheckpoint(this.paths.home);
@@ -175,12 +183,25 @@ export class MemoryStore {
         const file = join(dir, name);
         const id = name.slice(0, -3);
         try {
-          const text = readFileSync(file, 'utf8');
-          const doc = parseMemoryFile(text, file, {
-            abstractChars: this.config.limits.abstract_chars,
-            bodyChars: this.config.limits.body_chars,
-            maxRecordChars: this.config.storage.max_record_chars,
-          });
+          const stat = statSync(file);
+          const cachedDoc = previousDocs.get(id);
+          const cachedMeta = previousMeta.get(id);
+          let doc: MemoryDoc;
+          if (
+            cachedDoc !== undefined &&
+            cachedMeta !== undefined &&
+            cachedMeta.mtimeMs === stat.mtimeMs &&
+            cachedMeta.size === stat.size
+          ) {
+            doc = cachedDoc;
+          } else {
+            const text = readFileSync(file, 'utf8');
+            doc = parseMemoryFile(text, file, {
+              abstractChars: this.config.limits.abstract_chars,
+              bodyChars: this.config.limits.body_chars,
+              maxRecordChars: this.config.storage.max_record_chars,
+            });
+          }
           if (!isMemoryId(id) || doc.id !== id) {
             this.quarantined.set(doc.id || id, 'id does not match filename');
             continue;
@@ -199,6 +220,7 @@ export class MemoryStore {
             continue;
           }
           this.docs.set(doc.id, doc);
+          this.fileMeta.set(doc.id, { mtimeMs: stat.mtimeMs, size: stat.size });
         } catch (error) {
           this.quarantined.set(id, `parse: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -275,11 +297,9 @@ export class MemoryStore {
   ): RecallResult {
     const text = query.trim();
     if (text === '') return { hits: [], warnings: ['empty query'] };
-    // The host keeps one store open for the whole app process; `mem decide` and
-    // other CLI writes change disk underneath it. Re-scan so recall reflects
-    // them immediately (plan v1.3 §6.1: recall stays live while the catalog is
-    // frozen).
-    this.reload();
+    // Recall is the hot path: skip the full reload when the journal head is
+    // unchanged (external CLI writes still move the head and force a reload).
+    this.reloadIfJournalChanged();
     const date = options.asOf ?? today(this.now());
     const limit = Math.min(
       options.limit ?? this.config.recall.limit,
@@ -288,7 +308,7 @@ export class MemoryStore {
     const activeSet = activeDocs(this.docs.values(), date).filter(
       (doc) => !this.deleted.has(doc.id) && !this.quarantined.has(doc.id),
     );
-    const index = buildIndex(activeSet, TOKENIZER_VERSION);
+    const index = this.indexFor(activeSet, date);
     const byId = new Map(activeSet.map((doc) => [doc.id, doc]));
     const minScore = this.config.recall.min_score / 1000;
     let ranked: Array<{ id: MemoryId; score: number }>;
@@ -377,13 +397,13 @@ export class MemoryStore {
       if (queryVector === undefined || queryVector.length !== cache.dimensions) {
         throw new Error(`query vector does not match cache dimensions (${cache.dimensions})`);
       }
-      this.reload();
+      this.reloadIfJournalChanged();
       const date = options.asOf ?? today(this.now());
       const limit = Math.min(options.limit ?? this.config.recall.limit, this.config.recall.max_limit);
       const activeSet = activeDocs(this.docs.values(), date).filter(
         (doc) => !this.deleted.has(doc.id) && !this.quarantined.has(doc.id),
       );
-      const index = buildIndex(activeSet, TOKENIZER_VERSION);
+      const index = this.indexFor(activeSet, date);
       const lexicalHits = search(index, text, {
         limit: activeSet.length,
         minScorePermille: 0,
@@ -673,6 +693,30 @@ export class MemoryStore {
       }
     }
     return pruned;
+  }
+
+  private indexFor(activeSet: readonly MemoryDoc[], asOf: string): ReturnType<typeof buildIndex> {
+    if (this.cachedIndex !== null && this.cachedIndex.revision === this.revision && this.cachedIndex.asOf === asOf) {
+      return this.cachedIndex.index;
+    }
+    const index = buildIndex(activeSet, TOKENIZER_VERSION);
+    this.cachedIndex = { revision: this.revision, asOf, index };
+    return index;
+  }
+
+  /** Recall fast path: skip a full reload when the journal head is unchanged. */
+  private reloadIfJournalChanged(): void {
+    const head = this.journal.head();
+    if (
+      this.issues.length === 0 &&
+      head !== null &&
+      this.head !== null &&
+      head.seq === this.head.seq &&
+      head.hash === this.head.hash
+    ) {
+      return;
+    }
+    this.reload();
   }
 
   stats(): Stats {

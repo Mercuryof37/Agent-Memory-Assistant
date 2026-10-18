@@ -33,6 +33,7 @@ V1.0 已完成；V2/V3 的功能迭代见 [开发历程](../history/rounds.md) �
 | V5.0-S1 | doctor 指标、压测基线、崩溃点测试 | ✅ 完成 | — |
 | V5.0-S2 | checkpoint + 尾部重放 + Merkle/HMAC | ✅ 完成 | [ADR-0040](../adr/0040-v5-checkpoint.md) |
 | V5.0-S3 | 归档/保留/自动维护 | ✅ 完成 | [ADR-0041](../adr/0041-v5-archive.md) |
+| V5.0-S4 | 读路径缓存/增量 reload | 🟡 S4a 完成（写路径待 S4b） | [ADR-0042](../adr/0042-v5-read-cache.md) |
 
 ## 闭环检查
 

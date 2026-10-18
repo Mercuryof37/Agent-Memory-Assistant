@@ -402,3 +402,11 @@
 - **自动**：活跃 journal >50k 行时写入后自动 checkpoint + 归档；启动超阈值也触发；`mem maintain` 可强制。
 - **保留**：默认 365 天；超期删除 `.gz` 保留 meta/root（root-only）。
 - **测试**：S26.1 synthetic 两段归档、S26.2 保留期清理；全量测试绿；ADR-0041。
+
+### 第 47 轮 · V5.0-S4a 读路径缓存（2026-10-18）
+
+- **索引缓存**：`indexFor(activeSet, asOf)` 复用 BM25，reload 递增 revision 失效。
+- **recall 快路径**：journal head 未变则跳过 reload；外部 CLI 写入仍推进 head 并触发。
+- **文档缓存**：reload 用 mtime/size 复用已解析 MemoryDoc，只 stat + 账本校验。
+- **结果（1000 条）**：recall P95 130→~3ms；写入 177→~49ms；新 Store reload 仍 ~103ms（写路径/catalog 待 S4b）。
+- **验证**：288 pass / 1 skip；bench 可复现；ADR-0042。
