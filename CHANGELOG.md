@@ -27,6 +27,8 @@ SemVer.
 ### Changed
 
 - Sidebar icon now matches the host's line-icon style.
+- Documentation split into a command-free user manual and a technical
+  developer manual.
 
 ## [0.2.1] - 2026-10-18
 

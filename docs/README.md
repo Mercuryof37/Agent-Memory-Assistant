@@ -4,7 +4,8 @@
 
 ## 使用
 
-- [使用手册](guide/manual.md)：界面、权限、指令、常见问题
+- [用户使用手册](guide/user-manual.md)：全程界面操作，不含命令
+- [开发者手册](guide/developer-manual.md)：安装命令、CLI、数据格式、API、架构、测试
 - [安装与分发](guide/install.md)：npm / tgz / 一键脚本 / 升级回滚
 - [MCP 指南](guide/mcp.md)：Codex 等外部 Agent 接入
 - [Memory API v1](guide/api.md)：HTTP/MCP 契约与 Mem0 导入

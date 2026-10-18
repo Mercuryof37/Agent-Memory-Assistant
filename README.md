@@ -64,7 +64,7 @@ npm run plugin:revert    # 还原
 4. 「偏好与规则」里写你的偏好；规则由你保存并封存；
 5. 换机前用「导出备份」，新机「导入备份」。
 
-详细图文说明：[使用手册](docs/guide/manual.md)。
+详细图文说明：[用户使用手册](docs/guide/user-manual.md)（全程界面操作，不含命令）；需要命令/接口看 [开发者手册](docs/guide/developer-manual.md)。
 
 ## 聊天指令
 
@@ -112,7 +112,8 @@ MCP 工具：`memory_search`、`memory_read`、`memory_list`、`memory_propose`�
 
 | 面向 | 文档 |
 |---|---|
-| 使用 | [使用手册](docs/guide/manual.md) · [安装与分发](docs/guide/install.md) · [MCP](docs/guide/mcp.md) · [API v1](docs/guide/api.md) |
+| 使用 | [用户使用手册](docs/guide/user-manual.md) · [安装与分发](docs/guide/install.md) · [MCP](docs/guide/mcp.md) · [API v1](docs/guide/api.md) |
+| 开发 | [开发者手册](docs/guide/developer-manual.md) · [架构总览](docs/architecture/overview.md) · [AGENTS.md](AGENTS.md) |
 | 运维 | [运维手册](docs/ops.md) · [配置](docs/config.md) · [策略](docs/policy.md) |
 | 架构 | [架构总览](docs/architecture/overview.md) · [UI 规范](docs/design/ui-guidelines.md) |
 | 决策 | [ADR](docs/adr/) |
