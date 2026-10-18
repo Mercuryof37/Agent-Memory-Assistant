@@ -64,6 +64,11 @@ export type ProposalInput =
       readonly reason?: string;
     }
   | {
+      readonly op: 'create';
+      readonly replacements: readonly ProposalReplacement[];
+      readonly reason?: string;
+    }
+  | {
       readonly op: 'delete';
       readonly target: MemoryId;
       readonly base_hash: string;

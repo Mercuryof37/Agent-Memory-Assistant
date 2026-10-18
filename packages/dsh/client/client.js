@@ -1035,7 +1035,7 @@ ${lines.join("\n")}`);
             React2.createElement(
               "p",
               { style: { margin: 0, fontSize: "14px", fontWeight: 600 } },
-              `${proposal.op === "delete" ? "删除" : "修订"} · ${proposal.targets.map((target) => target.display || target.abstract).join("、")}`
+              `${proposal.op === "delete" ? "删除" : proposal.op === "create" ? "新增" : "修订"} · ${proposal.targets.length === 0 ? "一条新记忆" : proposal.targets.map((target) => target.display || target.abstract).join("、")}`
             ),
             React2.createElement("p", { style: styles.small }, proposal.reason || "（无说明）"),
             proposal.replacements.map(

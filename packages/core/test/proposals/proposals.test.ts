@@ -223,3 +223,32 @@ test('the proposal ledger refuses to grow past proposals.max_pending', (t) => {
     (error: unknown) => error instanceof ProposalError && error.code === 'CONFLICT',
   );
 });
+
+test('S17.1 a create proposal adds new memories only when accepted', (t) => {
+  const { store, config } = fixture(t);
+  const proposal = createProposal(
+    { store, config },
+    {
+      op: 'create',
+      reason: '本轮回顾',
+      replacements: [
+        {
+          kind: 'exp',
+          abstract: '回顾本轮后新增的经验',
+          body: '正文',
+          evidence_level: 'observed',
+          provenance: [],
+        },
+      ],
+    },
+  );
+  assert.equal(proposal.op, 'create');
+  assert.deepEqual(proposal.targets, []);
+  assert.equal(listProposals(store).length, 1);
+  assert.equal(store.active().length, 0);
+
+  decideProposal({ store, config }, { id: proposal.id, decision: 'accept' });
+  assert.equal(store.active().length, 1);
+  assert.equal(store.active()[0]?.abstract, '回顾本轮后新增的经验');
+  assert.equal(listProposals(store).length, 0);
+});

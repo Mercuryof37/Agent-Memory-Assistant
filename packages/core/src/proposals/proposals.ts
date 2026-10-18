@@ -25,7 +25,7 @@ export type { ProposalReplacement };
 
 export interface Proposal {
   readonly id: string;
-  readonly op: 'supersede' | 'delete';
+  readonly op: 'create' | 'supersede' | 'delete';
   readonly targets: readonly MemoryId[];
   readonly base_hashes: readonly string[];
   readonly replacements: readonly ProposalReplacement[];
@@ -86,7 +86,12 @@ function currentHash(store: MemoryStore, id: MemoryId): string {
 
 export function createProposal(deps: ProposalDeps, input: ProposalInput): Proposal {
   const { store, config } = deps;
-  if (input.op === 'supersede') {
+  if (input.op === 'create') {
+    if (input.replacements.length === 0) throw new ProposalError('INVALID', 'create needs replacements');
+    for (const replacement of input.replacements) {
+      assertClean({ abstract: replacement.abstract, body: replacement.body, error_signatures: replacement.error_signatures });
+    }
+  } else if (input.op === 'supersede') {
     if (input.replacements.length === 0) throw new ProposalError('INVALID', 'supersede needs replacements');
     if (input.targets.length === 0) throw new ProposalError('INVALID', 'supersede needs targets');
     const unique = new Set(input.targets);
@@ -121,17 +126,17 @@ export function createProposal(deps: ProposalDeps, input: ProposalInput): Propos
   const proposal: Proposal = {
     id: `prop-${newMemoryId(new Date())}`,
     op: input.op,
-    targets: input.op === 'supersede' ? input.targets : [input.target],
-    base_hashes: input.op === 'supersede' ? input.base_hashes : [input.base_hash],
+    targets: input.op === 'create' ? [] : input.op === 'supersede' ? input.targets : [input.target],
+    base_hashes: input.op === 'create' ? [] : input.op === 'supersede' ? input.base_hashes : [input.base_hash],
     replacements:
-      input.op === 'supersede'
-        ? input.replacements.map((replacement) => ({
+      input.op === 'delete'
+        ? []
+        : input.replacements.map((replacement) => ({
             ...replacement,
             abstract: redactPrivate(replacement.abstract),
             body: redactPrivate(replacement.body),
-          }))
-        : [],
-    reason: input.op === 'supersede' ? (input.reason ?? '') : input.reason,
+          })),
+    reason: input.op === 'delete' ? input.reason : (input.reason ?? ''),
     created_at: new Date().toISOString(),
   };
   writeFileAtomic(proposalPath(store, proposal.id), `${JSON.stringify(proposal, null, 2)}\n`);
@@ -164,6 +169,13 @@ export function decideProposal(deps: ProposalDeps, input: DecideInput): void {
     }
     store.remove(target, { reason: proposal.reason, baseHash: hash });
     store.journal.append({ op: 'decide', data: { proposal: proposal.id, decision: 'accept' } });
+    rmSync(proposalPath(store, proposal.id), { force: true });
+    return;
+  }
+
+  if (proposal.op === 'create') {
+    store.addMany(proposal.replacements, { author: 'human', opId: `decide-${proposal.id}` });
+    store.appendJournal('decide', { proposal: proposal.id, decision: 'accept' });
     rmSync(proposalPath(store, proposal.id), { force: true });
     return;
   }

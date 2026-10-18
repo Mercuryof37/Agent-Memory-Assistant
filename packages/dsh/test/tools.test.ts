@@ -200,3 +200,15 @@ test('S4.6 the T0 quota rejects the second write and points at proposals', async
     /quota is exhausted.*memory_propose/,
   );
 });
+
+test('S17.2 memory_propose accepts create without ids and requires replacements', () => {
+  assert.deepEqual(
+    validateToolArgs('memory_propose', {
+      op: 'create',
+      replacements: [{ kind: 'exp', abstract: '新经验', body: 'b', evidence: [{ event_seq: 1, quote: 'q' }] }],
+    }),
+    [],
+  );
+  assert.ok(validateToolArgs('memory_propose', { op: 'create' }).length > 0);
+  assert.ok(validateToolArgs('memory_propose', { op: 'delete', reason: 'x' }).length > 0);
+});

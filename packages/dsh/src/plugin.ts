@@ -426,6 +426,43 @@ export function apply(ctx: PluginContextLike): void {
         return { kind: 'success', text: 'closeout round started' };
       },
     });
+
+    // V3.2 retrospective commands: each queues one model turn that reviews the
+    // current development round and proposes new entries of one kind. The
+    // proposal is human-approved; the model never writes directly.
+    const retroPrompt = (kind: 'fact' | 'pitfall' | 'exp', label: string): string =>
+      [
+        `你正在执行「Agent Memory 回顾」：只回顾当前这一轮开发（从本轮用户请求开始，到现在的对话、工具调用与代码改动）。`,
+        `请提炼本轮真正发生、值得长期保留的「${label}」，最多 3 条。`,
+        '',
+        '要求：',
+        `1. 只写「${label}」，不要混入其他类型；没有就直说「本轮暂无${label}」，不要编造。`,
+        '2. 必须基于真实上下文；先用 memory_context 取最近事件，拿到真实的 event_seq 与引文。',
+        `3. 调用 memory_propose：op="create"，replacements 中放 kind="${kind}"、abstract（一句话，不超过 40 字）、body、evidence:[{event_seq, quote}]。`,
+        '4. 创建后只回复一句：提案名/数量 + 「去『记忆 → 提案』审批」。不要替人采纳。',
+        '5. 不要修改 RULES、不要写 SOUL，也不要调用 memory_record。',
+        '',
+        `本轮结束（用户执行了 /mem-${kind}）。`,
+      ].join('\n');
+
+    const registerRetro = (kind: 'fact' | 'pitfall' | 'exp', label: string): void => {
+      commands?.register({
+        name: `mem-${kind}`,
+        description: `回顾本轮开发，提炼${label}并提案新增（人审批）`,
+        handler: (invocation: { agent?: { followup?: (input: unknown) => unknown } }) => {
+          void invocation.agent?.followup?.({
+            id: randomUUID(),
+            role: 'user',
+            content: [{ type: 'text', text: retroPrompt(kind, label) }],
+            source: { kind: 'user' },
+          });
+          return { kind: 'success', text: `已开始回顾本轮 ${label}，结果会以提案形式出现，等待你审批。` };
+        },
+      });
+    };
+    registerRetro('fact', '事实');
+    registerRetro('pitfall', '坑');
+    registerRetro('exp', '经验');
     return;
   }
 

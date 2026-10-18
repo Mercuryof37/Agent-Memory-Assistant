@@ -413,4 +413,11 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - 新增表单改为「标签 + 说明 + 控件」：摘要/正文/日期逐项说明；坑额外解释摘要、正文、错误特征三栏及其字面匹配规则。
 - `ci` 全绿（**254 个测试**）；记录：[ADR-0030](docs/adr/0030-create-form-guidance.md)。
 
+### 第 30 轮 · 本轮回顾：skill 与三条指令（2026-10-18）
+
+- 提案新增 `op: "create"`：模型可提出"新建一条"，接受后才落库（author=human），拒绝只删待审文件。
+- 三条聊天指令：`/mem-fact`、`/mem-pitfall`、`/mem-exp`——各排队一个模型回合，只回顾本轮、最多 3 条、必须带 event_seq/quote，用 `memory_propose create` 出提案。
+- 内置 skill `.dsh/skills/agent-memory-retro/SKILL.md`（本会话已可发现）；`/mem help` 列三条指令。
+- `ci` 全绿（**255 个测试**，`S17.1`–`S17.4`）；记录：[ADR-0031](docs/adr/0031-retro-skill-and-commands.md)。
+
 

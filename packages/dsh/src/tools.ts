@@ -58,7 +58,7 @@ export const TOOL_SCHEMAS: Readonly<Record<ToolName, unknown>> = {
   ),
   memory_propose: objectSchema(
     {
-      op: { type: 'string', enum: ['supersede', 'delete'] },
+      op: { type: 'string', enum: ['create', 'supersede', 'delete'] },
       ids: { type: 'array', items: { type: 'string' }, minItems: 1 },
       base_hashes: { type: 'array', items: { type: 'string' } },
       replacements: {
@@ -85,7 +85,7 @@ export const TOOL_SCHEMAS: Readonly<Record<ToolName, unknown>> = {
       },
       reason: { type: 'string' },
     },
-    ['op', 'ids', 'base_hashes'],
+    ['op'],
   ),
   memory_review: objectSchema({ id: { type: 'string' } }),
   memory_context: objectSchema({ limit: { type: 'integer', minimum: 1, maximum: 50 } }, []),
@@ -148,14 +148,20 @@ export function validateToolArgs(name: ToolName, args: unknown): string[] {
     if (record.op === 'delete' && (typeof record.reason !== 'string' || record.reason.trim() === '')) {
       problems.push('a delete proposal needs reason');
     }
-    if (record.op === 'supersede') {
+    if (record.op === 'create' || record.op === 'supersede') {
       const replacements = record.replacements;
       if (!Array.isArray(replacements) || replacements.length === 0) {
-        problems.push('a supersede proposal needs replacements');
+        problems.push(`a ${record.op} proposal needs replacements`);
       } else {
         replacements.forEach((replacement, index) => {
           problems.push(...replacementProblems(replacement, `replacements[${index}]`));
         });
+      }
+    }
+    if (record.op !== 'create') {
+      if (!Array.isArray(record.ids) || record.ids.length === 0) problems.push('ids are required');
+      if (!Array.isArray(record.base_hashes) || record.base_hashes.length === 0) {
+        problems.push('base_hashes are required');
       }
     }
     if (Array.isArray(record.base_hashes) && Array.isArray(record.ids)) {

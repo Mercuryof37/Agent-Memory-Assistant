@@ -35,6 +35,7 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /加入规则草稿/);
   assert.match(source, /复制路径/);
   assert.match(source, /人工维护/);
+  assert.match(source, /一条新记忆/);
   // P2 human write surfaces: proposals, revise/delete, profile and rules editors.
   assert.match(source, /采纳/);
   assert.match(source, /保存修订/);

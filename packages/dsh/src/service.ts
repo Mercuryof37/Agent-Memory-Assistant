@@ -216,14 +216,14 @@ export function openHostService(
       const execLike = exec as ToolExecLike | undefined;
       const sessionId = execLike?.agent?.session?.id ?? actor.sessionId;
       const raw = input as {
-        op: 'supersede' | 'delete';
-        ids: readonly string[];
-        base_hashes: readonly string[];
+        op: 'create' | 'supersede' | 'delete';
+        ids?: readonly string[];
+        base_hashes?: readonly string[];
         replacements?: readonly {
           kind: Kind;
           abstract: string;
           body: string;
-          evidence_level: 'user_explicit' | 'user_confirmed' | 'observed';
+          evidence_level?: 'user_explicit' | 'user_confirmed' | 'observed';
           valid_from?: string;
           error_signatures?: readonly string[];
           evidence?: readonly { event_seq: number; quote: string }[];
@@ -248,7 +248,7 @@ export function openHostService(
           kind: replacement.kind,
           abstract: replacement.abstract,
           body: replacement.body,
-          evidence_level: replacement.evidence_level,
+          evidence_level: replacement.evidence_level ?? 'observed',
           ...(replacement.valid_from === undefined ? {} : { valid_from: replacement.valid_from }),
           ...(replacement.error_signatures === undefined
             ? {}
@@ -260,17 +260,23 @@ export function openHostService(
         raw.op === 'delete'
           ? {
               op: 'delete',
-              target: raw.ids[0] as string,
-              base_hash: raw.base_hashes[0] as string,
+              target: (raw.ids ?? [])[0] as string,
+              base_hash: (raw.base_hashes ?? [])[0] as string,
               reason: raw.reason ?? 'agent proposal',
             }
-          : {
-              op: 'supersede',
-              targets: raw.ids,
-              base_hashes: raw.base_hashes,
-              replacements,
-              ...(raw.reason === undefined ? {} : { reason: raw.reason }),
-            };
+          : raw.op === 'create'
+            ? {
+                op: 'create',
+                replacements,
+                ...(raw.reason === undefined ? {} : { reason: raw.reason }),
+              }
+            : {
+                op: 'supersede',
+                targets: raw.ids ?? [],
+                base_hashes: raw.base_hashes ?? [],
+                replacements,
+                ...(raw.reason === undefined ? {} : { reason: raw.reason }),
+              };
       return createProposal({ store, config: runtime.config }, proposalInput);
     },
     rules() {

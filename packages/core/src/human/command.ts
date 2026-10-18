@@ -154,6 +154,7 @@ function ok(text: string): HumanCommandResult {
 function usage(): string {
   return [
     '用法：/mem ' + HUMAN_COMMAND_HINT,
+    '本轮回顾（生成待审提案）：/mem-fact 事实、/mem-pitfall 坑、/mem-exp 经验。',
     '所有动作都由你（人）发起，不进模型上下文；`decide` 不会以工具形式暴露给模型。',
   ].join('\n');
 }
