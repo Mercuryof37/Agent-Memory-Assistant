@@ -835,9 +835,7 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
               return React.createElement(
                 "div",
                 { style: { border: "1px solid var(--am-border)", background: "var(--am-surface)", borderRadius: "12px", padding: "18px", marginBottom: "14px" } },
-                React.createElement("div", { style: styles.small }, `${current.serial || "—"} · ${KIND_STYLE[current.kind] ? KIND_STYLE[current.kind].label : current.kind} · ${current.valid_from}`),
-                React.createElement("h2", { style: { margin: "6px 0 8px", fontSize: "18px" } }, current.abstract),
-                React.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap", marginBottom: "14px" } }, current.body),
+                React.createElement("h2", { style: { margin: 0, fontSize: "18px" } }, current.abstract),
                 React.createElement(
                   "div",
                   { style: { display: "grid", gap: "10px", borderTop: "1px solid var(--am-border)", paddingTop: "12px" } },
