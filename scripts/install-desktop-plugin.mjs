@@ -26,7 +26,7 @@ const patchPath = join(profile, 'cordis.patch.yml');
 const patchBackupPath = join(profile, 'cordis.patch.yml.bak-agent-memory');
 const pluginRoot = resolve(import.meta.dirname, '..', 'packages', 'dsh');
 const dependency = 'link:' + pluginRoot;
-const bundleName = '@agent-memory/dsh';
+const bundleName = '@agent_memory/dsh';
 const pnpm = 'D:\\DeepSeekHarness\\resources\\runtime\\primary-runtime\\dependencies\\pnpm\\bin\\pnpm.cjs';
 
 function fail(message) {

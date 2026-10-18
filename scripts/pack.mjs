@@ -34,10 +34,11 @@ const pack = () => {
 };
 pack();
 
+const versionOf = (name) => name.match(/-(\d+\.\d+\.\d+)\.tgz$/)?.[1] ?? '0.0.0';
 const tarballs = readdirSync(releaseDir)
-  .filter((name) => name.startsWith('agent-memory-dsh-') && name.endsWith('.tgz'))
+  .filter((name) => /^agent[_-]memory-dsh-.*\.tgz$/.test(name))
   .map((name) => join(releaseDir, name))
-  .sort();
+  .sort((left, right) => versionOf(left).localeCompare(versionOf(right), undefined, { numeric: true }));
 const tarball = tarballs[tarballs.length - 1];
 if (tarball === undefined || !existsSync(tarball)) {
   console.error('pack: no tarball was produced');

@@ -73,7 +73,7 @@ S0 尾款需要真实会话，所以先交付了一个**最小可装载插件**�
 ```
 packages/dsh/
 ├── package.json          dsh.bundle.patch + main=dist/plugin.mjs（无依赖）
-├── cordis.patch.yml      insert: id=agent-memory, name=@agent-memory/dsh
+├── cordis.patch.yml      insert: id=agent-memory, name=@agent_memory/dsh
 ├── locale/{en,zh}.json   插件页显示用
 ├── src/plugin.ts         源（探针）
 └── dist/plugin.mjs       node scripts/build.mjs 产物（2.7 KB，自包含、无 import）
@@ -103,17 +103,17 @@ node scripts/install-desktop-plugin.mjs --revert   # 恢复备份并重装
 ```
 
 本机执行结果：`~/.dsh/profiles/desktop/package.json` 已加
-`"@agent-memory/dsh": "link:D:\\Ai Agent\\Agent Memory\\packages\\dsh"`，bundles 末尾已加
-`@agent-memory/dsh`，`node_modules/@agent-memory/dsh` 是指向仓库的 junction；
-`import('@agent-memory/dsh')` 从 profile 目录解析成功，导出 `apply, inject`。
+`"@agent_memory/dsh": "link:D:\\Ai Agent\\Agent Memory\\packages\\dsh"`，bundles 末尾已加
+`@agent_memory/dsh`，`node_modules/@agent_memory/dsh` 是指向仓库的 junction；
+`import('@agent_memory/dsh')` 从 profile 目录解析成功，导出 `apply, inject`。
 备份在同目录的 `package.json.bak-agent-memory` 与 `cordis.patch.yml.bak-agent-memory`。
 
 如果你想手工改，等价改动是（保留原有 bundles 顺序，只在末尾追加）：
 
 ```json
 {
-  "dependencies": { "@agent-memory/dsh": "link:D:\\Ai Agent\\Agent Memory\\packages\\dsh" },
-  "dsh": { "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@agent-memory/dsh"] } }
+  "dependencies": { "@agent_memory/dsh": "link:D:\\Ai Agent\\Agent Memory\\packages\\dsh" },
+  "dsh": { "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@agent_memory/dsh"] } }
 }
 ```
 
@@ -138,7 +138,7 @@ M2 只验证"压缩后 section 还在"；**逐字节稳定**要等 S3 的真实�
 
 ### 6.3 回滚
 
-删掉 `package.json` 里的 `@agent-memory/dsh` 依赖与 bundles 末尾条目（或恢复 `.bak`），在 profile 目录重跑一次 `pnpm install`，重启应用。`cordis.patch.yml.bak` 只是备份用户层，探针不写它。
+删掉 `package.json` 里的 `@agent_memory/dsh` 依赖与 bundles 末尾条目（或恢复 `.bak`），在 profile 目录重跑一次 `pnpm install`，重启应用。`cordis.patch.yml.bak` 只是备份用户层，探针不写它。
 
 ### 6.4 注意
 

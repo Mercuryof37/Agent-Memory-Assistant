@@ -147,7 +147,7 @@
 
 ### 5.1 发布物
 
-- npm 公共包 `@agent-memory/dsh`（`private: false`），含宿主半层、客户端半层、`cordis.patch.yml`、README/LICENSE；
+- npm 公共包 `@agent_memory/dsh`（`private: false`），含宿主半层、客户端半层、`cordis.patch.yml`、README/LICENSE；
 - GitHub Release 附 `.tgz` 与 SHA256；
 - 版本：SemVer；`0.x` 阶段 minor 可破坏，1.0 后严格；
 - 生成 `CHANGELOG.md`（Keep a Changelog 风格）；
@@ -222,7 +222,7 @@
 | 4 | RULES 建议的格式 | 沿用现有编号/类别；机器门禁需 test/check，V3.1 先只出模型指引 |
 | 5 | SOUL 路径是否可点击打开 | 只复制路径；不调宿主打开文件（安全） |
 | 6 | 发布渠道顺序 | 先 GitHub Release tgz，再 npm |
-| 7 | npm 包名 | `@agent-memory/dsh`（现名） |
+| 7 | npm 包名 | `@agent_memory/dsh`（现名） |
 | 8 | 安装器是否独立 | 不做独立安装器；`npx` 脚本 + 宿主插件页 |
 | 9 | 是否支持旧版 DSH | 只保证 0.2.1-rc.2+；旧版提示升级 |
 | 10 | 1000 条性能目标 | 首屏 <1s；超过则虚拟列表（V3.3 评估） |

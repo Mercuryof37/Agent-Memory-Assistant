@@ -68,10 +68,10 @@ S1 全部用例在 DSH 自带 Node 24.21.0 上通过，包含 `node:test`、`nod
 
 ### 5.1 首次装载失败：根因与修复
 
-桌面插件页显示 `agent-memory` / `@agent-memory/dsh` 状态 **启动失败**。用一次性 profile 跑 `dsh --profile amprobe --json` 抓到真实堆栈：
+桌面插件页显示 `agent-memory` / `@agent_memory/dsh` 状态 **启动失败**。用一次性 profile 跑 `dsh --profile amprobe --json` 抓到真实堆栈：
 
 ```text
-agent-memory (@agent-memory/dsh): Error: cannot get property "systemPrompt" without inject
+agent-memory (@agent_memory/dsh): Error: cannot get property "systemPrompt" without inject
 ```
 
 **根因**：Cordis 禁止在 `apply` 里直接读未写进 `inject` 的服务属性（`ctx.systemPrompt` / `ctx.commands` / `ctx.tokenMeter`）。探针为了"可选服务缺失也能加载"，做了裸属性访问，于是 `apply` 抛错，整插件启动失败。

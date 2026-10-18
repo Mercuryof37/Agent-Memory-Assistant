@@ -4,6 +4,14 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
+## [0.2.1] - 2026-10-18
+
+### Changed
+
+- npm scope renamed to `@agent_memory/dsh` to match the available npm
+  organization; install name and `cordis.patch.yml` updated. No functional
+  changes since 0.2.0.
+
 ## [0.2.0] - 2026-10-18
 
 ### Added

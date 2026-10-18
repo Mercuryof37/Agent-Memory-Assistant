@@ -293,7 +293,7 @@
 
 ```text
 ┌──────────────────────────── 浏览器（DSH Web GUI） ────────────────────────────┐
-│  @agent-memory/dsh 客户端半层（React，client.js）                              │
+│  @agent_memory/dsh 客户端半层（React，client.js）                              │
 │  ├─ sidebar.panellist「记忆」 + main keyed panel「agent-memory」               │
 │  ├─ tool.call.toolview（memory_* / user_profile / rules_list）                │
 │  ├─ conversation.chat.turnTail（记忆回执 / 提案卡）                            │
@@ -302,7 +302,7 @@
 └─────────┼─────────────────────────────────────────────────────────────────────┘
           ▼
 ┌──────────────────────── 宿主进程（Cordis 插件） ──────────────────────────────┐
-│  @agent-memory/dsh 宿主半层                                                    │
+│  @agent_memory/dsh 宿主半层                                                    │
 │  ├─ plugin.ts：V1 工具/命令/注入（不变） + 注册 routes                         │
 │  ├─ routes.ts：ctx.connection.fetch.register（精确 /api 路由，owner-only）     │
 │  ├─ api.ts：请求校验 → 调 core（纯逻辑，可单测）                               │
@@ -329,7 +329,7 @@
 ```jsonc
 // packages/dsh/package.json（新增字段）
 {
-  "name": "@agent-memory/dsh",
+  "name": "@agent_memory/dsh",
   "version": "2.0.0",
   "type": "module",
   "main": "./dist/plugin.mjs",
@@ -349,7 +349,7 @@
 - bundle 格式（已从宿主包 `lib/client.js` 核对）：
 ```js
 window.__ModuleLoader__.load({
-  id: '@agent-memory/dsh',
+  id: '@agent_memory/dsh',
   factory: (require) => {
     const React = require('react');
     // ... 组件与 apply()
@@ -433,7 +433,7 @@ window.__ModuleLoader__.load({
 | V7 | `settings.section` 的注册形状与生命周期 | 真机 | 设置并入工作台第 7 页 |
 | V8 | `@deepseek-ai/dsh-client-ui-primitives` 可外置复用 | 构建 + 真机 | 全部自绘（成本 +2d） |
 | V9 | Codex 的 `mcp_servers` 配置键与启动方式 | 本机 Codex 实测 | 先文档 + CLI 包装，MCP 延后 |
-| V10 | npm 包名 `@agent-memory/dsh` 可用/可发布 | `npm view` / 发布预演 | 改 `dsh-agent-memory` 或只发 tarball |
+| V10 | npm 包名 `@agent_memory/dsh` 可用/可发布 | `npm view` / 发布预演 | 改 `dsh-agent-memory` 或只发 tarball |
 | V11 | 桌面宿主是否允许客户端插件注册全局快捷键 | 真机 | 不做快捷键 |
 | V12 | 自定义 Markdown 渲染是否复用宿主不可信策略 | 真机 XSS 用例 | 纯文本 + 受限 Markdown |
 
@@ -445,7 +445,7 @@ window.__ModuleLoader__.load({
 
 | 产物 | 内容 | 何时发布 |
 |---|---|---|
-| `@agent-memory/dsh@2.x` | 宿主半层 `dist/plugin.mjs` + 客户端 `lib/client.js` + `cordis.patch.yml` + locale + `package.json` | P3 |
+| `@agent_memory/dsh@2.x` | 宿主半层 `dist/plugin.mjs` + 客户端 `lib/client.js` + `cordis.patch.yml` + locale + `package.json` | P3 |
 | `@agent-memory/mcp@1.x` | MCP stdio server（复用 core，独立进程） | P3 |
 | `agent-memory-2.x.tgz` | 上述包的离线包 + `SHA256SUMS` | 每个 RC |
 | `mem` CLI | 已存在，随仓库/包发布 | 持续 |
@@ -456,14 +456,14 @@ window.__ModuleLoader__.load({
 
 **A. 图形安装（推荐给小陈）**
 1. DSH → Settings → Plugins → **Add plugin**；
-2. 输入包名 `@agent-memory/dsh`（或选择本地 `.tgz`/目录）；
+2. 输入包名 `@agent_memory/dsh`（或选择本地 `.tgz`/目录）；
 3. 宿主 `pnpm add` → 校验 bundle patch → 默认启用；
 4. 提示「需要重启 DSH」→ 重启 → 侧栏出现「记忆」；
 5. 首次打开 → 初始化向导。
 
 **B. 命令安装（老王/脚本）**
 ```powershell
-dsh plugin add @agent-memory/dsh --profile desktop
+dsh plugin add @agent_memory/dsh --profile desktop
 # 或离线
 dsh plugin add .\agent-memory-dsh-2.0.0.tgz --profile desktop
 # 开发期
@@ -477,7 +477,7 @@ dsh plugin add link:"D:\Ai Agent\Agent Memory\packages\dsh" --profile desktop
 2. 备份 profile 的 `package.json`、`cordis.patch.yml`、`pnpm-lock.yaml`；
 3. 写依赖 + bundles 末尾追加（保持顺序）；
 4. 调宿主 pnpm 安装（路径从 DSH 安装目录解析，不假设全局 pnpm）；
-5. `import('@agent-memory/dsh')` 校验导出 `apply/inject`；
+5. `import('@agent_memory/dsh')` 校验导出 `apply/inject`；
 6. 失败自动回滚备份并打印原因；成功打印「请重启 DSH」；
 7. `--dry-run` 只打印将改什么（默认）。
 
@@ -488,7 +488,7 @@ dsh plugin add link:"D:\Ai Agent\Agent Memory\packages\dsh" --profile desktop
 `cordis.patch.yml` 保持最小：
 ```yaml
 - id: agent-memory
-  name: "@agent-memory/dsh"
+  name: "@agent_memory/dsh"
   config:
     home: "~/.dsh/memory"
     ui:

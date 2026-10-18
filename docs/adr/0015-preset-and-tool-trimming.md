@@ -11,7 +11,7 @@ V1.0 的记忆插件挂在 profile 根，所有会话共享一套工具与提示
 
 ## 选择
 
-1. **preset 模板（A）**：新增 `scripts/preset.mjs`。它读取本机安装的 `dsh-web-app/presets/standard.patch.yml`，复制成新 preset 的完整插件列表，并在末尾追加 `@agent-memory/dsh`（带 `mode`）。生成结果同时包含「停用根挂载」的一行，避免重复注册工具。用法与注意事项见 [docs/presets/README.md](../presets/README.md)。
+1. **preset 模板（A）**：新增 `scripts/preset.mjs`。它读取本机安装的 `dsh-web-app/presets/standard.patch.yml`，复制成新 preset 的完整插件列表，并在末尾追加 `@agent_memory/dsh`（带 `mode`）。生成结果同时包含「停用根挂载」的一行，避免重复注册工具。用法与注意事项见 [docs/presets/README.md](../presets/README.md)。
 2. **只读工具裁剪（C）**：`registerTools` 在 `personalization.mode === 'readonly'` 时**不注册** `memory_record` / `memory_propose`；`memory_review`（人工决定）与只读工具保留。运行时拒绝逻辑仍作为第二道防线。
 3. **不做预设自激活**：生成补丁与 profile 修改是用户动作，仓库只提供模板与命令，不擅自改用户的 profile；升级 DSH 后重新运行脚本即可刷新快照。
 

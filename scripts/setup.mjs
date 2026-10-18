@@ -29,7 +29,7 @@ const valueOf = (flag) => {
 const apply = has('--apply');
 const revertDir = valueOf('--revert');
 const profile = resolve(valueOf('--profile') ?? join(homedir(), '.dsh', 'profiles', 'desktop'));
-const bundleName = '@agent-memory/dsh';
+const bundleName = '@agent_memory/dsh';
 
 function fail(message) {
   console.error(`setup: ${message}`);
@@ -63,9 +63,10 @@ function runPnpm(cwd, pnpmArgs) {
 function newestTarball() {
   const releaseDir = join(root, 'release');
   if (!existsSync(releaseDir)) return undefined;
+  const versionOf = (name) => name.match(/-(\d+\.\d+\.\d+)\.tgz$/)?.[1] ?? '0.0.0';
   const candidates = readdirSync(releaseDir)
-    .filter((name) => name.startsWith('agent-memory-dsh-') && name.endsWith('.tgz'))
-    .sort();
+    .filter((name) => /^agent[_-]memory-dsh-.*\.tgz$/.test(name))
+    .sort((left, right) => versionOf(left).localeCompare(versionOf(right), undefined, { numeric: true }));
   return candidates.length === 0 ? undefined : join(releaseDir, candidates.at(-1));
 }
 

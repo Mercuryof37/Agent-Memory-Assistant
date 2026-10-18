@@ -8,7 +8,7 @@
 npm run pack
 ```
 
-产物：`release/agent-memory-dsh-<version>.tgz`（当前 `0.2.0`）。
+产物：`release/agent_memory-dsh-<version>.tgz`（当前 `0.2.1`）。
 
 包内必须包含三部分（`scripts/pack.mjs` 会检查）：
 
@@ -32,7 +32,7 @@ npm run pack
 ### 2.2 命令行
 
 ```powershell
-dsh plugin add "D:\Ai Agent\Agent Memory\release\agent-memory-dsh-0.2.0.tgz"
+dsh plugin add "D:\Ai Agent\Agent Memory\release\agent_memory-dsh-0.2.1.tgz"
 ```
 
 DSH 会写入当前 profile 的 `package.json` 并执行安装；用 `dsh plugin list` 确认。
@@ -51,8 +51,8 @@ node scripts/setup.mjs --revert "<backupDir>"
 ### 2.4 npm（发布后）
 
 ```powershell
-npm install -g @agent-memory/dsh
-# 或在插件页输入包名 @agent-memory/dsh
+npm install -g @agent_memory/dsh
+# 或在插件页输入包名 @agent_memory/dsh
 ```
 
 ### 2.5 开发期链接（不用打包）

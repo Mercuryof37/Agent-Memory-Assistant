@@ -16,7 +16,7 @@ V2 只会 `npm run pack` 出一个本地 tgz，包元数据还是 `private: true
    - 默认 dry run；`--apply` 才写；
    - 找到 `release/` 最新 tgz（或 `--tgz`），定位 desktop profile；
    - 把 `package.json` / `cordis.patch.yml` / `pnpm-lock.yaml` 备份到 profile `.backups/agent-memory-<timestamp>/`；
-   - `pnpm add <tgz>` → 校验 `node_modules/@agent-memory/dsh` → 追加 `dsh.profile.bundles`；
+   - `pnpm add <tgz>` → 校验 `node_modules/@agent_memory/dsh` → 追加 `dsh.profile.bundles`；
    - `--revert <backupDir>` 还原并 `pnpm install`。
 3. **发布流水线** `.github/workflows/release.yml`：tag `v*` → 安装依赖 → ci → pack → 上传 artifact → GitHub Release；仓库变量 `NPM_PUBLISH=true` 时 `npm publish --provenance`（需 `NPM_TOKEN`）。
 4. **发布检查单** `docs/release.md`：版本/CHANGELOG → 门禁 → 干净 profile 演练 → npm → GitHub Release → 回滚；`CHANGELOG.md` 记录 0.2.0 内容。
@@ -36,5 +36,5 @@ V2 只会 `npm run pack` 出一个本地 tgz，包元数据还是 `private: true
 ## 偏差与回滚
 
 - setup 依赖宿主 profile 的 pnpm 与 Electron 的 bundle 约定；DSH 升级若改 profile 结构需同步调整。
-- npm 包名若已被占用，发布会失败；先 `npm view @agent-memory/dsh` 检查。
+- npm 包名若已被占用，发布会失败；先 `npm view @agent_memory/dsh` 检查。
 - 回滚：删除 workflow/setup，恢复 `private: true` 与 0.1.0；已发布版本用 deprecate 而不是删除。

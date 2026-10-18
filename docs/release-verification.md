@@ -12,7 +12,7 @@
 
 ## 2. 包内容
 
-`npm publish ./packages/dsh --dry-run` 显示 `@agent-memory/dsh@0.2.0`、9 个文件：
+`npm publish ./packages/dsh --dry-run` 显示 `@agent_memory/dsh@0.2.0`、9 个文件：
 
 ```text
 client/client.js
@@ -42,7 +42,7 @@ SHA256 526FD7AF6703F516FFA1B41A1E079E48E5628903633E4EC70118B7D87BA89E79
 - 对真实 profile 的 **dry run** 正确识别：依赖将由 `link:D:\Ai Agent\Agent Memory\packages\dsh` 替换为 `file:agent-memory-dsh-0.2.0.tgz`，bundle 已存在；
 - 对临时 profile（`.tmp/fake-profile`）执行 `--apply`：
   - 备份到 `.backups/agent-memory-<timestamp>/`；
-  - pnpm add 成功，安装 `@agent-memory/dsh@0.2.0`；
+  - pnpm add 成功，安装 `@agent_memory/dsh@0.2.0`；
   - dependency 写成 `file:...tgz`，`dsh.profile.bundles` 追加成功；
 - `--revert <backup>` 还原 `package.json`/patch/lock 并重新 pnpm install，成功；
 - 修复：`setup.mjs` 读取 `package.json` 时去掉 UTF-8 BOM（Windows 工具写出的文件可能带 BOM）。
@@ -54,7 +54,12 @@ SHA256 526FD7AF6703F516FFA1B41A1E079E48E5628903633E4EC70118B7D87BA89E79
 - `.github/workflows/release.yml`：tag `v*` → ci → pack → 上传 artifact → GitHub Release；
 - 发布 job：仓库变量 `NPM_PUBLISH=true` 时 `npm publish --provenance`，已加 `id-token: write`（provenance 必需）与 `NPM_TOKEN`；
 - **2026-10-18 CI 结果**：run #5（`f3a69a3` / tag `v0.2.0`）**Success**，21s；artifact `agent-memory-tgz` 181 KB，`sha256:a3eff4398b8105927e84546ac1faeef6285a988c4b81ce17e6162bf7cde047f8`；
-- npm publish job 未运行（未设 `NPM_PUBLISH=true`）。
+- **npm 发布**：2026-10-18 执行 `npm publish ./packages/dsh --access public`，registry 返回 202（新建包处理中），约 5 分钟后 `npm view @agent_memory/dsh version` 显示 **0.2.1**，`dist-tags.latest = 0.2.1`；
+- 发布 job 未运行（未设 `NPM_PUBLISH=true`）；本次是本地人工发布。
+
+### 包名更名（0.2.1）
+
+npm 组织实际为 `agent_memory`（下划线），与 `@agent-memory` 不同 scope；因此包名改为 **`@agent_memory/dsh`**，同步 `cordis.patch.yml`、客户端 loader id、安装/预设脚本、测试与文档。新包首次发布返回 202，之后才可查询——**202 ≠ 立即可用**。
 
 ### CI 平台修复记录（三次失败 → 通过）
 
@@ -64,8 +69,8 @@ SHA256 526FD7AF6703F516FFA1B41A1E079E48E5628903633E4EC70118B7D87BA89E79
 
 ## 6. 待人工完成
 
-1. 设置 → 插件 用 0.2.0 tgz 在干净 profile 装/卸/回滚各一次（最终 UX 验收）；
-2. `npm login` 后 `npm publish ./packages/dsh --provenance --access public`（或配 `NPM_TOKEN` + `NPM_PUBLISH=true`）。
+1. 设置 → 插件 用 `agent_memory-dsh-0.2.1.tgz` 在干净 profile 装/卸/回滚各一次（最终 UX 验收）；
+2. GitHub Release 标签 `v0.2.1`（0.2.0 已发布，0.2.1 仅更名）。
 
 ## 7. 已知限制
 

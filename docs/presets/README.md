@@ -19,7 +19,7 @@ node scripts/preset.mjs --id memory-ro --mode readonly --out memory-ro.patch.yml
 
 ```yaml
           - id: agent-memory
-            name: '@agent-memory/dsh'
+            name: '@agent_memory/dsh'
             config:
               mode: confirm
 ```

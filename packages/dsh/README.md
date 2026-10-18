@@ -1,4 +1,4 @@
-# @agent-memory/dsh
+# @agent_memory/dsh
 
 Local, human-approved long-term memory for **DeepSeek Harness** (DSH).
 

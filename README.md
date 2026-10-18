@@ -296,7 +296,7 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 
 ### 第 14 轮 · preset 接入与只读工具裁剪（2026-10-18）
 
-- **`npm run preset`**：`scripts/preset.mjs` 读取本机安装的 `standard` preset，复制成新的 preset 配置并追加 `@agent-memory/dsh`（带 `mode`），同时生成「停用根挂载」的补丁行；用法见 [docs/presets/README.md](docs/presets/README.md)。
+- **`npm run preset`**：`scripts/preset.mjs` 读取本机安装的 `standard` preset，复制成新的 preset 配置并追加 `@agent_memory/dsh`（带 `mode`），同时生成「停用根挂载」的补丁行；用法见 [docs/presets/README.md](docs/presets/README.md)。
 - **只读裁剪**：`mode: readonly` 时不再注册 `memory_record` / `memory_propose`（模型看不到写工具），只读工具与会话检索保留。
 - **稳定性**：修正一个跨天会失效的日期用例（`valid_from/as-of recall` 改用固定日期）。
 - 验证：`ci` 全绿（**228 个测试**，S12.1）；生成的 preset 补丁经 YAML 解析验证（2 个顶层项、20 个插件、末项为只读记忆插件）。
@@ -422,7 +422,7 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 
 ### 第 31 轮 · V3.2 正式发布与一键安装（2026-10-18）
 
-- **npm 元数据**：`@agent-memory/dsh@0.2.0`，`private:false`、MIT、repository/keywords/engines、`publishConfig`、包内 README/LICENSE。
+- **npm 元数据**：`@agent_memory/dsh@0.2.0`，`private:false`、MIT、repository/keywords/engines、`publishConfig`、包内 README/LICENSE。
 - **一键安装**：`node scripts/setup.mjs --apply`（备份 profile → pnpm add → 追加 bundle → 校验）；`--revert` 回滚；`npm run setup`。
 - **发布流水线**：`.github/workflows/release.yml`（tag → ci → pack → GitHub Release；变量 `NPM_PUBLISH=true` 时 `npm publish --provenance`）。
 - **文档**：`CHANGELOG.md`、[docs/release.md](docs/release.md) 发布检查单；`ci` 全绿（**257 个测试**，`S18.1`/`S18.2`）。
@@ -435,5 +435,12 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - 临时 profile 上 `setup --apply`/`--revert` 全链路通过；修复 setup 读取 BOM 的兼容问题。
 - 未对真实 profile 执行安装、未推 tag、未 npm publish（待你确认/凭据）。
 - 验收记录：[docs/release-verification.md](docs/release-verification.md)。
+
+### 第 33 轮 · npm 发布与 scope 更名（2026-10-18）
+
+- npm 组织实际是 `agent_memory`（下划线），包名改为 **`@agent_memory/dsh@0.2.1`**；同步 `cordis.patch.yml`、客户端 loader id、安装脚本、测试与文档。
+- `npm publish ./packages/dsh --access public` 返回 **202（处理中）**；`npm view` 在传播完成前 404，属新建包的正常延迟。
+- 修复 `pack/setup` 对 tarball 名称的识别（同时匹配 `agent-memory-*` 与 `agent_memory-*`，按版本排序）。
+- 记录：[docs/release-verification.md](docs/release-verification.md)。
 
 

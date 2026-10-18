@@ -76,7 +76,7 @@ function main() {
   const memory = [
     '',
     '          - id: agent-memory',
-    "            name: '@agent-memory/dsh'",
+    "            name: '@agent_memory/dsh'",
     '            config:',
     `              mode: ${args.mode}`,
     '',

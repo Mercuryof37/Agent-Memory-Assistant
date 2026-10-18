@@ -61,6 +61,6 @@ npm publish ./packages/dsh --provenance --access public
 
 ## 6. 回滚
 
-- npm：`npm deprecate @agent-memory/dsh@x.y.z "broken, use x.y.w"`，不要删除版本；
+- npm：`npm deprecate @agent_memory/dsh@x.y.z "broken, use x.y.w"`，不要删除版本；
 - GitHub：Release 标记 pre-release / 从 tag 重建；
 - 用户侧：插件页卸载重装旧 `.tgz`，数据目录不动。
