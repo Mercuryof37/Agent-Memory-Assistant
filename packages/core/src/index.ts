@@ -27,6 +27,7 @@ export * from './index/tokenizer.ts';
 export * from './index/bm25.ts';
 export * from './index/embedding.ts';
 export * from './index/hybrid.ts';
+export * from './embed/cache.ts';
 export * from './rules/rules.ts';
 export * from './inject/snapshot.ts';
 export * from './inject/assemble.ts';

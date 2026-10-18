@@ -138,6 +138,24 @@ mem add --kind exp --abstract "工作树按项目分组" --project "Agent Memory
 
 项目只是标签：删除项目不会删除记忆；改名/图形化归属在工作树版本中提供。
 
+### 4.2 本地向量（可选，S2b）
+
+插件不内置 ONNX 运行时；你自己装一个向量化命令，按契约交换 JSON：
+
+```text
+cmd <input.json> <output.json>
+输入：{ "texts": ["..."] }
+输出：{ "vectors": [[0.1, ...], ...] }
+```
+
+```powershell
+$env:AGENT_MEMORY_VECTORIZER = 'node D:\tools\my-minilm-vectorizer.mjs'
+mem embed --apply          # 生成 .index/embeddings.json
+mem doctor                 # 确认配置
+```
+
+然后在 `config.toml` 打开 `recall.hybrid = true`。缓存或命令缺失、sidecar 失败时会自动回退 BM25 并给 warning，不会静默变空。
+
 ### 5. 删掉一条
 
 - 普通删除（记录失效，但历史仍可查）：`/mem delete <记忆编号> --reason "原因"`；

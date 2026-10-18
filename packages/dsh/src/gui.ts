@@ -243,8 +243,8 @@ export function buildItem(store: MemoryStore, id: string) {
   };
 }
 
-export function buildSearch(store: MemoryStore, query: string, limit = 20) {
-  const result = store.recall(query, { limit });
+export async function buildSearch(store: MemoryStore, query: string, limit = 20) {
+  const result = await store.recallAsync(query, { limit });
   const serials = serialsFor(store.active());
   return {
     query,
@@ -506,7 +506,7 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     fetch: async (request: Request) => {
       const query = (new URL(request.url).searchParams.get('q') ?? '').trim();
       if (query === '') return errorResponse('q is required');
-      return json(buildSearch(deps.store, query));
+      return json(await buildSearch(deps.store, query));
     },
   };
 

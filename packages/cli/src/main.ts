@@ -16,7 +16,10 @@ import {
   MemoryStoreError,
   ProjectError,
   createProject,
+  embedTexts,
   listProjects,
+  vectorizerCommand,
+  writeEmbeddingCache,
   ProposalError,
   queryProfile,
   decideProposal,
@@ -71,6 +74,7 @@ Usage:
   mem proposals [--home <dir>] [--json]
   mem project list [--home <dir>] [--json]
   mem project add <name> [--description <text>] [--home <dir>] [--json]
+  mem embed [--apply] [--home <dir>] [--json]   (sidecar vector cache)
   mem decide <id> accept|reject [--reason <text>] [--accept] [--json]
   mem decide --batch accept|reject [--reason <text>] [--accept]
   mem rebuild [--json]
@@ -108,7 +112,7 @@ const VALUE_FLAGS = new Set([
   'limit',
   'reason',
 ]);
-const BOOLEAN_FLAGS = new Set(['accept', 'batch', 'json', 'help', 'version', 'seal-user']);
+const BOOLEAN_FLAGS = new Set(['accept', 'batch', 'json', 'help', 'version', 'seal-user', 'apply']);
 const KINDS: readonly Kind[] = ['fact', 'pitfall', 'exp'];
 
 class UsageError extends Error {
@@ -163,7 +167,7 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
       case 'read':
         return commandRead(parsed, io);
       case 'recall':
-        return commandRecall(parsed, io);
+        return await commandRecall(parsed, io);
       case 'adopt':
         return commandAdopt(parsed, io);
       case 'profile':
@@ -178,6 +182,8 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
         return commandProposals(parsed, io);
       case 'project':
         return commandProject(parsed, io);
+      case 'embed':
+        return await commandEmbed(parsed, io);
       case 'decide':
         return commandDecide(parsed, io);
       case 'inspect':
@@ -329,7 +335,7 @@ function commandRead(parsed: ParsedArgs, io: CliIo): number {
   return EXIT_OK;
 }
 
-function commandRecall(parsed: ParsedArgs, io: CliIo): number {
+async function commandRecall(parsed: ParsedArgs, io: CliIo): Promise<number> {
   const query = parsed.positionals.slice(1).join(' ');
   if (query === '') throw new UsageError('mem recall <query>');
   const runtime = openRuntime(parsed, io);
@@ -343,7 +349,7 @@ function commandRecall(parsed: ParsedArgs, io: CliIo): number {
   if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1)) {
     throw new UsageError('--limit must be a positive integer');
   }
-  const result = store.recall(query, {
+  const result = await store.recallAsync(query, {
     ...(limit === undefined ? {} : { limit }),
     ...(stringFlag(parsed, 'as-of') === undefined ? {} : { asOf: stringFlag(parsed, 'as-of') }),
     ...(kindsFlag === undefined ? {} : { kinds: [kindsFlag as Kind] }),
@@ -391,6 +397,39 @@ function commandRebuild(parsed: ParsedArgs, io: CliIo): number {
   io.out(`journal: ${report.journal_head === null ? 'empty' : `#${report.journal_head.seq} ${report.journal_head.hash.slice(0, 12)}`}`);
   io.out(`quarantined: ${report.quarantined.length}`);
   return report.quarantined.length > 0 ? EXIT_DEGRADED : EXIT_OK;
+}
+
+async function commandEmbed(parsed: ParsedArgs, io: CliIo): Promise<number> {
+  const runtime = openRuntime(parsed, io);
+  const store = openStore(runtime);
+  const command = vectorizerCommand();
+  if (command === undefined) {
+    throw new UsageError('set AGENT_MEMORY_VECTORIZER to a command: <cmd> <input.json> <output.json>');
+  }
+  if (!parsed.flags.has('apply')) {
+    io.out(`embed: would vectorize ${store.active().length} active memories with ${command}`);
+    io.out('embed: dry run; re-run with --apply to write .index/embeddings.json');
+    return EXIT_OK;
+  }
+  const docs = store.active().map((doc) => ({ id: doc.id, text: `${doc.abstract}\n${doc.body}` }));
+  const result = await embedTexts(command, docs.map((doc) => doc.text));
+  const vectors: Record<string, number[]> = {};
+  for (let index = 0; index < docs.length; index += 1) {
+    vectors[docs[index]?.id as string] = [...(result.vectors[index] ?? [])];
+  }
+  writeEmbeddingCache(runtime.home, {
+    schema: 1,
+    provider: command,
+    dimensions: result.dimensions,
+    generated_at: new Date().toISOString(),
+    docs: vectors,
+  });
+  if (parsed.flags.has('json')) {
+    io.out(JSON.stringify({ embedded: docs.length, dimensions: result.dimensions }, null, 2));
+  } else {
+    io.out(`embedded ${docs.length} memories (${result.dimensions} dimensions)`);
+  }
+  return EXIT_OK;
 }
 
 function commandProject(parsed: ParsedArgs, io: CliIo): number {

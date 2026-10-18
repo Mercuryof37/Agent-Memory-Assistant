@@ -192,10 +192,10 @@ test('S14.9 UI names use serial + 12-char summary, never internal ids', (t) => {
   assert.equal(displayName('', '无编号的新内容'), '无编号的新内容');
 });
 
-test('S14.3 search and export read through the store only', (t) => {
+test('S14.3 search and export read through the store only', async (t) => {
   const { store } = fixture(t);
   store.add({ kind: 'fact', abstract: '部署前先迁移数据库', body: '迁移脚本', evidence_level: 'observed' }, { author: 'human' });
-  const search = buildSearch(store, '迁移');
+  const search = await buildSearch(store, '迁移');
   assert.equal(search.hits.length, 1);
   assert.equal(search.hits[0]?.serial, 'F-01');
   assert.equal(search.hits[0]?.provenance_verifiable, false);

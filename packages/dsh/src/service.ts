@@ -149,8 +149,8 @@ export function openHostService(
     mode: runtime.config.personalization.mode,
     session,
     config: runtime.config,
-    recall(input) {
-      return store.recall(input.query, {
+    async recall(input) {
+      return store.recallAsync(input.query, {
         ...(input.limit === undefined ? {} : { limit: input.limit }),
         ...(input.kind === undefined ? {} : { kinds: [input.kind as Kind] }),
       });

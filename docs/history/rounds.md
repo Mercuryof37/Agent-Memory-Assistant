@@ -315,3 +315,11 @@
 - **配置三件套**：schema、模板、docs/config.md 同步，共 26 键；关闭时行为与 V3 一致。
 - **ONNX 延到 S2b**：`onnxruntime-node` 解包约 301MB、web 约 145MB，插件包 185KB；先固定接口与评测，再选 sidecar/optional/WASM。
 - **验证**：S20.1–S20.3；`npm test` 270 pass / 1 skip；ADR-0034。
+
+### 第 36 轮 · V4.0-S2b Sidecar 向量缓存（2026-10-18）
+
+- **契约**：`AGENT_MEMORY_VECTORIZER` 指向 `cmd <input.json> <output.json>`，输入 `{texts}`、输出 `{vectors}`，文件 IPC 避开沙箱管道。
+- **缓存**：`.index/embeddings.json`（schema 1、provider、dimensions、docs）；`mem embed --apply` 生成，可删重建。
+- **异步检索**：`MemoryStore.recallAsync` 融合 BM25 + 缓存向量 + 查询向量；DSH/GUI/CLI/MCP 已接入；缓存/命令缺失自动回退 BM25 并 warning。
+- **边界**：插件不内置 ONNX（node 301MB/web 145MB），运行时由用户安装；模型走 sidecar。
+- **验证**：S20.4 fake vectorizer 端到端；`npm test` 271 pass / 1 skip；ADR-0035。

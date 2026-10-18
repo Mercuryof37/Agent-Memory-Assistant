@@ -12,6 +12,7 @@ import { supersedeProblems } from '../model/validity.ts';
 import { buildIndex, search } from '../index/bm25.ts';
 import { cosine, HashEmbeddingProvider } from '../index/embedding.ts';
 import { fuseScores } from '../index/hybrid.ts';
+import { embedTexts, readEmbeddingCache, vectorizerCommand } from '../embed/cache.ts';
 import { TOKENIZER_VERSION } from '../index/tokenizer.ts';
 import { scanInput } from '../scan/scan.ts';
 import type {
@@ -289,6 +290,101 @@ export class MemoryStore {
       hits,
       warnings: this.quarantined.size === 0 ? [] : [...this.quarantined.values()].slice(0, 5),
     };
+  }
+
+  /**
+   * Hybrid retrieval entry point. Sync `recall` stays BM25/hash-only so the
+   * CLI/tests keep a cheap path; the host calls this async version when the
+   * sidecar vector cache exists.
+   */
+  async recallAsync(
+    query: string,
+    options: { limit?: number; asOf?: string; kinds?: readonly Kind[] } = {},
+  ): Promise<RecallResult> {
+    const text = query.trim();
+    if (text === '' || !this.config.recall.hybrid) return this.recall(query, options);
+    const cache = readEmbeddingCache(this.paths.home);
+    const command = vectorizerCommand();
+    if (cache === undefined || command === undefined) {
+      const fallback = this.recall(query, options);
+      return {
+        ...fallback,
+        warnings: [
+          ...fallback.warnings,
+          cache === undefined
+            ? 'hybrid requested but .index/embeddings.json is missing; run `mem embed --apply`'
+            : 'hybrid requested but AGENT_MEMORY_VECTORIZER is not set',
+        ],
+      };
+    }
+    try {
+      const queryVector = (await embedTexts(command, [text])).vectors[0];
+      if (queryVector === undefined || queryVector.length !== cache.dimensions) {
+        throw new Error(`query vector does not match cache dimensions (${cache.dimensions})`);
+      }
+      this.reload();
+      const date = options.asOf ?? today(this.now());
+      const limit = Math.min(options.limit ?? this.config.recall.limit, this.config.recall.max_limit);
+      const activeSet = activeDocs(this.docs.values(), date).filter(
+        (doc) => !this.deleted.has(doc.id) && !this.quarantined.has(doc.id),
+      );
+      const index = buildIndex(activeSet, TOKENIZER_VERSION);
+      const lexicalHits = search(index, text, {
+        limit: activeSet.length,
+        minScorePermille: 0,
+        ...(options.kinds === undefined ? {} : { kinds: options.kinds }),
+      });
+      const lexical = new Map(lexicalHits.map((hit) => [hit.id, hit.score]));
+      const kindFilter = options.kinds === undefined ? undefined : new Set(options.kinds);
+      const vector = new Map<MemoryId, number>();
+      for (const doc of activeSet) {
+        if (kindFilter !== undefined && !kindFilter.has(doc.kind)) continue;
+        const cached = cache.docs[doc.id];
+        if (cached === undefined || cached.length !== queryVector.length) continue;
+        let dot = 0;
+        for (let at = 0; at < queryVector.length; at += 1) dot += (queryVector[at] ?? 0) * (cached[at] ?? 0);
+        vector.set(doc.id, Math.max(0, Math.min(1, dot)));
+      }
+      const minScore = this.config.recall.min_score / 1000;
+      const byId = new Map(activeSet.map((doc) => [doc.id, doc]));
+      const ranked = [...fuseScores(lexical, vector, this.config.recall.embedding_weight).entries()]
+        .filter(([, score]) => score >= minScore)
+        .map(([id, score]) => ({ id, score }))
+        .sort((left, right) => {
+          if (right.score !== left.score) return right.score - left.score;
+          const leftDoc = byId.get(left.id);
+          const rightDoc = byId.get(right.id);
+          if (leftDoc !== undefined && rightDoc !== undefined && rightDoc.valid_from !== leftDoc.valid_from) {
+            return rightDoc.valid_from.localeCompare(leftDoc.valid_from);
+          }
+          return left.id.localeCompare(right.id);
+        })
+        .slice(0, limit);
+      const hits: RecallHit[] = [];
+      for (const hit of ranked) {
+        const doc = byId.get(hit.id);
+        if (doc === undefined) continue;
+        hits.push({
+          id: doc.id,
+          kind: doc.kind,
+          abstract: doc.abstract,
+          score: hit.score,
+          valid_from: doc.valid_from,
+          valid_until: doc.valid_until,
+          provenance_verifiable: doc.provenance.length > 0,
+        });
+      }
+      return { hits, warnings: this.quarantined.size === 0 ? [] : [...this.quarantined.values()].slice(0, 5) };
+    } catch (error) {
+      const fallback = this.recall(query, options);
+      return {
+        ...fallback,
+        warnings: [
+          ...fallback.warnings,
+          `hybrid vectorizer failed (${error instanceof Error ? error.message : String(error)}); fell back to lexical`,
+        ],
+      };
+    }
   }
 
   stats(): Stats {

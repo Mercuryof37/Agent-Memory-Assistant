@@ -127,7 +127,7 @@ async function callTool(
     const query = typeof args.query === 'string' ? args.query.trim() : '';
     if (query === '') throw new Error('query is required');
     const limit = typeof args.limit === 'number' ? args.limit : 20;
-    return store.recall(query, { limit });
+    return store.recallAsync(query, { limit });
   }
   if (name === 'memory_read') {
     if (typeof args.id !== 'string' || args.id === '') throw new Error('id is required');
