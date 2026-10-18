@@ -24,6 +24,10 @@
 | 3 | 引入 LongMemEval 子集 | 评测成为 V4.0 出口，不再“只测功能” |
 | 4 | 导入优先 **Mem0** | D 方向先做 Mem0 adapter，再 Basic Memory / claude-mem |
 | 5 | UI 图做，但用 **worktree 形式**、分项目、简单到深入 | 不做自由力导向“毛线球”；见 §6.1 |
+| 6 | 团队/云放 **V4.1**，优先**托管云** | V4.0 不做账号/同步；V4.1 设计需处理隐私与迁移 |
+| 7 | 本地 embedding 用 **ONNX + 小模型，≤150MB** | 默认随包/首次下载可选；超限模型不内置 |
+| 8 | L3 全局图 **V4.3** | V4.0 只做 L0–L2 |
+| 9 | `project` **由用户自建** | 首次使用引导建项目；未归类进默认桶，不自动猜项目 |
 
 > 总原则：**版本式开发、单一数据源、避免碎片化**；宁可少做，不做重复的第二套索引/第二套写入/第二套 UI。
 
@@ -107,7 +111,7 @@ git -c http.sslBackend=openssl -c credential.helper= clone --depth 1 <repo>
 
 ### A. 检索质量与评测（P0，建议必做）
 
-- 可选本地 embedding（ONNX/FastEmbed 类，零 API key），失败回退 BM25；
+- 可选本地 embedding：**ONNX Runtime + 小模型，模型 ≤150MB**，零 API key；失败回退 BM25；
 - hybrid 融合（RRF/加权）+ 可选 rerank（小模型或 cross-encoder，本地）；
 - 查询改写/同义扩展、类型/日期/来源过滤；
 - **评测工具**：内置 LongMemEval 子集 + 自有 fixture，输出 recall@k / answer correctness / token cost；
@@ -130,6 +134,7 @@ git -c http.sslBackend=openssl -c credential.helper= clone --depth 1 <repo>
 - 命名空间/scope（个人/项目/团队）、权限、共享只读；
 - 可选同步（文件同步/Git/自建服务），冲突合并策略；
 - 多 agent provenance（谁写的、哪个宿主）。
+- **V4.1 做托管云**（用户拍板）：账号/团队空间/同步；本地优先仍是默认，云是可选上传；需要隐私说明、导出与删除权。
 - **不建议 V4.0 做云**：会稀释本地优先与可信卖点。
 
 ### D. 互操作与标准（P0/P1）
@@ -182,7 +187,7 @@ git -c http.sslBackend=openssl -c credential.helper= clone --depth 1 <repo>
 
 #### 分类逻辑（底层简单、可解释）
 
-1. **项目是显式字段**：frontmatter `project`（默认取 DSH workspace/profile 名，可手改）；没有则归“未归类”。
+1. **项目由用户自建**：首次进入工作树时引导创建（名称 + 可选描述）；frontmatter `project` 引用项目名；未选择时归“未归类”，**不按 workspace 自动猜**。
 2. **主题是聚合，不是新实体**：主题 = 同项目内 `tags` 的重合 + 摘要相似度聚类；只用于树的第二层，不写入文件、不产生新 ID。
 3. **边只有三种**：`supersedes`（版本链）、`relates_to`（相关）、`derived_from`（来源）。不做自定义本体、不做“实体/属性/事件”建模。
 4. **树深度最多 3 层**：项目 → 主题 → 记忆；再深只进详情，不再分叉。
@@ -232,6 +237,17 @@ git -c http.sslBackend=openssl -c credential.helper= clone --depth 1 <repo>
 
 **明确不做**（V4.0）：团队权限、云同步、自由图编辑、自动抽取落库、独立向量数据库、移动端。
 
+### 6.3 V4.0 阶段拆分（版本式）
+
+| 阶段 | 内容 | 出口（测试/体验） |
+|---|---|---|
+| **S1 数据与项目** | frontmatter v1.4（`project/tags/relations`）、用户自建项目、读时兼容、导入导出补字段 | 旧记录读取不变；项目创建/改名/归属；三类边校验；roundtrip |
+| **S2 检索** | ONNX ≤150MB、embedding 缓存、hybrid、rerank、LongMemEval 子集 | recall@5 基线对比；无模型回退；P95 与 token 成本 |
+| **S3 互操作** | Mem0 adapter（预览/去重/来源）、Memory API v1、MCP 工具对齐 | Mem0 样本导入逐条报告；导出 roundtrip；MCP 四端握手 |
+| **S4 工作树** | 项目树 L0–L2、焦点局部图、冲突提示、只读派生缓存 | 50/200 节点上限；深度/过滤；点击焦点；无图数据库 |
+
+发布：`0.3.0`；S1–S4 各一条主提交，ADR 记录数据格式、检索、导入、工作树；V4.1 再做云/团队。
+
 ### 4.x 路线
 
 | 版本 | 内容 | 人日 | 出口 |
@@ -249,16 +265,17 @@ git -c http.sslBackend=openssl -c credential.helper= clone --depth 1 <repo>
 - 可信：所有写入仍有 journal + provenance；`decide` 仍非工具；规则仍仅 GUI 保存；
 - 性能：1000/5000 条列表与召回 P95。
 
-## 7. 仍需拍板
+## 7. 拍板结果
 
-已拍板：V4.0 范围（质量+互操作+轻结构）、接受本地 embedding、引入 LongMemEval 子集、Mem0 优先、工作树 UI。
+全部已定，无待决项：
 
-剩余：
-
-1. 团队/云是否放 V4.1？若是，优先“自建文件同步”还是“托管云”？
-2. 本地 embedding 的默认运行时：ONNX（体积小、跨平台）还是 llama.cpp（更灵活）？默认维度/模型大小上限？
-3. 工作树 L3 全局图放 V4.0 还是 V4.3（当前计划 V4.3）？
-4. `project` 默认粒度：DSH workspace/profile 名，还是首次启动由用户建项目？
+1. V4.0 = 质量 + 互操作 + 轻结构；
+2. 本地 embedding = ONNX + 小模型，≤150MB；
+3. 引入 LongMemEval 子集；
+4. Mem0 优先导入；
+5. 工作树 UI，L0–L2 在 V4.0，L3 在 V4.3；
+6. 团队/云放 V4.1，优先托管云；
+7. 项目由用户自建，未归类进默认桶。
 
 ## 8. 对现有架构的影响
 
