@@ -5,6 +5,7 @@ import { ensureDir, writeFileAtomic } from '../fs/atomic.ts';
 import { acquireLock } from '../fs/lock.ts';
 import { Journal } from '../journal/journal.ts';
 import { hashContent, parseMemoryFile, serializeMemory } from '../model/frontmatter.ts';
+import { projectProblem, relationsProblem, tagsProblem } from '../model/metadata.ts';
 import { isMemoryId, newMemoryId } from '../model/ids.ts';
 import { activeDocs, today } from '../model/validity.ts';
 import { supersedeProblems } from '../model/validity.ts';
@@ -312,11 +313,16 @@ export class MemoryStore {
         throw new MemoryStoreError('INVALID', `valid_from must be a real YYYY-MM-DD date, found ${validFrom}`);
       }
       const duplicateId = this.allocateId(now);
+      const relationIssue = relationsProblem(input.relations ?? [], duplicateId);
+      if (relationIssue !== undefined) throw new MemoryStoreError('INVALID', relationIssue);
       const doc = {
         id: duplicateId,
-        mem_schema: 1 as const,
+        mem_schema: 2 as const,
         kind: input.kind,
         scope: 'local' as const,
+        project: input.project ?? null,
+        tags: input.tags ?? [],
+        relations: input.relations ?? [],
         abstract: input.abstract,
         created_at: now.toISOString(),
         valid_from: validFrom,
@@ -516,11 +522,16 @@ export class MemoryStore {
           this.docs,
         );
         if (problems.length > 0) throw new MemoryStoreError('INVALID', problems.join('; '));
+        const relationIssue = relationsProblem(input.relations ?? [], id);
+        if (relationIssue !== undefined) throw new MemoryStoreError('INVALID', relationIssue);
         const doc = {
           id,
-          mem_schema: 1 as const,
+          mem_schema: 2 as const,
           kind: input.kind,
           scope: 'local' as const,
+          project: input.project ?? null,
+          tags: input.tags ?? [],
+          relations: input.relations ?? [],
           abstract: input.abstract,
           created_at: now.toISOString(),
           valid_from: input.valid_from ?? today(now),
@@ -739,6 +750,10 @@ export class MemoryStore {
     if (!KINDS.includes(input.kind)) {
       throw new MemoryStoreError('INVALID', `kind must be one of ${KINDS.join(', ')}`);
     }
+    const projectIssue = projectProblem(input.project ?? null);
+    if (projectIssue !== undefined) throw new MemoryStoreError('INVALID', projectIssue);
+    const tagsIssue = tagsProblem(input.tags ?? []);
+    if (tagsIssue !== undefined) throw new MemoryStoreError('INVALID', tagsIssue);
     if (typeof input.abstract !== 'string' || input.abstract.trim() === '') {
       throw new MemoryStoreError('INVALID', 'abstract must not be empty');
     }

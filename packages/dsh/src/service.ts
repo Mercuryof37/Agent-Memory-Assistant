@@ -166,6 +166,8 @@ export function openHostService(
         abstract: string;
         body: string;
         valid_from?: string;
+        project?: string;
+        tags?: readonly string[];
         error_signatures?: readonly string[];
         evidence: readonly { event_seq: number; quote: string }[];
       };
@@ -188,6 +190,8 @@ export function openHostService(
           body: raw.body,
           evidence_level: 'observed',
           ...(raw.valid_from === undefined ? {} : { valid_from: raw.valid_from }),
+          ...(raw.project === undefined ? {} : { project: raw.project }),
+          ...(raw.tags === undefined ? {} : { tags: raw.tags }),
           ...(raw.error_signatures === undefined ? {} : { error_signatures: raw.error_signatures }),
         },
         { author: 'agent', provenance },
@@ -225,6 +229,8 @@ export function openHostService(
           body: string;
           evidence_level?: 'user_explicit' | 'user_confirmed' | 'observed';
           valid_from?: string;
+          project?: string;
+          tags?: readonly string[];
           error_signatures?: readonly string[];
           evidence?: readonly { event_seq: number; quote: string }[];
         }[];
@@ -250,6 +256,8 @@ export function openHostService(
           body: replacement.body,
           evidence_level: replacement.evidence_level ?? 'observed',
           ...(replacement.valid_from === undefined ? {} : { valid_from: replacement.valid_from }),
+          ...(replacement.project === undefined ? {} : { project: replacement.project }),
+          ...(replacement.tags === undefined ? {} : { tags: replacement.tags }),
           ...(replacement.error_signatures === undefined
             ? {}
             : { error_signatures: replacement.error_signatures }),

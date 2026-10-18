@@ -47,6 +47,7 @@ export interface EnvLike {
 export interface MemoryPaths {
   readonly home: string;
   readonly configFile: string;
+  readonly projectsFile: string;
   readonly policyFile: string;
   readonly sealFile: string;
   readonly lockFile: string;
@@ -69,6 +70,7 @@ export function memoryPaths(home: string): MemoryPaths {
   return {
     home,
     configFile: join(home, 'config.toml'),
+    projectsFile: join(home, 'projects.json'),
     policyFile: join(home, 'policy.json'),
     sealFile: join(home, '.state', 'policy.seal.json'),
     lockFile: join(home, '.state', 'lock'),

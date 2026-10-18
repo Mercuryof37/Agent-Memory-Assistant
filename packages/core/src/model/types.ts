@@ -8,6 +8,12 @@
 export type Kind = 'fact' | 'pitfall' | 'exp';
 export type EvidenceLevel = 'user_explicit' | 'user_confirmed' | 'observed' | 'inferred';
 export type MemoryId = string; // mem-YYYYMMDD-8hex
+export type RelationType = 'relates_to' | 'derived_from';
+
+export interface MemoryRelation {
+  readonly type: RelationType;
+  readonly target: MemoryId;
+}
 
 export interface ProvenanceEntry {
   readonly session_id: string;
@@ -19,9 +25,12 @@ export interface ProvenanceEntry {
 
 export interface MemoryDoc {
   readonly id: MemoryId;
-  readonly mem_schema: 1;
+  readonly mem_schema: 1 | 2;
   readonly kind: Kind;
   readonly scope: 'local';
+  readonly project?: string | null;
+  readonly tags?: readonly string[];
+  readonly relations?: readonly MemoryRelation[];
   readonly abstract: string;
   readonly created_at: string;
   readonly valid_from: string;
@@ -40,6 +49,9 @@ export interface RecordInput {
   readonly kind: Kind;
   readonly abstract: string;
   readonly body: string;
+  readonly project?: string | null;
+  readonly tags?: readonly string[];
+  readonly relations?: readonly MemoryRelation[];
   readonly valid_from?: string;
   readonly error_signatures?: readonly string[];
   readonly evidence_level: Exclude<EvidenceLevel, 'inferred'>;

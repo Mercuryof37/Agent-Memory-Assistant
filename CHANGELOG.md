@@ -4,6 +4,15 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
+## [Unreleased]
+
+### Added
+
+- v1.4 memory metadata: `project`, `tags`, `relations` (`relates_to`/`derived_from`);
+  `mem_schema: 2` with `mem_schema: 1` read compatibility.
+- User-created project registry (`projects.json`) and `mem project list|add`.
+- Export bundle v2 (v1 imports still accepted).
+
 ## [0.2.1] - 2026-10-18
 
 ### Changed

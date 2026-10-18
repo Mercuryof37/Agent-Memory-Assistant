@@ -201,6 +201,9 @@ function summary(doc: MemoryDoc, serial: string) {
     id: doc.id,
     kind: doc.kind,
     abstract: doc.abstract,
+    project: doc.project ?? null,
+    tags: doc.tags ?? [],
+    relations: doc.relations ?? [],
     author: doc.author,
     valid_from: doc.valid_from,
     valid_until: doc.valid_until,
@@ -271,7 +274,7 @@ export function exportBundle(store: MemoryStore) {
       content_hash: doc.content_hash,
     }));
   return {
-    format: 'agent-memory-export-v1',
+    format: 'agent-memory-export-v2',
     exported_at: new Date().toISOString(),
     memories,
     proposals: listProposals(store).map((proposal) => ({

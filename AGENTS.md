@@ -22,9 +22,10 @@
 
 policy.json 的字段同理，改 `policySchema` + `docs/policy.md`。
 
-## 数据格式约定（v1.3 起）
+## 数据格式约定（v1.4 起）
 
 - 记忆 frontmatter 是**每行 `key: <JSON 值>`**，解析 = 行切分 + `JSON.parse`；不写 YAML 解析器，也不引 YAML 依赖；
+- `mem_schema: 2` 新增可选 `project`/`tags`/`relations`（`relates_to`/`derived_from`；`supersedes` 独立）；解析器仍接受 `1`，旧记录不重写；
 - `error_signatures` **只允许字面子串**，不写正则（ReDoS 与不可复现）；
 - `supersedes` 是**数组**，文件创建后不可变；删除、决定、入账、审计统一写 `.state/journal/`，不写回旧文件。
 

@@ -25,6 +25,9 @@ export interface ImportMemory {
   readonly kind: string;
   readonly abstract: string;
   readonly body?: string;
+  readonly project?: string | null;
+  readonly tags?: readonly string[];
+  readonly relations?: readonly unknown[];
   readonly valid_from?: string;
   readonly error_signatures?: readonly string[];
   readonly evidence_level?: string;
@@ -37,8 +40,8 @@ const LEVELS = new Set(['user_explicit', 'user_confirmed', 'observed']);
 export function importBundle(store: MemoryStore, bundle: unknown): ImportReport {
   if (typeof bundle !== 'object' || bundle === null) throw new Error('bundle must be an object');
   const record = bundle as { format?: unknown; memories?: unknown; proposals?: unknown };
-  if (record.format !== 'agent-memory-export-v1') {
-    throw new Error('unsupported bundle format (expected agent-memory-export-v1)');
+  if (record.format !== 'agent-memory-export-v1' && record.format !== 'agent-memory-export-v2') {
+    throw new Error('unsupported bundle format (expected agent-memory-export-v1 or v2)');
   }
   if (!Array.isArray(record.memories)) throw new Error('bundle.memories must be an array');
 
@@ -64,6 +67,21 @@ export function importBundle(store: MemoryStore, bundle: unknown): ImportReport 
           kind: raw.kind as Kind,
           abstract,
           body,
+          ...(typeof raw.project === 'string' || raw.project === null ? { project: raw.project } : {}),
+          ...(Array.isArray(raw.tags)
+            ? { tags: raw.tags.filter((entry): entry is string => typeof entry === 'string') }
+            : {}),
+          ...(Array.isArray(raw.relations)
+            ? {
+                relations: raw.relations.filter(
+                  (entry): entry is { type: 'relates_to' | 'derived_from'; target: string } =>
+                    typeof entry === 'object' &&
+                    entry !== null &&
+                    typeof (entry as { type?: unknown }).type === 'string' &&
+                    typeof (entry as { target?: unknown }).target === 'string',
+                ),
+              }
+            : {}),
           evidence_level: evidenceLevel,
           ...(typeof raw.valid_from === 'string' ? { valid_from: raw.valid_from } : {}),
           ...(Array.isArray(raw.error_signatures)

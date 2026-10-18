@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { EvidenceLevel, Kind, MemoryDoc, ProvenanceEntry } from './types.ts';
+import type { EvidenceLevel, Kind, MemoryDoc, MemoryRelation, ProvenanceEntry, RelationType } from './types.ts';
+import { projectProblem, relationsProblem, tagsProblem } from './metadata.ts';
 
 /**
  * Frontmatter is one `key: <JSON value>` per line between two `---` fences.
@@ -33,6 +34,9 @@ const FIELD_ORDER = [
   'mem_schema',
   'kind',
   'scope',
+  'project',
+  'tags',
+  'relations',
   'abstract',
   'created_at',
   'valid_from',
@@ -122,10 +126,31 @@ export function parseMemoryFile(text: string, filePath: string, limits: MemoryLi
 
   const id = requireString(values.get('id'), 'id', filePath);
   if (!ID.test(id)) fail('id', 'must look like mem-YYYYMMDD-8hex', filePath);
-  if (values.get('mem_schema') !== 1) fail('mem_schema', 'must be 1', filePath);
+  if (values.get('mem_schema') !== 1 && values.get('mem_schema') !== 2) {
+    fail('mem_schema', 'must be 1 or 2', filePath);
+  }
+  const memSchema = values.get('mem_schema') as 1 | 2;
   const kind = requireString(values.get('kind'), 'kind', filePath);
   if (!KINDS.has(kind as Kind)) fail('kind', 'must be fact, pitfall or exp', filePath);
   if (values.get('scope') !== 'local') fail('scope', 'must be "local" in V1', filePath);
+
+  const rawProject = values.has('project') ? values.get('project') : null;
+  const projectIssue = projectProblem(rawProject);
+  if (projectIssue !== undefined) fail('project', projectIssue, filePath);
+  const project = rawProject === null || rawProject === undefined ? null : (rawProject as string);
+
+  const rawTags = values.has('tags') ? values.get('tags') : [];
+  const tagsIssue = tagsProblem(rawTags);
+  if (tagsIssue !== undefined) fail('tags', tagsIssue, filePath);
+  const tags = requireArray(rawTags, 'tags', filePath).map((entry) => entry as string);
+
+  const rawRelations = values.has('relations') ? values.get('relations') : [];
+  const relationsIssue = relationsProblem(rawRelations, id);
+  if (relationsIssue !== undefined) fail('relations', relationsIssue, filePath);
+  const relations = requireArray(rawRelations, 'relations', filePath).map((entry) => {
+    const relation = entry as { type: RelationType; target: string };
+    return { type: relation.type, target: relation.target } satisfies MemoryRelation;
+  });
 
   const abstract = requireString(values.get('abstract'), 'abstract', filePath);
   if (abstract.trim() === '') fail('abstract', 'must not be empty', filePath);
@@ -209,9 +234,12 @@ export function parseMemoryFile(text: string, filePath: string, limits: MemoryLi
 
   return {
     id,
-    mem_schema: 1,
+    mem_schema: memSchema,
     kind: kind as Kind,
     scope: 'local',
+    project,
+    tags,
+    relations,
     abstract,
     created_at: createdAt,
     valid_from: validFrom,
@@ -234,6 +262,9 @@ export function serializeMemory(doc: Omit<MemoryDoc, 'file_path' | 'content_hash
     mem_schema: doc.mem_schema,
     kind: doc.kind,
     scope: doc.scope,
+    project: doc.project ?? null,
+    tags: doc.tags ?? [],
+    relations: doc.relations ?? [],
     abstract: doc.abstract,
     created_at: doc.created_at,
     valid_from: doc.valid_from,

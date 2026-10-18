@@ -17,6 +17,15 @@
 V1.0 已完成；V2/V3 的功能迭代见 [开发历程](../history/rounds.md) 与各期方案。
 阶段门禁：`node scripts/stage.mjs <S>`（ci + smoke + ADR + 验收编号 + 闭环）。
 
+## V4.0（进行中）
+
+| 阶段 | 内容 | 状态 | 记录 |
+|---|---|---|---|
+| V4.0-S1 | v1.4 数据格式、用户自建项目、Mem0 导入前置 | ✅ 完成（未发布） | [ADR-0033](../adr/0033-v4-data-projects.md) |
+| V4.0-S2 | ONNX embedding、hybrid、LongMemEval 子集 | 待开始 | — |
+| V4.0-S3 | Mem0 导入、Memory API v1、MCP 对齐 | 待开始 | — |
+| V4.0-S4 | 工作树 L0–L2、焦点局部图、冲突提示 | 待开始 | — |
+
 ## 闭环检查
 
 `scripts/closure.mjs`（已并入阶段门禁）机械确认：

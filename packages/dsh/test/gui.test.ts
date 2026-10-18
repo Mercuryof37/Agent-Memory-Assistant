@@ -201,7 +201,7 @@ test('S14.3 search and export read through the store only', (t) => {
   assert.equal(search.hits[0]?.provenance_verifiable, false);
 
   const bundle = exportBundle(store);
-  assert.equal(bundle.format, 'agent-memory-export-v1');
+  assert.equal(bundle.format, 'agent-memory-export-v2');
   assert.equal(bundle.memories.length, 1);
   assert.equal(bundle.memories[0]?.body.trim(), '迁移脚本');
   assert.deepEqual(bundle.proposals, []);

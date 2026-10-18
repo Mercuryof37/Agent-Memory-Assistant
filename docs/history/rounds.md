@@ -301,5 +301,9 @@
 - 修复 `pack/setup` 对 tarball 名称的识别（同时匹配 `agent-memory-*` 与 `agent_memory-*`，按版本排序）。
 - 记录：[docs/development/release-verification.md](../development/release-verification.md)。
 
+### 第 34 轮 · V4.0-S1 数据格式与项目（2026-10-18）
 
-
+- **v1.4 格式**：`mem_schema: 2`，新增可选 `project`/`tags`/`relations`（relates_to/derived_from）；解析器仍接受 1，旧记录不重写。
+- **自建项目**：`projects.json` 注册表 + `mem project list|add`；`mem add --project/--tag` 可归属；未选择即未归类。
+- **导入导出**：bundle 升级 v2，v1 仍可导入；新记录跨 CLI/store/import 保持三字段。
+- **验证**：`npm test` 267 pass / 1 skip；新增 S19.1–S19.9；ADR-0033。

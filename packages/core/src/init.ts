@@ -3,6 +3,7 @@ import { CONFIG_TEMPLATE } from './config/config.ts';
 import { ensureDir, writeFileAtomic } from './fs/atomic.ts';
 import { assertSafeHome, layoutDirectories, memoryPaths } from './paths.ts';
 import { POLICY_TEMPLATE, sealIfNeeded } from './policy/policy.ts';
+import { ensureProjectsFile } from './projects/projects.ts';
 
 export interface InitResult {
   readonly home: string;
@@ -42,6 +43,9 @@ export function initStore(options: { home: string; now?: Date }): InitResult {
     writeFileAtomic(paths.policyFile, POLICY_TEMPLATE);
     createdFiles.push(paths.policyFile);
   }
+
+  if (!ensureProjectsFile(paths.home)) keptFiles.push(paths.projectsFile);
+  else createdFiles.push(paths.projectsFile);
 
   const hadSeal = existsSync(paths.sealFile);
   const seal = sealIfNeeded({ home: paths.home, ...(options.now === undefined ? {} : { now: options.now }) });

@@ -55,6 +55,7 @@
 ```text
 ~/.dsh/memory/
   SOUL.md USER.md RULES.md                # 人维护，注入（RULES/SOUL 封存）
+  projects.json                           # 用户自建项目（v1.4）
   policy.json seal.json                   # 封存
   memories/<kind>/<id>.md                 # 不可变记录
   proposals/pending/<id>.json             # 待审提案
@@ -64,7 +65,7 @@
 
 **GUIDANCE 不是文件**：它是 `renderGuidance(personalization.mode)` 在注入时生成的短指引（记忆分类、先读后写、写入必须带出处、当前模式的写权限、子 agent 只读），没有用户可编辑的 `GUIDANCE.md`。
 
-记录（v1.3）：`id, kind(fact|pitfall|exp), abstract, body, valid_from/valid_until, supersedes, author, evidence_level, error_signatures, provenance, content_hash`。删除不写回旧文件，只在 journal 追加；`purge` 才物理移除。
+记录（v1.4，`mem_schema: 2`）：`id, kind, project, tags, relations, abstract, body, valid_from/valid_until, supersedes, author, evidence_level, error_signatures, provenance, content_hash`；v1 记录缺省读成未归类/空标签/空关系。删除不写回旧文件，只在 journal 追加；`purge` 才物理移除。
 
 ## 5. 关键流程
 

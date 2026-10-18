@@ -126,6 +126,18 @@ args = ["<仓库或安装目录>\\packages\\cli\\bin\\mem.mjs", "mcp"]
 
 `--kind` 可以是 `fact` / `pitfall` / `exp`（默认 `fact`）。
 
+### 4.1 项目与标签（v1.4）
+
+项目由你自建，不按工作区自动猜；未归属的记忆进入「未归类」。
+
+```powershell
+mem project add "Agent Memory" --description "DSH 插件"
+mem project list
+mem add --kind exp --abstract "工作树按项目分组" --project "Agent Memory" --tag "v4,ui"
+```
+
+项目只是标签：删除项目不会删除记忆；改名/图形化归属在工作树版本中提供。
+
 ### 5. 删掉一条
 
 - 普通删除（记录失效，但历史仍可查）：`/mem delete <记忆编号> --reason "原因"`；

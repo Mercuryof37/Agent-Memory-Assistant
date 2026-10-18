@@ -14,6 +14,9 @@ import {
   memoryPaths,
   MemoryStore,
   MemoryStoreError,
+  ProjectError,
+  createProject,
+  listProjects,
   ProposalError,
   queryProfile,
   decideProposal,
@@ -58,7 +61,7 @@ Usage:
   mem doctor [--home <dir>] [--config <file>] [--json]
   mem add --abstract <text> [--kind fact|pitfall|exp] [--body <text>]
           [--valid-from YYYY-MM-DD] [--evidence-level <level>]
-          [--error-signature <csv>] [--json]
+          [--error-signature <csv>] [--project <name>] [--tag <csv>] [--json]
   mem read <id> [--json]
   mem recall <query> [--limit <n>] [--as-of YYYY-MM-DD] [--kind <kind>] [--json]
   mem adopt <id> [--json]
@@ -66,6 +69,8 @@ Usage:
   mem profile [query] [--json]
   mem scaffold [--home <dir>]
   mem proposals [--home <dir>] [--json]
+  mem project list [--home <dir>] [--json]
+  mem project add <name> [--description <text>] [--home <dir>] [--json]
   mem decide <id> accept|reject [--reason <text>] [--accept] [--json]
   mem decide --batch accept|reject [--reason <text>] [--accept]
   mem rebuild [--json]
@@ -96,6 +101,9 @@ const VALUE_FLAGS = new Set([
   'valid-from',
   'evidence-level',
   'error-signature',
+  'project',
+  'tag',
+  'description',
   'as-of',
   'limit',
   'reason',
@@ -168,6 +176,8 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
         return commandRebuild(parsed, io);
       case 'proposals':
         return commandProposals(parsed, io);
+      case 'project':
+        return commandProject(parsed, io);
       case 'decide':
         return commandDecide(parsed, io);
       case 'inspect':
@@ -196,7 +206,7 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
       io.err(error.format());
       return error.code === 'SEAL_REFUSED' ? EXIT_CONFIRMATION_MISSING : EXIT_REFUSED;
     }
-    if (error instanceof MemoryStoreError || error instanceof ProposalError) {
+    if (error instanceof MemoryStoreError || error instanceof ProposalError || error instanceof ProjectError) {
       io.err(`mem: ${error.message}`);
       return EXIT_REFUSED;
     }
@@ -280,12 +290,17 @@ function commandAdd(parsed: ParsedArgs, io: CliIo): number {
       ? []
       : signaturesRaw.split(',').map((entry) => entry.trim()).filter((entry) => entry !== '');
   const store = openStore(runtime);
+  const project = stringFlag(parsed, 'project');
+  const tagsRaw = stringFlag(parsed, 'tag');
+  const tags = tagsRaw === undefined ? undefined : tagsRaw.split(',').map((entry) => entry.trim()).filter((entry) => entry !== '');
   const result = store.add(
     {
       kind,
       abstract,
       body: stringFlag(parsed, 'body') ?? '',
       ...(stringFlag(parsed, 'valid-from') === undefined ? {} : { valid_from: stringFlag(parsed, 'valid-from') }),
+      ...(project === undefined ? {} : { project }),
+      ...(tags === undefined ? {} : { tags }),
       evidence_level: evidence as 'user_explicit' | 'user_confirmed' | 'observed',
       error_signatures: errorSignatures,
     },
@@ -378,8 +393,40 @@ function commandRebuild(parsed: ParsedArgs, io: CliIo): number {
   return report.quarantined.length > 0 ? EXIT_DEGRADED : EXIT_OK;
 }
 
-function commandProposals(parsed: ParsedArgs, io: CliIo): number {
+function commandProject(parsed: ParsedArgs, io: CliIo): number {
   const runtime = openRuntime(parsed, io);
+  const subcommand = parsed.positionals[1];
+  if (subcommand === 'list') {
+    const projects = listProjects(runtime.home);
+    if (parsed.flags.has('json')) {
+      io.out(JSON.stringify({ projects }, null, 2));
+      return EXIT_OK;
+    }
+    if (projects.length === 0) io.out('no projects yet; run `mem project add <name>`');
+    for (const project of projects) {
+      const description = project.description === '' ? '' : ` — ${project.description}`;
+      io.out(`- ${project.name}${description}`);
+    }
+    return EXIT_OK;
+  }
+  if (subcommand === 'add') {
+    const name = parsed.positionals[2];
+    if (name === undefined) throw new UsageError('usage: mem project add <name> [--description <text>]');
+    const project = createProject({
+      home: runtime.home,
+      name,
+      ...(stringFlag(parsed, 'description') === undefined
+        ? {}
+        : { description: stringFlag(parsed, 'description') as string }),
+    });
+    if (parsed.flags.has('json')) io.out(JSON.stringify(project, null, 2));
+    else io.out(`created project ${project.name}`);
+    return EXIT_OK;
+  }
+  throw new UsageError('usage: mem project list | mem project add <name> [--description <text>]');
+}
+
+function commandProposals(parsed: ParsedArgs, io: CliIo): number {  const runtime = openRuntime(parsed, io);
   const proposals = listProposals(openStore(runtime));
   if (parsed.flags.has('json')) {
     io.out(JSON.stringify(proposals, null, 2));
