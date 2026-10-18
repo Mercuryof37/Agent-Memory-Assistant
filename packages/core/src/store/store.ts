@@ -10,6 +10,8 @@ import { isMemoryId, newMemoryId } from '../model/ids.ts';
 import { activeDocs, today } from '../model/validity.ts';
 import { supersedeProblems } from '../model/validity.ts';
 import { buildIndex, search } from '../index/bm25.ts';
+import { cosine, HashEmbeddingProvider } from '../index/embedding.ts';
+import { fuseScores } from '../index/hybrid.ts';
 import { TOKENIZER_VERSION } from '../index/tokenizer.ts';
 import { scanInput } from '../scan/scan.ts';
 import type {
@@ -231,14 +233,46 @@ export class MemoryStore {
       (doc) => !this.deleted.has(doc.id) && !this.quarantined.has(doc.id),
     );
     const index = buildIndex(activeSet, TOKENIZER_VERSION);
-    const found = search(index, text, {
-      limit,
-      minScorePermille: this.config.recall.min_score,
-      ...(options.kinds === undefined ? {} : { kinds: options.kinds }),
-    });
     const byId = new Map(activeSet.map((doc) => [doc.id, doc]));
+    const minScore = this.config.recall.min_score / 1000;
+    let ranked: Array<{ id: MemoryId; score: number }>;
+    if (this.config.recall.hybrid) {
+      const lexicalHits = search(index, text, {
+        limit: activeSet.length,
+        minScorePermille: 0,
+        ...(options.kinds === undefined ? {} : { kinds: options.kinds }),
+      });
+      const lexical = new Map(lexicalHits.map((hit) => [hit.id, hit.score]));
+      const provider = new HashEmbeddingProvider();
+      const queryVector = provider.embed(text);
+      const vector = new Map<MemoryId, number>();
+      const kindFilter = options.kinds === undefined ? undefined : new Set(options.kinds);
+      for (const doc of activeSet) {
+        if (kindFilter !== undefined && !kindFilter.has(doc.kind)) continue;
+        vector.set(doc.id, cosine(provider.embed(`${doc.abstract}\n${doc.body}`), queryVector));
+      }
+      ranked = [...fuseScores(lexical, vector, this.config.recall.embedding_weight).entries()]
+        .filter(([, score]) => score >= minScore)
+        .map(([id, score]) => ({ id, score }))
+        .sort((left, right) => {
+          if (right.score !== left.score) return right.score - left.score;
+          const leftDoc = byId.get(left.id);
+          const rightDoc = byId.get(right.id);
+          if (leftDoc !== undefined && rightDoc !== undefined && rightDoc.valid_from !== leftDoc.valid_from) {
+            return rightDoc.valid_from.localeCompare(leftDoc.valid_from);
+          }
+          return left.id.localeCompare(right.id);
+        })
+        .slice(0, limit);
+    } else {
+      ranked = search(index, text, {
+        limit,
+        minScorePermille: this.config.recall.min_score,
+        ...(options.kinds === undefined ? {} : { kinds: options.kinds }),
+      });
+    }
     const hits: RecallHit[] = [];
-    for (const hit of found) {
+    for (const hit of ranked) {
       const doc = byId.get(hit.id);
       if (doc === undefined) continue;
       hits.push({

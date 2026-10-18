@@ -242,7 +242,7 @@ git -c http.sslBackend=openssl -c credential.helper= clone --depth 1 <repo>
 | 阶段 | 内容 | 出口（测试/体验） |
 |---|---|---|
 | **S1 数据与项目** ✅ | frontmatter v1.4（`project/tags/relations`）、用户自建项目、读时兼容、导入导出补字段；见 [ADR-0033](../adr/0033-v4-data-projects.md) | 旧记录读取不变；项目创建/列表；三类边校验；roundtrip |
-| **S2 检索** | ONNX ≤150MB、embedding 缓存、hybrid、rerank、LongMemEval 子集 | recall@5 基线对比；无模型回退；P95 与 token 成本 |
+| **S2 检索** | S2a：provider seam、hash 兜底、hybrid 融合、26 键配置；S2b：ONNX ≤150MB、评测 | S2a 已实现（[ADR-0034](../adr/0034-v4-s2a-hybrid.md)）；S2b 待拍板运行时形态 |
 | **S3 互操作** | Mem0 adapter（预览/去重/来源）、Memory API v1、MCP 工具对齐 | Mem0 样本导入逐条报告；导出 roundtrip；MCP 四端握手 |
 | **S4 工作树** | 项目树 L0–L2、焦点局部图、冲突提示、只读派生缓存 | 50/200 节点上限；深度/过滤；点击焦点；无图数据库 |
 

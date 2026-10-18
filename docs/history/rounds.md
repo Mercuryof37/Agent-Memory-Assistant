@@ -307,3 +307,11 @@
 - **自建项目**：`projects.json` 注册表 + `mem project list|add`；`mem add --project/--tag` 可归属；未选择即未归类。
 - **导入导出**：bundle 升级 v2，v1 仍可导入；新记录跨 CLI/store/import 保持三字段。
 - **验证**：`npm test` 267 pass / 1 skip；新增 S19.1–S19.9；ADR-0033。
+
+### 第 35 轮 · V4.0-S2a 混合检索骨架（2026-10-18）
+
+- **Provider seam**：`EmbeddingProvider` + 确定性 `HashEmbeddingProvider`（256 维，CI/离线兜底，不冒充语义模型）。
+- **融合**：`fuseScores` 对齐 BM25 与向量余弦；`recall.hybrid` 默认 false，`recall.embedding_weight` 默认 400。
+- **配置三件套**：schema、模板、docs/config.md 同步，共 26 键；关闭时行为与 V3 一致。
+- **ONNX 延到 S2b**：`onnxruntime-node` 解包约 301MB、web 约 145MB，插件包 185KB；先固定接口与评测，再选 sidecar/optional/WASM。
+- **验证**：S20.1–S20.3；`npm test` 270 pass / 1 skip；ADR-0034。

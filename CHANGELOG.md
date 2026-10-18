@@ -12,6 +12,8 @@ SemVer.
   `mem_schema: 2` with `mem_schema: 1` read compatibility.
 - User-created project registry (`projects.json`) and `mem project list|add`.
 - Export bundle v2 (v1 imports still accepted).
+- Hybrid recall scaffold: `recall.hybrid`, `recall.embedding_weight`, deterministic
+  local embedding fallback (ONNX provider in S2b).
 
 ## [0.2.1] - 2026-10-18
 

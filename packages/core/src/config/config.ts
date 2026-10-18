@@ -31,6 +31,8 @@ export interface Config {
     readonly limit: number;
     readonly min_score: number;
     readonly max_limit: number;
+    readonly hybrid: boolean;
+    readonly embedding_weight: number;
   };
   readonly distill: {
     readonly max_proposals: number;
@@ -83,6 +85,8 @@ export const configSchema: TableSpec = {
     limit: { type: 'int', default: 5, min: 1, max: 100 },
     min_score: { type: 'int', default: 500, min: 0, max: 1_000 },
     max_limit: { type: 'int', default: 20, min: 1, max: 100 },
+    hybrid: { type: 'bool', default: false },
+    embedding_weight: { type: 'int', default: 400, min: 0, max: 1_000 },
   },
   distill: {
     max_proposals: { type: 'int', default: 5, min: 1, max: 5 },
@@ -143,6 +147,10 @@ limit = 5
 max_limit = 20
 # 千分制阈值（500 = 0.5）；S2a 子串召回不使用，S3 BM25 使用。
 min_score = 500
+# 混合检索：默认关闭；开启后 BM25 与本地向量分数融合（S2a 用确定性 hash 兜底）。
+hybrid = false
+# 向量在融合分数中的权重（千分制，400 = 0.4）。
+embedding_weight = 400
 
 [distill]
 # 每次收尾蒸馏最多几条提案（V1.0 规格硬上限 5）。

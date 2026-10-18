@@ -17,7 +17,7 @@
 - config.toml 只能把上限**收紧**，不能放宽：`storage.max_records` / `storage.max_record_chars` 超过 policy 的 `capacity` 时启动失败；
 - 扫描动作、容量硬上限、agent 能否改 RULES 这些安全设置**不在 config.toml 里**，所以改配置改不出更宽的权限。
 
-## 键表（22 键）
+## 键表（26 键）
 
 以下键与 `packages/core/src/config/config.ts` 的 schema 一一对应；CI 的门禁会比对这张表与 schema 的键名，任何一边多出键都会让构建失败。
 
@@ -37,6 +37,8 @@
 | `recall.limit` | int | 5 | 1–100 | 单次检索默认返回条数；不得超过 `recall.max_limit` |
 | `recall.max_limit` | int | 20 | 1–100 | 单次检索可请求的上限 |
 | `recall.min_score` | int | 500 | 0–1000 | 千分制阈值（500 = 0.5）；S2a 子串召回不使用，S3 BM25 使用 |
+| `recall.hybrid` | bool | false | true/false | 开启 BM25 + 本地向量的混合检索（S2a） |
+| `recall.embedding_weight` | int | 400 | 0–1000 | 向量分数在融合中的权重（千分制） |
 | `distill.max_proposals` | int | 5 | 1–5 | 单次收尾蒸馏最多提案数；V1.0 规格硬上限 5 |
 | `distill.require_quote` | bool | true | true/false | 提案必须带原文引用（session + seq + quote） |
 | `lock.heartbeat_ms` | int | 15000 | 1000–60000 | 写锁心跳间隔（毫秒） |

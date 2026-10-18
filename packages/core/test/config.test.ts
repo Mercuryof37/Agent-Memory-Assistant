@@ -18,7 +18,7 @@ test('the generated template is exactly the schema defaults', () => {
 
 test('the config surface covered by docs is stable', () => {
   const keys = configKeys();
-  assert.equal(keys.length, 24);
+  assert.equal(keys.length, 26);
   assert.ok(keys.includes('inject.persona_max_chars'));
   assert.ok(keys.includes('inject.guidance_max_chars'));
   assert.ok(keys.includes('personalization.mode'));
