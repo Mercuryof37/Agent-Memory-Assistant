@@ -371,3 +371,10 @@
 - **用户手册**：只讲安装（设置→插件）、界面、项目/标签/关系、提案、备份与常见问题；全文不含命令行。
 - **开发者手册**：V4.0 功能全景、本地开发、CLI、数据格式、架构、Memory API、MCP、检索、发布与排障。
 - **仓库索引**：README 与 docs/README 按「用户 / 开发」重新指向；旧 manual.md 链接清理。
+
+### 第 43 轮 · V5.0 稳定性方案调研（2026-10-18）
+
+- **现状**：实测 journal 54.5KB/228 行、快照 75KB、store 156KB；确认 reload 全读 journal、recall 全量建索引是主要规模风险。
+- **调研**：SQLite WAL checkpoint、etcd snapshot/compaction/defrag、Kafka segment retention、Git gc/fsck、RocksDB WAL/MANIFEST、Postgres checkpoint/vacuum、Obsidian 快照保留。
+- **方案**：Merkle checkpoint 分段审计 + checkpoint 状态启动 + 尾部增量 + 归档/保留 + 索引缓存；S1 观测压测 → S2 checkpoint → S3 归档 → S4 性能 → S5 加固。
+- **产出**：docs/plan/v5-robustness.md；未改代码。
