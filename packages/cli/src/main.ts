@@ -29,6 +29,7 @@ import {
   type Kind,
   type Runtime,
 } from '../../core/src/index.ts';
+import { commandMcp } from './mcp.ts';
 
 export const EXIT_OK = 0;
 export const EXIT_USAGE = 1;
@@ -72,6 +73,7 @@ Usage:
   mem export <dir>
   mem pack <dir>
   mem purge <id> --accept [--reason <text>]
+  mem mcp [--home <dir>]                 (stdio MCP server for Codex/other agents)
   mem policy seal [--home <dir>] --accept [--seal-user]
 
 Options:
@@ -179,6 +181,8 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
       case 'policy':
         if (subcommand !== 'seal') throw new UsageError('usage: mem policy seal [--home <dir>] --accept');
         return commandSeal(parsed, io);
+      case 'mcp':
+        return commandMcp({ ...(stringFlag(parsed, 'home') === undefined ? {} : { home: stringFlag(parsed, 'home') }) });
       default:
         throw new UsageError(`unknown command "${command}"`);
     }

@@ -339,4 +339,11 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - 规范文档：[docs/design/ui-guidelines.md](docs/design/ui-guidelines.md)。
 - `ci` 全绿（**240 个测试**，`S14.9`）；记录：[ADR-0019](docs/adr/0019-ui-naming.md)。
 
+### 第 19 轮 · V2 P3 分发与 MCP 外挂（2026-10-18）
+
+- **打包**：`npm run pack` 构建并产出 `release/agent-memory-dsh-0.1.0.tgz`，内含宿主半层、客户端半层与 `cordis.patch.yml`；检查缺件即失败。安装走 设置 → 插件（或 `dsh plugin add <tgz>`），升级/回滚见 [docs/distribution.md](docs/distribution.md)。
+- **MCP 外挂**：`mem mcp` 启动 stdio MCP server；工具只有 `memory_search` / `memory_read` / `memory_list` / `memory_propose`，**没有 decide、没有 record**；外部提案进同一个待审队列，由人在 GUI 处理。Codex 用 `[mcp_servers.agent-memory]` 接同一数据目录，见 [docs/mcp.md](docs/mcp.md)。
+- **提案显示**：提案卡新增「查看详情」，展开目标全文、修改后摘要/正文与理由（第 18 轮命名规则）。
+- `ci` 全绿（**244 个测试**，`S15.1`–`S15.4`）；记录：[ADR-0020](docs/adr/0020-v2-p3-distribution-mcp.md)。
+
 
