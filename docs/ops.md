@@ -56,6 +56,7 @@ powershell.exe -NoProfile -File 'D:\Ai Agent\dsh-acl-recovery\acl-backup-ca570b9
 - 改过 `policy.json` 后必须 `mem policy seal --accept` 才能启动；这是唯一的重新封存入口，agent 没有通道。
 - 改了 `SOUL.md` / `RULES.md` 但忘记重新封存时，启动错误里会带一段 `REQUIRED ACTION`，直接给出可复制的修复命令（`mem policy seal --home "<数据目录>" --accept`，或在聊天框 `/mem seal --accept`）；桌面端启动失败时，这段文字也会出现在 probe 回退的注入段里，模型可以转告你。
 - 启动失败一律非零退出并点名文件/键；先跑 `mem doctor` 看结构化原因。
+- 想把记忆变成可选组合（不同 preset 不同权限）时，用 `npm run preset -- --id memory --mode readonly --out memory.patch.yml` 生成补丁，按 [docs/presets/README.md](presets/README.md) 追加到 profile；生成的补丁会同时停用根挂载，避免工具重复注册。
 - Windows 编辑器可能给文件加 UTF-8 BOM：解析层会剥掉（不会报"未知键"），但**哈希按原始字节算**，加/去 BOM 会造成失配，需要重新封存。
 - **沙箱只给"权限修复之后创建的文件"继承写权限**：修复前就存在的文件（例如 `V1.0-开发方案.md`）可能仍然不能被受限工具写入，报 `UnauthorizedAccessException`。实测该文件 DACL 对 `Authenticated Users` 是 Modify，但缺少沙箱自己的 `S-1-4-*` ACE；这不是文件坏了，是沙箱的写授权 ACE 没有回溯到旧文件。需要改它时：用非受限运行补 ACL，或先复制成新文件再改名。
 

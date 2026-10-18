@@ -3,9 +3,10 @@
 给 DSH 用的本地长期记忆：**一条记忆一个 Markdown 文件**，索引是可随时删掉重建的缓存，注入是每会话冻结一次的快照。目标是几十到几百条记忆、可 grep、可 diff、可回滚，并且**不靠提示词守边界**。
 
 - 开发方案：[v1.3](docs/research/V1.0-开发方案-v1.3.md)（取代 v1.2 与更早版本）
+- **V2.0 方案**：[图形化与分发](docs/plan/v2-gui-and-distribution.md)（客户端插件、一键部署、跨平台外挂）；**架构审核与 10 问决策**：[v2-architecture-review.md](docs/plan/v2-architecture-review.md)
 - 原始调研材料：[docs/research/](docs/research/)
-- 当前阶段：**V1.0 全部阶段完成**（S0、S1、S2a、S2b、S3、S4、S6、S7；[ADR-0010](docs/adr/0010-s7-ops.md)）
-- 配置与策略：**config v2（22 键）/ policy v2（8 + sealed_files 3 键）**，见 [ADR-0004](docs/adr/0004-plan-v1.3.md)
+- 当前阶段：**V1.0 全部阶段完成**（S0–S14；[ADR-0010](docs/adr/0010-s7-ops.md) 起，最新 [ADR-0015](docs/adr/0015-preset-and-tool-trimming.md)）
+- 配置与策略：**config v2（24 键）/ policy v2（8 + sealed_files 3 键）**，见 [ADR-0004](docs/adr/0004-plan-v1.3.md)
 - 目标宿主：桌面 DSH **0.2.1-rc.2**（M1–M4 的实测记录在 rc.1，S3 改插件时重跑），运行时 Node **24.21.0**（`.node-version`）
 - 环境：Windows / 本地 NTFS · 运行时零依赖
 
@@ -291,4 +292,13 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - **诊断**：`mem doctor` 的 inject 行显示 guidance 预算。
 - 验证：`node scripts/ci.mjs` 全绿（**228 个测试**，S11.1–S11.3）；真实库 `mem doctor` 通过、journal 一致。
 - 记录：[ADR-0014](docs/adr/0014-memory-v2-p3-p4.md)。
+
+### 第 14 轮 · preset 接入与只读工具裁剪（2026-10-18）
+
+- **`npm run preset`**：`scripts/preset.mjs` 读取本机安装的 `standard` preset，复制成新的 preset 配置并追加 `@agent-memory/dsh`（带 `mode`），同时生成「停用根挂载」的补丁行；用法见 [docs/presets/README.md](docs/presets/README.md)。
+- **只读裁剪**：`mode: readonly` 时不再注册 `memory_record` / `memory_propose`（模型看不到写工具），只读工具与会话检索保留。
+- **稳定性**：修正一个跨天会失效的日期用例（`valid_from/as-of recall` 改用固定日期）。
+- 验证：`ci` 全绿（**228 个测试**，S12.1）；生成的 preset 补丁经 YAML 解析验证（2 个顶层项、20 个插件、末项为只读记忆插件）。
+- 记录：[ADR-0015](docs/adr/0015-preset-and-tool-trimming.md)。
+
 
