@@ -65,7 +65,7 @@ try {
         reload_ms: diagnostics.reload_ms,
         recall_p95_ms: Number(p95.toFixed(2)),
         journal: diagnostics.journal,
-        store_root: root,
+        store_root: home,
       },
       null,
       2,
