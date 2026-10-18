@@ -22,6 +22,7 @@
     "audit:sessions": "node scripts/audit-sessions.mjs",
     "plugin:install": "node scripts/install-desktop-plugin.mjs --apply",
     "plugin:revert": "node scripts/install-desktop-plugin.mjs --revert",
+    "preset": "node scripts/preset.mjs",
     "ci": "node scripts/ci.mjs",
     "smoke": "node scripts/smoke.mjs",
     "mem": "node packages/cli/bin/mem.mjs"

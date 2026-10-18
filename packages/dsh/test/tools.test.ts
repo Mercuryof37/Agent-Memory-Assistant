@@ -163,20 +163,14 @@ test('S9.1 memory_propose opens the review hook and memory_review reopens it', a
   });
 });
 
-test('S11.1 readonly mode blocks record and propose before they reach the store', async () => {
+test('S12.1 readonly hides write tools from the model', () => {
   const service = fakeService('readonly');
   const calls = register(service);
-  const record = calls.find((call) => call.name === 'memory_record');
-  const propose = calls.find((call) => call.name === 'memory_propose');
-  assert.ok(record && propose);
-  await assert.rejects(
-    async () => record.execute({ kind: 'fact', abstract: 'a', body: 'b', evidence: [{ event_seq: 1, quote: 'q' }] }),
-    /readonly/,
-  );
-  await assert.rejects(
-    async () => propose.execute({ op: 'delete', ids: ['mem-20261017-00000001'], base_hashes: ['x'], reason: 'r' }),
-    /readonly/,
-  );
+  const names = calls.map((call) => call.name).sort();
+  assert.ok(!names.includes('memory_record' as never));
+  assert.ok(!names.includes('memory_propose' as never));
+  assert.ok(names.includes('memory_recall' as never));
+  assert.ok(names.includes('memory_review' as never));
   assert.equal(service.calls.length, 0);
 });
 

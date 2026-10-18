@@ -248,7 +248,11 @@ export function registerTools(
   hooks: ToolHooks = {},
 ): RegisteredTool {
   const names: ToolName[] = ['memory_recall', 'memory_read', 'memory_context', 'rules_list'];
-  if (actor.delegationDepth === 0) names.push('memory_record', 'memory_propose', 'memory_review');
+  if (actor.delegationDepth === 0) {
+    // readonly keeps review (a human decision), but never advertises write tools.
+    names.push('memory_review');
+    if (service.mode !== 'readonly') names.push('memory_record', 'memory_propose');
+  }
 
 /** Tool copy is human-facing; Chinese is the project's default (user preference). */
 const TOOL_DESCRIPTIONS: Readonly<Record<ToolName, string>> = {

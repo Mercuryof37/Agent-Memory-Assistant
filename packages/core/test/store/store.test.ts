@@ -185,14 +185,14 @@ test('valid_from and as-of recall follow the interval', (t) => {
     { author: 'human' },
   );
   const now = store.add(
-    { kind: 'fact', abstract: 'current fact about widgets', body: '', evidence_level: 'observed' },
+    { kind: 'fact', abstract: 'current fact about widgets', body: '', valid_from: '2026-02-01', evidence_level: 'observed' },
     { author: 'human' },
   );
 
   assert.deepEqual(store.recall('widgets', { asOf: '2026-01-05' }).hits.map((hit) => hit.id), [old.id]);
   // The first fact has no `valid_until` and no successor, so it stays active;
   // recall orders the newer valid_from first.
-  assert.deepEqual(store.recall('widgets', { asOf: '2026-10-17' }).hits.map((hit) => hit.id), [now.id, old.id]);
+  assert.deepEqual(store.recall('widgets', { asOf: '2026-03-01' }).hits.map((hit) => hit.id), [now.id, old.id]);
 });
 
 test('a pitfall needs a signature and inferred content is refused', (t) => {
