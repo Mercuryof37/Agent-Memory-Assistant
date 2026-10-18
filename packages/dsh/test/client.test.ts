@@ -59,6 +59,9 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /am-skeleton/);
   assert.match(source, /--am-accent/);
   assert.match(source, /切换到浅色|切换到深色/);
+  // Conversation provenance is not shown in the UI.
+  assert.ok(!source.includes('detail.data.provenance'));
+  assert.ok(!source.includes('provenance_verifiable'));
 });
 
 test('S16.1 the token layer defines light and dark themes with a responsive page', () => {
@@ -69,6 +72,11 @@ test('S16.1 the token layer defines light and dark themes with a responsive page
   assert.match(styles, /@media \(max-width: 960px\)/);
   assert.match(styles, /prefers-color-scheme: dark/);
   assert.match(styles, /prefers-reduced-motion/);
+  // Chrome palette: neutral grey text/border and the #1a73e8 accent.
+  assert.match(styles, /--am-text: #202124/);
+  assert.match(styles, /--am-border: #dadce0/);
+  assert.match(styles, /--am-accent: #1a73e8/);
+  assert.match(styles, /--am-accent: #8ab4f8/);
 });
 
 test('S13.2 package.json declares the client half for the host module graph', () => {

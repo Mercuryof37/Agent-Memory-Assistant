@@ -143,13 +143,6 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
         background: "var(--am-surface-muted, #f9fafb)",
         fontFamily: "inherit",
       },
-      provenance: {
-        marginTop: "12px",
-        paddingLeft: "18px",
-        fontSize: "12px",
-        color: "var(--am-text-secondary, #6b7280)",
-        lineHeight: 1.7,
-      },
       overlay: {
         position: "fixed",
         inset: 0,
@@ -673,7 +666,6 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                                       { key: hit.id, className: "am-row", onClick: () => openItem(hit.id) },
                                       badge(hit.kind, hit.serial),
                                       React.createElement("span", { style: styles.abstract }, hit.abstract),
-                                      React.createElement("span", { style: styles.date }, hit.provenance_verifiable ? "有出处" : "无出处"),
                                     ),
                                   ),
                             ),
@@ -741,19 +733,6 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                         `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind} · ${detail.data.author === "human" ? "人工维护" : "助手记录"} · ${detail.data.valid_from}`,
                       ),
                       React.createElement("pre", { style: styles.body }, detail.data.body),
-                      (detail.data.provenance || []).length > 0
-                        ? React.createElement(
-                            "ul",
-                            { style: styles.provenance },
-                            detail.data.provenance.map((entry, index) =>
-                              React.createElement(
-                                "li",
-                                { key: index },
-                                `${entry.speaker === "user" ? "用户" : entry.speaker} #${entry.event_seq}：「${entry.quote}」`,
-                              ),
-                            ),
-                          )
-                        : null,
                       revise
                         ? React.createElement(
                             "div",
