@@ -394,3 +394,11 @@
 - **自动**：writeDerived 后每 ≥200 行写一次；rebuild 强制；`store.checkpoint()` 供测试/维护。
 - **测试**：S25.1 checkpoint+tail、S25.2 篡改 HMAC、S25.3 Merkle 确定性；全量 287 tests 绿。
 - **文档**：ADR-0040、V5 阶段表、开发者手册。
+
+### 第 46 轮 · V5.0-S3 归档与保留（2026-10-18）
+
+- **归档**：checkpoint 之前的分段压缩为 `.jsonl.gz` + `.meta.json`（seq/count/bytes/sha256/root）；`archive/index.json` 记录 through_seq/hash。
+- **启动**：`readAll` 从 archive through+1 开始；checkpoint 段之后仍活跃；重启验证无 issues。
+- **自动**：活跃 journal >50k 行时写入后自动 checkpoint + 归档；启动超阈值也触发；`mem maintain` 可强制。
+- **保留**：默认 365 天；超期删除 `.gz` 保留 meta/root（root-only）。
+- **测试**：S26.1 synthetic 两段归档、S26.2 保留期清理；全量测试绿；ADR-0041。

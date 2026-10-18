@@ -214,7 +214,7 @@ V5.0 不重写产品，重点修四条“随时间变坏”的路径：
 |---|---|---|
 | **S1 观测与压测** | `doctor --json` 体积/耗时；1k/10k/100k 合成基准；故障注入框架 | 有基线数字；CI 不退化 |
 | **S2 checkpoint** ✅ | v1.5 checkpoint 状态；启动只读 checkpoint + tail；Merkle root；HMAC 默认 | [ADR-0040](../adr/0040-v5-checkpoint.md) |
-| **S3 归档/保留** | `mem maintain` 自动归档、压缩、checksum、50k 行阈值、root-only 保留；`verify --deep` | 热 journal 有界；可回滚 |
+| **S3 归档/保留** ✅ | `mem maintain` 自动归档、压缩、checksum、50k 行阈值、root-only 保留；`verify --deep` 待 S5 | [ADR-0041](../adr/0041-v5-archive.md) |
 | **S4 性能** | 索引/向量缓存、增量 reload、查询缓存；SQLite 派生索引只做对照实验 | 达到 SLO；纯文件优先 |
 | **S5 加固** | 崩溃点测试、并发、HMAC 默认、自动维护、发布 0.5.0 | 长稳测试通过 |
 

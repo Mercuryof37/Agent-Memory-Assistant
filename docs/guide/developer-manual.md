@@ -58,6 +58,7 @@ mem delete <id> --reason <text>
 mem purge <id> --accept --reason <text>
 mem rebuild
 mem inspect [--limit n]
+mem maintain [--retention-days n] [--json]
 mem proposals
 mem decide <id> accept|reject [--reason <text>]
 mem decide --batch accept|reject

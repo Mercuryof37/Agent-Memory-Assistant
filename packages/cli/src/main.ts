@@ -81,6 +81,7 @@ Usage:
   mem decide <id> accept|reject [--reason <text>] [--accept] [--json]
   mem decide --batch accept|reject [--reason <text>] [--accept]
   mem rebuild [--json]
+  mem maintain [--retention-days <n>] [--json]
   mem inspect [--limit <n>] [--json]
   mem export <dir>
   mem pack <dir>
@@ -114,6 +115,7 @@ const VALUE_FLAGS = new Set([
   'as-of',
   'limit',
   'reason',
+  'retention-days',
 ]);
 const BOOLEAN_FLAGS = new Set(['accept', 'batch', 'json', 'help', 'version', 'seal-user', 'apply']);
 const KINDS: readonly Kind[] = ['fact', 'pitfall', 'exp'];
@@ -181,6 +183,8 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
         return commandDelete(parsed, io);
       case 'rebuild':
         return commandRebuild(parsed, io);
+      case 'maintain':
+        return commandMaintain(parsed, io);
       case 'proposals':
         return commandProposals(parsed, io);
       case 'project':
@@ -402,6 +406,24 @@ function commandRebuild(parsed: ParsedArgs, io: CliIo): number {
   io.out(`journal: ${report.journal_head === null ? 'empty' : `#${report.journal_head.seq} ${report.journal_head.hash.slice(0, 12)}`}`);
   io.out(`quarantined: ${report.quarantined.length}`);
   return report.quarantined.length > 0 ? EXIT_DEGRADED : EXIT_OK;
+}
+
+function commandMaintain(parsed: ParsedArgs, io: CliIo): number {
+  const runtime = openRuntime(parsed, io);
+  const raw = stringFlag(parsed, 'retention-days');
+  const retentionDays = raw === undefined ? 365 : Number(raw);
+  if (!Number.isSafeInteger(retentionDays) || retentionDays < 0) {
+    throw new UsageError('--retention-days must be a non-negative integer');
+  }
+  const report = openStore(runtime).maintain({ force: true, retentionDays });
+  if (parsed.flags.has('json')) {
+    io.out(JSON.stringify(report, null, 2));
+    return EXIT_OK;
+  }
+  io.out(`checkpoint: ${report.checkpointed ? 'written' : 'skipped (empty journal)'}`);
+  io.out(`archived: ${report.archived.length === 0 ? 'none' : report.archived.join(', ')}`);
+  io.out(`pruned: ${report.pruned.length === 0 ? 'none' : report.pruned.join(', ')}`);
+  return EXIT_OK;
 }
 
 async function commandEmbed(parsed: ParsedArgs, io: CliIo): Promise<number> {

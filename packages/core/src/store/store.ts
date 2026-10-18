@@ -1,9 +1,11 @@
-import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import type { Config } from '../config/config.ts';
 import { ensureDir, writeFileAtomic } from '../fs/atomic.ts';
 import { acquireLock } from '../fs/lock.ts';
-import { Journal, type JournalStats } from '../journal/journal.ts';
+import { Journal, hashLine, type JournalStats } from '../journal/journal.ts';
 import { merkleRoot, readCheckpoint, writeCheckpoint } from '../journal/checkpoint.ts';
 import { hashContent, parseMemoryFile, serializeMemory } from '../model/frontmatter.ts';
 import { projectProblem, relationsProblem, sourceProblem, tagsProblem } from '../model/metadata.ts';
@@ -85,6 +87,13 @@ export class MemoryStore {
     this.beforeStep = options.beforeStep;
     this.journal = new Journal(this.paths.journalDir);
     this.reload();
+    if (this.journal.stats().lines > 50_000) {
+      try {
+        this.maintain({ force: true });
+      } catch (error) {
+        this.issues.push(`automatic journal maintenance failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
   }
 
   /** Re-read the journal checkpoint and the memory files; classify each file. */
@@ -562,6 +571,108 @@ export class MemoryStore {
     } finally {
       lock.release();
     }
+  }
+
+  /** Force checkpoint + archive old segments; returns what moved. */
+  maintain(options: { force?: boolean; retentionDays?: number } = {}): { archived: string[]; pruned: string[]; checkpointed: boolean } {
+    const lock = acquireLock({
+      file: this.paths.lockFile,
+      config: {
+        heartbeatMs: this.config.lock.heartbeat_ms,
+        staleMs: this.config.lock.stale_ms,
+        timeoutMs: this.config.lock.timeout_ms,
+      },
+      now: () => this.now().getTime(),
+    });
+    try {
+      this.reload();
+      if (this.issues.length > 0) {
+        throw new MemoryStoreError('CONFLICT', `journal is inconsistent, repair before maintain: ${this.issues[0]}`);
+      }
+      const checkpointed = this.checkpoint();
+      const archived = this.archiveOldSegments(options.force ?? false);
+      const pruned = this.pruneArchives(options.retentionDays ?? 365);
+      this.reload();
+      return { archived, pruned, checkpointed };
+    } finally {
+      lock.release();
+    }
+  }
+
+  private archiveOldSegments(force: boolean): string[] {
+    if (this.head === null) return [];
+    const read = readCheckpoint(this.paths.home);
+    if (read.checkpoint === undefined) return [];
+    const checkpointSegment = read.checkpoint.journal.segment;
+    if (checkpointSegment === undefined) return [];
+    const segments = this.journal.segments();
+    const at = segments.indexOf(checkpointSegment);
+    if (at <= 0) return [];
+    if (!force && this.journal.stats().lines <= 50_000) return [];
+
+    const archiveDir = this.paths.journalArchiveDir;
+    ensureDir(archiveDir);
+    const archived: string[] = [];
+    let throughSeq = 0;
+    let throughHash = '';
+    for (const name of segments.slice(0, at)) {
+      const file = join(this.paths.journalDir, name);
+      const text = readFileSync(file, 'utf8');
+      const lines = text.split('\n').filter((line) => line !== '');
+      if (lines.length === 0) continue;
+      const hashes = lines.map((line) => hashLine(line));
+      const first = JSON.parse(lines[0] as string) as { seq: number };
+      const last = JSON.parse(lines[lines.length - 1] as string) as { seq: number };
+      const lastHash = hashLine(lines[lines.length - 1] as string);
+      const meta = {
+        schema: 1,
+        segment: name,
+        first_seq: first.seq,
+        last_seq: last.seq,
+        count: lines.length,
+        bytes: Buffer.byteLength(text),
+        sha256: createHash('sha256').update(text, 'utf8').digest('hex'),
+        root: merkleRoot(hashes),
+        archived_at: this.now().toISOString(),
+      };
+      const base = name.replace(/\.jsonl$/, '');
+      writeFileSync(join(archiveDir, `${base}.jsonl.gz`), gzipSync(Buffer.from(text)));
+      writeFileAtomic(join(archiveDir, `${base}.meta.json`), `${JSON.stringify(meta, null, 2)}\n`);
+      throughSeq = last.seq;
+      throughHash = lastHash;
+      rmSync(file, { force: true });
+      archived.push(name);
+    }
+    if (archived.length > 0) {
+      writeFileAtomic(
+        join(archiveDir, 'index.json'),
+        `${JSON.stringify({ schema: 1, through_seq: throughSeq, through_hash: throughHash, segments: archived }, null, 2)}\n`,
+      );
+      this.journal.append({ op: 'audit', data: { event: 'journal-archive', segments: archived, through_seq: throughSeq } });
+    }
+    return archived;
+  }
+
+  private pruneArchives(retentionDays: number): string[] {
+    if (retentionDays <= 0) return [];
+    const dir = this.paths.journalArchiveDir;
+    if (!existsSync(dir)) return [];
+    const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    const pruned: string[] = [];
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.jsonl.gz')) continue;
+      const file = join(dir, name);
+      try {
+        const stat = statSync(file);
+        if (stat.mtimeMs < cutoff) {
+          rmSync(file, { force: true });
+          pruned.push(name);
+        }
+      } catch {
+        // keep; verify reports it
+      }
+    }
+    return pruned;
   }
 
   stats(): Stats {
@@ -1069,6 +1180,7 @@ export class MemoryStore {
     for (const doc of sorted) lines.push(`- [${doc.kind}] ${doc.abstract} — ${doc.id}`);
     writeFileAtomic(this.paths.memoryIndexFile, `${lines.join('\n')}\n`);
     this.maybeCheckpoint();
+    this.maybeArchive();
   }
 
   /** Force a checkpoint (maintenance/tests); returns false when journal is empty. */
@@ -1096,6 +1208,12 @@ export class MemoryStore {
     if (this.head === null) return;
     if (!force && this.head.seq - this.lastCheckpointSeq < 200) return;
     this.checkpoint();
+  }
+
+  private maybeArchive(): void {
+    if (this.journal.stats().lines <= 50_000) return;
+    if (readCheckpoint(this.paths.home).checkpoint === undefined) this.checkpoint();
+    this.archiveOldSegments(true);
   }
 
   private validateInput(input: RecordInput): void {

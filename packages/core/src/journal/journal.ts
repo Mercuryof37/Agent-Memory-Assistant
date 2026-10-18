@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeSync } from 'node:fs';
+import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import type { JournalEntry, JournalIssue } from '../model/types.ts';
 
@@ -15,6 +15,26 @@ import type { JournalEntry, JournalIssue } from '../model/types.ts';
 
 export const SEGMENT_BYTES = 5 * 1024 * 1024;
 export const ZERO_HASH = '0'.repeat(64);
+
+interface ArchiveIndex {
+  readonly schema: 1;
+  readonly through_seq: number;
+  readonly through_hash: string;
+}
+
+function readArchiveIndex(dir: string): ArchiveIndex | undefined {
+  const file = join(dir, 'archive', 'index.json');
+  if (!existsSync(file)) return undefined;
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as ArchiveIndex;
+    if (parsed.schema !== 1 || typeof parsed.through_seq !== 'number' || typeof parsed.through_hash !== 'string') {
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
 
 export type JournalOp = JournalEntry['op'];
 
@@ -82,7 +102,8 @@ export class Journal {
         return null;
       }
     }
-    return null;
+    const archive = readArchiveIndex(this.dir);
+    return archive === undefined ? null : { seq: archive.through_seq, hash: archive.through_hash };
   }
 
   readAll(): JournalReadResult {
@@ -90,8 +111,9 @@ export class Journal {
     const hashes: string[] = [];
     const issues: JournalIssue[] = [];
     const opIds = new Set<string>();
-    let expectedSeq = 1;
-    let prev = ZERO_HASH;
+    const archive = readArchiveIndex(this.dir);
+    let expectedSeq = archive === undefined ? 1 : archive.through_seq + 1;
+    let prev = archive === undefined ? ZERO_HASH : archive.through_hash;
 
     for (const name of this.segments()) {
       const file = join(this.dir, name);
@@ -116,6 +138,7 @@ export class Journal {
           return { entries, hashes, issues, head: entries.length === 0 ? null : { seq: entries.length, hash: prev } };
         }
         const hash = hashLine(line);
+        if (archive !== undefined && entry.seq < expectedSeq) continue;
         if (entry.seq !== expectedSeq) {
           issues.push({
             kind: 'seq',
@@ -141,7 +164,9 @@ export class Journal {
       }
     }
 
-    const head = entries.length === 0 ? null : { seq: entries[entries.length - 1]?.seq ?? 0, hash: prev };
+    const head = entries.length === 0
+      ? (archive === undefined ? null : { seq: archive.through_seq, hash: archive.through_hash })
+      : { seq: entries[entries.length - 1]?.seq ?? 0, hash: prev };
     return { entries, hashes, issues, head };
   }
 
@@ -221,6 +246,7 @@ export class Journal {
           });
         }
         const hash = hashLine(line);
+        if (entry.seq < expectedSeq) continue;
         entries.push(entry);
         hashes.push(hash);
         expectedSeq = entry.seq + 1;
