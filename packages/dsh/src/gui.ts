@@ -180,8 +180,18 @@ export function summarizeGui(store: MemoryStore) {
 export function soulPathGui(home: string): { path: string; hint: string } {
   return {
     path: memoryPaths(home).soulFile,
-    hint: '此文件只由你编辑；本插件不读取、不修改它。改完请在终端执行 mem policy seal --accept。',
+    hint: '此文件只由你编辑；本插件不读取、不修改它的内容。修改后点下方「一键封存」。',
   };
+}
+
+/**
+ * Human GUI seal: the click is the explicit acceptance. Sealing hashes the
+ * sealed files but never returns or edits their contents.
+ */
+export function sealGui(home: string, store: MemoryStore) {
+  const result = sealPolicy({ home, accept: true });
+  store.appendJournal('audit', { event: 'gui-seal', sha256: result.sha256 });
+  return { sealed: true, sha256: result.sha256 };
 }
 
 function summary(doc: MemoryDoc, serial: string) {
@@ -634,6 +644,19 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     fetch: async () => json(soulPathGui(deps.home)),
   };
 
+  const sealRoute = {
+    path: '/api/agent-memory/policy/seal',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async () => {
+      try {
+        return json(sealGui(deps.home, deps.store));
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 409);
+      }
+    },
+  };
+
   const profileRoute = {
     path: '/api/agent-memory/profile',
     methods: ['GET', 'POST'],
@@ -684,6 +707,7 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     createRoute,
     summarizeRoute,
     soulPathRoute,
+    sealRoute,
     profileRoute,
     rulesRoute,
   ];

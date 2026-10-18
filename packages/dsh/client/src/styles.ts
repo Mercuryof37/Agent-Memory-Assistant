@@ -94,9 +94,21 @@ ${TOKENS_CSS}
 .am-subtitle { color: var(--am-text-secondary); font-size: 13px; line-height: 1.7; margin: 4px 0 0; }
 .am-meta { color: var(--am-text-secondary); font-size: 12px; }
 .am-toolbar {
-  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  display: flex; gap: 12px; align-items: center;
+  flex-wrap: nowrap;
   margin: 18px 0 24px;
+  min-width: 0;
 }
+.am-toolbar-search { display: flex; gap: 8px; flex: 1 1 auto; min-width: 180px; }
+.am-toolbar-search .am-input { flex: 1 1 auto; min-width: 0; }
+.am-toolbar-actions {
+  display: flex; gap: 8px; margin-left: auto;
+  overflow-x: auto; overflow-y: hidden;
+  padding-bottom: 2px;
+  min-width: 0;
+  scrollbar-width: thin;
+}
+.am-toolbar-actions .am-btn { flex: none; height: 30px; padding: 0 10px; font-size: 12.5px; }
 .am-input, .am-textarea {
   border: 1px solid var(--am-border);
   background: var(--am-surface);

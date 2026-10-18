@@ -13,12 +13,18 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /factory: \(require\) =>/);
   assert.match(source, /ctx\.slots\.inject\(\s*"main"/);
   assert.match(source, /ctx\.slots\.inject\(\s*"sidebar\.panellist"/);
-  for (const endpoint of ['list', 'item', 'search', 'export', 'import', 'create', 'summarize', 'soul-path', 'proposals', 'revise', 'delete', 'profile', 'rules']) {
+  for (const endpoint of ['list', 'item', 'search', 'export', 'import', 'create', 'summarize', 'soul-path', 'policy/seal', 'proposals', 'revise', 'delete', 'profile', 'rules']) {
     assert.match(source, new RegExp(`/api/agent-memory/${endpoint}`));
   }
   assert.match(source, /命令手册/);
   assert.match(source, /导入备份/);
   assert.match(source, /F-01/);
+  // Toolbar: search column on the left, actions right-aligned, no wrap row.
+  assert.match(source, /am-toolbar-search/);
+  assert.match(source, /am-toolbar-actions/);
+  // SOUL edit is sealed by a button, not a terminal command.
+  assert.match(source, /一键封存/);
+  assert.ok(!source.includes('mem policy seal'));
   // V3.1: manual create, deterministic summary and the SOUL path card.
   assert.match(source, /新增一条记忆/);
   assert.match(source, /整理记忆/);

@@ -19,6 +19,7 @@ import {
   reviseGui,
   saveProfileGui,
   saveRulesGui,
+  sealGui,
   serialsFor,
   soulPathGui,
   summarize,
@@ -94,6 +95,7 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
     '/api/agent-memory/import',
     '/api/agent-memory/item',
     '/api/agent-memory/list',
+    '/api/agent-memory/policy/seal',
     '/api/agent-memory/profile',
     '/api/agent-memory/proposals',
     '/api/agent-memory/proposals/decide',
@@ -330,4 +332,11 @@ test('S14.16 SOUL path is returned without touching the file', (t) => {
   const soul = soulPathGui(home);
   assert.match(soul.path, /SOUL\.md$/);
   assert.match(soul.hint, /不读取、不修改/);
+});
+
+test('S14.17 one-click seal re-seals policy from the GUI', (t) => {
+  const { home, store } = fixture(t);
+  const result = sealGui(home, store);
+  assert.equal(result.sealed, true);
+  assert.match(result.sha256, /^[0-9a-f]{64}$/);
 });

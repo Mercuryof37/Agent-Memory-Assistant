@@ -129,9 +129,21 @@ ${TOKENS_CSS}
 .am-subtitle { color: var(--am-text-secondary); font-size: 13px; line-height: 1.7; margin: 4px 0 0; }
 .am-meta { color: var(--am-text-secondary); font-size: 12px; }
 .am-toolbar {
-  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  display: flex; gap: 12px; align-items: center;
+  flex-wrap: nowrap;
   margin: 18px 0 24px;
+  min-width: 0;
 }
+.am-toolbar-search { display: flex; gap: 8px; flex: 1 1 auto; min-width: 180px; }
+.am-toolbar-search .am-input { flex: 1 1 auto; min-width: 0; }
+.am-toolbar-actions {
+  display: flex; gap: 8px; margin-left: auto;
+  overflow-x: auto; overflow-y: hidden;
+  padding-bottom: 2px;
+  min-width: 0;
+  scrollbar-width: thin;
+}
+.am-toolbar-actions .am-btn { flex: none; height: 30px; padding: 0 10px; font-size: 12.5px; }
 .am-input, .am-textarea {
   border: 1px solid var(--am-border);
   background: var(--am-surface);
@@ -675,6 +687,12 @@ ${lines.join("\n")}`);
     }
     navigator.clipboard.writeText(soulPath.path).then(() => setNotice("路径已复制。")).catch(() => setNotice("复制失败，请手动选择路径。"));
   };
+  const sealSoulNow = () => {
+    if (!window.confirm("确认已在外部修改 SOUL.md？将重新计算并封存哈希，下一次启动生效。")) return;
+    setBusy(true);
+    setNotice("");
+    postJson("/api/agent-memory/policy/seal", {}).then(() => setNotice("已重新封存。")).catch((error) => setNotice(`封存失败：${String(error.message || error)}`)).finally(() => setBusy(false));
+  };
   const decide = (id, decision) => {
     setBusy(true);
     setNotice("");
@@ -783,37 +801,44 @@ ${lines.join("\n")}`);
       React2.createElement(
         "div",
         { className: "am-toolbar" },
-        React2.createElement("input", {
-          className: "am-input",
-          style: { flex: "1 1 320px" },
-          placeholder: "搜索记忆（关键词）",
-          value: query,
-          onChange: (event) => setQuery(event.target.value),
-          onKeyDown: (event) => {
-            if (event.key === "Enter") runSearch();
-          }
-        }),
-        React2.createElement(AmButton, { variant: "primary", onClick: runSearch }, "搜索"),
-        React2.createElement(AmButton, { variant: "ghost", onClick: () => openCreate("fact") }, "＋ 新增"),
-        React2.createElement(AmButton, { variant: "ghost", onClick: openSummary }, "整理"),
-        React2.createElement(AmButton, { variant: "ghost", onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
-        React2.createElement(AmButton, { variant: "ghost", onClick: openSettings }, "偏好与规则"),
-        React2.createElement(AmButton, { variant: "ghost", onClick: () => setManual(true) }, "命令手册"),
-        React2.createElement(AmButton, { variant: "ghost", onClick: exportNow }, "导出备份"),
-        React2.createElement("input", {
-          ref: fileInputRef,
-          type: "file",
-          accept: ".json,application/json",
-          style: { display: "none" },
-          onChange: (event) => {
-            importFile(event.target.files ? event.target.files[0] : null);
-            event.target.value = "";
-          }
-        }),
         React2.createElement(
-          AmButton,
-          { variant: "ghost", disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
-          "导入备份"
+          "div",
+          { className: "am-toolbar-search" },
+          React2.createElement("input", {
+            className: "am-input",
+            placeholder: "搜索记忆（关键词）",
+            value: query,
+            onChange: (event) => setQuery(event.target.value),
+            onKeyDown: (event) => {
+              if (event.key === "Enter") runSearch();
+            }
+          }),
+          React2.createElement(AmButton, { variant: "primary", onClick: runSearch }, "搜索")
+        ),
+        React2.createElement(
+          "div",
+          { className: "am-toolbar-actions" },
+          React2.createElement(AmButton, { variant: "ghost", onClick: () => openCreate("fact") }, "＋ 新增"),
+          React2.createElement(AmButton, { variant: "ghost", onClick: openSummary }, "整理"),
+          React2.createElement(AmButton, { variant: "ghost", onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
+          React2.createElement(AmButton, { variant: "ghost", onClick: openSettings }, "偏好与规则"),
+          React2.createElement(AmButton, { variant: "ghost", onClick: () => setManual(true) }, "命令手册"),
+          React2.createElement(AmButton, { variant: "ghost", onClick: exportNow }, "导出备份"),
+          React2.createElement("input", {
+            ref: fileInputRef,
+            type: "file",
+            accept: ".json,application/json",
+            style: { display: "none" },
+            onChange: (event) => {
+              importFile(event.target.files ? event.target.files[0] : null);
+              event.target.value = "";
+            }
+          }),
+          React2.createElement(
+            AmButton,
+            { variant: "ghost", disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
+            "导入备份"
+          )
         )
       ),
       notice ? React2.createElement("p", { style: styles.notice }, notice) : null,
@@ -1062,7 +1087,12 @@ ${lines.join("\n")}`);
           React2.createElement(
             "div",
             { style: styles.actions },
-            React2.createElement(AmButton, { variant: "ghost", onClick: copySoulPath }, "复制路径")
+            React2.createElement(AmButton, { variant: "ghost", onClick: copySoulPath }, "复制路径"),
+            React2.createElement(
+              AmButton,
+              { variant: "primary", disabled: busy, onClick: sealSoulNow },
+              "一键封存"
+            )
           ),
           React2.createElement("p", { style: styles.small }, soulPath.hint)
         ),

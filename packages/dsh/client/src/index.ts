@@ -448,6 +448,16 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           .catch(() => setNotice("复制失败，请手动选择路径。"));
       };
 
+      const sealSoulNow = () => {
+        if (!window.confirm("确认已在外部修改 SOUL.md？将重新计算并封存哈希，下一次启动生效。")) return;
+        setBusy(true);
+        setNotice("");
+        postJson("/api/agent-memory/policy/seal", {})
+          .then(() => setNotice("已重新封存。"))
+          .catch((error) => setNotice(`封存失败：${String(error.message || error)}`))
+          .finally(() => setBusy(false));
+      };
+
       const decide = (id, decision) => {
         setBusy(true);
         setNotice("");
@@ -589,37 +599,44 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
         React.createElement(
           "div",
           { className: "am-toolbar" },
-          React.createElement("input", {
-            className: "am-input",
-            style: { flex: "1 1 320px" },
-            placeholder: "搜索记忆（关键词）",
-            value: query,
-            onChange: (event) => setQuery(event.target.value),
-            onKeyDown: (event) => {
-              if (event.key === "Enter") runSearch();
-            },
-          }),
-          React.createElement(AmButton, { variant: "primary", onClick: runSearch }, "搜索"),
-          React.createElement(AmButton, { variant: "ghost", onClick: () => openCreate("fact") }, "＋ 新增"),
-          React.createElement(AmButton, { variant: "ghost", onClick: openSummary }, "整理"),
-          React.createElement(AmButton, { variant: "ghost", onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
-          React.createElement(AmButton, { variant: "ghost", onClick: openSettings }, "偏好与规则"),
-          React.createElement(AmButton, { variant: "ghost", onClick: () => setManual(true) }, "命令手册"),
-          React.createElement(AmButton, { variant: "ghost", onClick: exportNow }, "导出备份"),
-          React.createElement("input", {
-            ref: fileInputRef,
-            type: "file",
-            accept: ".json,application/json",
-            style: { display: "none" },
-            onChange: (event) => {
-              importFile(event.target.files ? event.target.files[0] : null);
-              event.target.value = "";
-            },
-          }),
           React.createElement(
-            AmButton,
-            { variant: "ghost", disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
-            "导入备份",
+            "div",
+            { className: "am-toolbar-search" },
+            React.createElement("input", {
+              className: "am-input",
+              placeholder: "搜索记忆（关键词）",
+              value: query,
+              onChange: (event) => setQuery(event.target.value),
+              onKeyDown: (event) => {
+                if (event.key === "Enter") runSearch();
+              },
+            }),
+            React.createElement(AmButton, { variant: "primary", onClick: runSearch }, "搜索"),
+          ),
+          React.createElement(
+            "div",
+            { className: "am-toolbar-actions" },
+            React.createElement(AmButton, { variant: "ghost", onClick: () => openCreate("fact") }, "＋ 新增"),
+            React.createElement(AmButton, { variant: "ghost", onClick: openSummary }, "整理"),
+            React.createElement(AmButton, { variant: "ghost", onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
+            React.createElement(AmButton, { variant: "ghost", onClick: openSettings }, "偏好与规则"),
+            React.createElement(AmButton, { variant: "ghost", onClick: () => setManual(true) }, "命令手册"),
+            React.createElement(AmButton, { variant: "ghost", onClick: exportNow }, "导出备份"),
+            React.createElement("input", {
+              ref: fileInputRef,
+              type: "file",
+              accept: ".json,application/json",
+              style: { display: "none" },
+              onChange: (event) => {
+                importFile(event.target.files ? event.target.files[0] : null);
+                event.target.value = "";
+              },
+            }),
+            React.createElement(
+              AmButton,
+              { variant: "ghost", disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
+              "导入备份",
+            ),
           ),
         ),
         notice ? React.createElement("p", { style: styles.notice }, notice) : null,
@@ -889,6 +906,11 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                         "div",
                         { style: styles.actions },
                         React.createElement(AmButton, { variant: "ghost", onClick: copySoulPath }, "复制路径"),
+                        React.createElement(
+                          AmButton,
+                          { variant: "primary", disabled: busy, onClick: sealSoulNow },
+                          "一键封存",
+                        ),
                       ),
                       React.createElement("p", { style: styles.small }, soulPath.hint),
                     ),
