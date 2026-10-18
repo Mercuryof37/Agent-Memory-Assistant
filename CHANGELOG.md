@@ -4,6 +4,21 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
+## [0.5.1] - 2026-10-18
+
+### Added
+
+- Explicit update check in Preferences (npm registry, npmmirror fallback, 8s
+  timeout, semver comparison).
+- One-click upgrade through the host plugin manager with an exact
+  `@agent_memory/dsh@x.y.z` spec; manual fallback when no manager is available.
+- GUI routes `/api/agent-memory/update/check` and `/update/apply`.
+
+### Security
+
+- No background polling, no silent install; upgrade rejects URLs and arbitrary
+  specs; only a version greater than the running one is accepted.
+
 ## [0.5.0] - 2026-10-18
 
 ### Added

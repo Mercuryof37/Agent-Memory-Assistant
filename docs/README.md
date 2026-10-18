@@ -35,7 +35,8 @@
 
 ## 发布
 
-- [V5.0 更新公告](development/v5.0-announcement.md)
+- [V5.1 更新公告](development/v5.1-announcement.md)
+- [V5.1 发布验收](development/release-verification-v5.1.md)
 - [V5.0 发布验收](development/release-verification-v5.0.md)
 - [发布检查单](development/release.md)
 - [发布验收记录](development/release-verification.md)

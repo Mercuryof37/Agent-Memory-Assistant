@@ -588,6 +588,8 @@ function MemoryPage() {
   const [tagDraft, setTagDraft] = React2.useState("");
   const [relationTarget, setRelationTarget] = React2.useState("");
   const [relationType, setRelationType] = React2.useState("relates_to");
+  const [updateInfo, setUpdateInfo] = React2.useState(null);
+  const [updateBusy, setUpdateBusy] = React2.useState(false);
   React2.useEffect(() => {
     persistTheme(theme);
   }, [theme]);
@@ -704,6 +706,29 @@ function MemoryPage() {
     fetch("/api/agent-memory/profile", { headers: { accept: "application/json" } }).then((response) => response.json()).then((data2) => setProfileText((data2.entries || []).join("\n\n---\n\n"))).catch(() => setNotice("读取偏好失败"));
     fetch("/api/agent-memory/rules", { headers: { accept: "application/json" } }).then((response) => response.json()).then((data2) => setRulesText(data2.text || "")).catch(() => setNotice("读取规则失败"));
     fetch("/api/agent-memory/soul-path", { headers: { accept: "application/json" } }).then((response) => response.json()).then((data2) => setSoulPath(data2)).catch(() => setSoulPath(null));
+  };
+  const checkUpdate = () => {
+    setUpdateBusy(true);
+    setUpdateInfo({ checking: true });
+    fetch("/api/agent-memory/update/check", { headers: { accept: "application/json" } }).then(async (response) => {
+      const data2 = await response.json();
+      if (!response.ok) throw new Error(data2.error || `HTTP ${response.status}`);
+      return data2;
+    }).then((data2) => setUpdateInfo(data2)).catch((error) => setUpdateInfo({ error: String(error) })).finally(() => setUpdateBusy(false));
+  };
+  const applyUpdate = () => {
+    if (updateInfo === null || typeof updateInfo.latest !== "string") return;
+    setUpdateBusy(true);
+    setUpdateInfo((previous) => ({ ...previous || {}, applying: true }));
+    fetch("/api/agent-memory/update/apply", {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify({ version: updateInfo.latest })
+    }).then(async (response) => {
+      const data2 = await response.json();
+      if (!response.ok || data2.ok === false) throw new Error(data2.error || `HTTP ${response.status}`);
+      return data2;
+    }).then((data2) => setUpdateInfo((previous) => ({ ...previous || {}, applied: data2 }))).catch((error) => setUpdateInfo((previous) => ({ ...previous || {}, applyError: String(error) }))).finally(() => setUpdateBusy(false));
   };
   const openCreate = (kind) => {
     setPanel("create");
@@ -1640,6 +1665,22 @@ ${lines.join("\n")}`);
           ),
           React2.createElement("p", { style: styles.small }, soulPath.hint)
         ),
+        React2.createElement("h2", { style: styles.groupTitle }, "插件更新"),
+        React2.createElement(
+          "div",
+          { style: styles.actions },
+          React2.createElement(
+            AmButton,
+            { variant: "ghost", disabled: updateBusy, onClick: checkUpdate },
+            "检查更新"
+          ),
+          updateInfo !== null && updateInfo.update_available === true ? React2.createElement(
+            AmButton,
+            { variant: "primary", disabled: updateBusy, onClick: applyUpdate },
+            `升级到 ${updateInfo.latest}`
+          ) : null
+        ),
+        updateInfo === null ? React2.createElement("p", { style: styles.small }, "不会自动联网；点一下才会检查。") : updateInfo.checking === true ? React2.createElement("p", { style: styles.small }, "正在检查…") : updateInfo.error !== void 0 ? React2.createElement("p", { style: styles.small }, `检查失败：${updateInfo.error}`) : updateInfo.applied !== void 0 ? React2.createElement("p", { style: styles.small }, "新版本已安装，请完整重启 DSH 后生效。") : updateInfo.applyError !== void 0 ? React2.createElement("p", { style: styles.small }, `升级失败：${updateInfo.applyError}`) : updateInfo.applying === true ? React2.createElement("p", { style: styles.small }, "正在安装…") : updateInfo.update_available === true ? React2.createElement("p", { style: styles.small }, `当前 ${updateInfo.current}，最新 ${updateInfo.latest}。`) : React2.createElement("p", { style: styles.small }, `已是最新版本（${updateInfo.current}）。`),
         React2.createElement("button", { style: { ...styles.button, marginTop: "12px" }, onClick: () => setPanel(null) }, "返回列表")
       ) : null,
       panel !== null ? null : React2.createElement(

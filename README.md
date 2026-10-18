@@ -118,7 +118,7 @@ MCP 工具：`memory_search`、`memory_read`、`memory_list`、`memory_propose`�
 | 架构 | [架构总览](docs/architecture/overview.md) · [UI 规范](docs/design/ui-guidelines.md) |
 | 决策 | [ADR](docs/adr/) |
 | 规划 | [V2 方案](docs/plan/v2-gui-and-distribution.md) · [V3 方案](docs/plan/v3-visual-and-workflows.md) · [V4 方向](docs/plan/v4-directions.md) · [V5 稳定性](docs/plan/v5-robustness.md) · [ONNX 必要性](docs/plan/onnx-necessity.md) · [架构审核](docs/plan/v2-architecture-review.md) |
-| 发布 | [V5.0 更新公告](docs/development/v5.0-announcement.md) · [发布检查单](docs/development/release.md) · [验收记录](docs/development/release-verification.md) · [CHANGELOG](CHANGELOG.md) |
+| 发布 | [V5.1 更新公告](docs/development/v5.1-announcement.md) · [发布检查单](docs/development/release.md) · [验收记录](docs/development/release-verification.md) · [CHANGELOG](CHANGELOG.md) |
 | 维护者 | [开发历程](docs/history/rounds.md) · [AGENTS.md](AGENTS.md) · [文档索引](docs/README.md) |
 
 ## 兼容与限制

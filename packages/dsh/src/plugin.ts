@@ -36,6 +36,7 @@ import { reviewProposal, type ReviewExecLike, type UserQuestionsLike } from './r
 import { registerUserProfileTool } from './personalization.ts';
 import { registerSessionTools, type SessionQueryLike } from './session-tools.ts';
 import { registerGuiRoutes, type GuiConnection } from './gui.ts';
+import { createUpdateService } from './update.ts';
 import { openHostService, type SessionStoreLike } from './service.ts';
 
 export const name = 'agent-memory';
@@ -257,9 +258,12 @@ export function apply(ctx: PluginContextLike): void {
     const effect = (install: () => unknown, label?: string): unknown =>
       typeof effectful.effect === 'function' ? effectful.effect(install, label) : install();
     const installRoutes = (connection: GuiConnection): void => {
+      const update = createUpdateService(
+        service<{ installBundle(spec: string, options?: { enabled?: boolean }): Promise<unknown> }>(ctx, 'pluginManager'),
+      );
       registerGuiRoutes(
         connection,
-        { store: host.store, home, mode: host.mode, modules: moduleHealth, config: host.runtime.config },
+        { store: host.store, home, mode: host.mode, modules: moduleHealth, config: host.runtime.config, update },
         effect,
       );
       try {

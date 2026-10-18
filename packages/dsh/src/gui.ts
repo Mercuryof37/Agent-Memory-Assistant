@@ -16,6 +16,7 @@ import {
 import type { Config } from '../../core/src/config/config.ts';
 import type { MemoryDoc, MemoryId } from '../../core/src/model/types.ts';
 import type { MemoryStore } from '../../core/src/store/store.ts';
+import type { UpdateService } from './update.ts';
 
 /**
  * V2 GUI data plane. P1 projections are read-only; P2 adds human write routes
@@ -388,6 +389,7 @@ export interface GuiRouteDeps {
   readonly mode: string;
   readonly modules: readonly { name: string; ok: boolean; error?: string }[];
   readonly config: Config;
+  readonly update?: UpdateService;
 }
 
 /** Pending proposals with display serials and target abstracts. */
@@ -890,6 +892,33 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     },
   };
 
+  const updateCheck = {
+    path: '/api/agent-memory/update/check',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async () => {
+      if (deps.update === undefined) return errorResponse('update service unavailable', 503);
+      try {
+        return json(await deps.update.check());
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 502);
+      }
+    },
+  };
+
+  const updateApply = {
+    path: '/api/agent-memory/update/apply',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      if (deps.update === undefined) return errorResponse('update service unavailable', 503);
+      const body = await readJson(request);
+      const version = typeof body.version === 'string' ? body.version : '';
+      const result = await deps.update.apply(version);
+      return json(result, result.ok ? 200 : 409);
+    },
+  };
+
   return [
     status,
     list,
@@ -911,6 +940,8 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     sealRoute,
     profileRoute,
     rulesRoute,
+    updateCheck,
+    updateApply,
   ];
 }
 

@@ -136,6 +136,8 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
     '/api/agent-memory/soul-path',
     '/api/agent-memory/status',
     '/api/agent-memory/summarize',
+    '/api/agent-memory/update/apply',
+    '/api/agent-memory/update/check',
   ]);
   for (const route of routes) {
     assert.ok(route.methods.length >= 1);

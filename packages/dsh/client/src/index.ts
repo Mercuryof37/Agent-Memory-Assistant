@@ -245,6 +245,8 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
       const [tagDraft, setTagDraft] = React.useState("");
       const [relationTarget, setRelationTarget] = React.useState("");
       const [relationType, setRelationType] = React.useState("relates_to");
+      const [updateInfo, setUpdateInfo] = React.useState(null);
+      const [updateBusy, setUpdateBusy] = React.useState(false);
 
       React.useEffect(() => {
         persistTheme(theme);
@@ -414,8 +416,40 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           .catch(() => setSoulPath(null));
       };
 
-      const openCreate = (kind) => {
-        setPanel("create");
+      const checkUpdate = () => {
+        setUpdateBusy(true);
+        setUpdateInfo({ checking: true });
+        fetch("/api/agent-memory/update/check", { headers: { accept: "application/json" } })
+          .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            return data;
+          })
+          .then((data) => setUpdateInfo(data))
+          .catch((error) => setUpdateInfo({ error: String(error) }))
+          .finally(() => setUpdateBusy(false));
+      };
+
+      const applyUpdate = () => {
+        if (updateInfo === null || typeof updateInfo.latest !== "string") return;
+        setUpdateBusy(true);
+        setUpdateInfo((previous) => ({ ...(previous || {}), applying: true }));
+        fetch("/api/agent-memory/update/apply", {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/json" },
+          body: JSON.stringify({ version: updateInfo.latest }),
+        })
+          .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok || data.ok === false) throw new Error(data.error || `HTTP ${response.status}`);
+            return data;
+          })
+          .then((data) => setUpdateInfo((previous) => ({ ...(previous || {}), applied: data })))
+          .catch((error) => setUpdateInfo((previous) => ({ ...(previous || {}), applyError: String(error) })))
+          .finally(() => setUpdateBusy(false));
+      };
+
+      const openCreate = (kind) => {        setPanel("create");
         setCreateKind(kind);
         setCreateForm({ abstract: "", body: "", valid_from: "", signatures: "" });
         setNotice("");
@@ -1445,6 +1479,38 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                       ),
                       React.createElement("p", { style: styles.small }, soulPath.hint),
                     ),
+                React.createElement("h2", { style: styles.groupTitle }, "插件更新"),
+                React.createElement(
+                  "div",
+                  { style: styles.actions },
+                  React.createElement(
+                    AmButton,
+                    { variant: "ghost", disabled: updateBusy, onClick: checkUpdate },
+                    "检查更新",
+                  ),
+                  updateInfo !== null && updateInfo.update_available === true
+                    ? React.createElement(
+                        AmButton,
+                        { variant: "primary", disabled: updateBusy, onClick: applyUpdate },
+                        `升级到 ${updateInfo.latest}`,
+                      )
+                    : null,
+                ),
+                updateInfo === null
+                  ? React.createElement("p", { style: styles.small }, "不会自动联网；点一下才会检查。")
+                  : updateInfo.checking === true
+                    ? React.createElement("p", { style: styles.small }, "正在检查…")
+                    : updateInfo.error !== undefined
+                      ? React.createElement("p", { style: styles.small }, `检查失败：${updateInfo.error}`)
+                      : updateInfo.applied !== undefined
+                        ? React.createElement("p", { style: styles.small }, "新版本已安装，请完整重启 DSH 后生效。")
+                        : updateInfo.applyError !== undefined
+                          ? React.createElement("p", { style: styles.small }, `升级失败：${updateInfo.applyError}`)
+                          : updateInfo.applying === true
+                            ? React.createElement("p", { style: styles.small }, "正在安装…")
+                            : updateInfo.update_available === true
+                              ? React.createElement("p", { style: styles.small }, `当前 ${updateInfo.current}，最新 ${updateInfo.latest}。`)
+                              : React.createElement("p", { style: styles.small }, `已是最新版本（${updateInfo.current}）。`),
                 React.createElement("button", { style: { ...styles.button, marginTop: "12px" }, onClick: () => setPanel(null) }, "返回列表"),
               )
             : null,

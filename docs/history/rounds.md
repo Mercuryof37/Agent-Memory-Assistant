@@ -424,3 +424,10 @@
 - **性能**：10k 批量 2.62ms/条、并发 group commit 2.43ms/条、reload 624–660ms、recall P95 20–22ms。
 - **发布**：版本 0.5.0；公告 docs/development/v5.0-announcement.md。
 - **验证**：ci、stage S5、smoke、pack。
+
+### 第 50 轮 · V5.1 检查更新与一键升级（2026-10-18）
+
+- **检查**：设置页显式按钮；npm registry + npmmirror 回退；8s 超时；semver 比较。
+- **一键升级**：只调用宿主 `pluginManager.installBundle("@agent_memory/dsh@x.y.z")`；无服务时 fail-closed 提示手动更新。
+- **安全**：拒绝 URL/任意 spec；不后台轮询；不自动重启；安装后提示完整重启。
+- **测试**：S29.1–S29.3；GUI 路由登记；用户手册/公告/ADR-0047。
