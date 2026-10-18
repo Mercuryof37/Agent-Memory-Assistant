@@ -12,16 +12,20 @@ import { spawnSync } from 'node:child_process';
 
 const root = resolve(import.meta.dirname, '..');
 const { platform, arch } = process;
-const binary = join(
-  root,
-  'node_modules',
-  '@esbuild',
-  `${platform}-${arch}`,
-  platform === 'win32' ? 'esbuild.exe' : 'esbuild',
-);
+// esbuild's platform package layout differs: Windows puts the executable at the
+// package root, Linux/macOS under bin/. Probe both (and the .bin shim) so the
+// same build script works on the desktop and on Linux CI.
+const esbuildDir = join(root, 'node_modules', '@esbuild', `${platform}-${arch}`);
+const candidates = [
+  join(esbuildDir, platform === 'win32' ? 'esbuild.exe' : join('bin', 'esbuild')),
+  join(esbuildDir, platform === 'win32' ? 'esbuild.exe' : 'esbuild'),
+  join(root, 'node_modules', '.bin', platform === 'win32' ? 'esbuild.cmd' : 'esbuild'),
+];
+const binary = candidates.find((candidate) => existsSync(candidate));
 
-if (!existsSync(binary)) {
-  console.error(`esbuild binary not found at ${binary}`);
+if (binary === undefined) {
+  console.error('esbuild binary not found in any of:');
+  for (const candidate of candidates) console.error(`  ${candidate}`);
   console.error('run `npm install` (dependencies are dev-only; runtime has none)');
   process.exit(1);
 }
