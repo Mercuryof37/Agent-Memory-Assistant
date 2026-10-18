@@ -67,5 +67,5 @@ npm run plugin:revert      # 还原 profile 备份
 ## 6. 已知限制
 
 - 当前包 `private: true`，只出 tgz，不发 npm；正式发布时改 `private` 并补 README/LICENSE。
-- 客户端半层是手写 loader bundle；P3 之后迁到 TS 构建，包的 `client/client.js` 路径保持不变。
+- 客户端半层源码在 `packages/dsh/client/src/index.ts`，由 `npm run build` 生成 `client/client.js`；包只带产物，不带源码。改 UI 请改 src，不要直接改产物。
 - 安装后若侧栏不出现：先在插件页确认「已启用」，再完整重启；仍不行看 DSH 日志里的模块加载错误。

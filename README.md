@@ -346,4 +346,11 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - **提案显示**：提案卡新增「查看详情」，展开目标全文、修改后摘要/正文与理由（第 18 轮命名规则）。
 - `ci` 全绿（**244 个测试**，`S15.1`–`S15.4`）；记录：[ADR-0020](docs/adr/0020-v2-p3-distribution-mcp.md)。
 
+### 第 20 轮 · V2 P3.5 客户端 TS 构建（2026-10-18）
+
+- 客户端源码移到 `packages/dsh/client/src/index.ts`；`scripts/build.mjs` 用 esbuild 产出 CJS 并包成宿主 loader 格式，写到固定路径 `client/client.js`（产物带 `@generated` 头）。
+- `npm run build` / `ci` / `npm run pack` 都会重建客户端；tarball 只收 `client/client.js`，不再带源码。
+- `S13.1` 增加生成头断言并兼容多行槽位注册；`ci` 全绿（**244 个测试**）。
+- 记录：[ADR-0021](docs/adr/0021-v2-p35-client-build.md)。
+
 

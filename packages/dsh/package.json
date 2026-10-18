@@ -12,7 +12,7 @@
   },
   "files": [
     "dist",
-    "client",
+    "client/client.js",
     "cordis.patch.yml",
     "locale/*.json"
   ],
