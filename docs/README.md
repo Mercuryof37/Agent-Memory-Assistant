@@ -7,6 +7,7 @@
 - [使用手册](guide/manual.md)：界面、权限、指令、常见问题
 - [安装与分发](guide/install.md)：npm / tgz / 一键脚本 / 升级回滚
 - [MCP 指南](guide/mcp.md)：Codex 等外部 Agent 接入
+- [Memory API v1](guide/api.md)：HTTP/MCP 契约与 Mem0 导入
 
 ## 运维与配置
 

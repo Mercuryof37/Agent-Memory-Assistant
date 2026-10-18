@@ -111,7 +111,7 @@ MCP 工具：`memory_search`、`memory_read`、`memory_list`、`memory_propose`�
 
 | 面向 | 文档 |
 |---|---|
-| 使用 | [使用手册](docs/guide/manual.md) · [安装与分发](docs/guide/install.md) · [MCP](docs/guide/mcp.md) |
+| 使用 | [使用手册](docs/guide/manual.md) · [安装与分发](docs/guide/install.md) · [MCP](docs/guide/mcp.md) · [API v1](docs/guide/api.md) |
 | 运维 | [运维手册](docs/ops.md) · [配置](docs/config.md) · [策略](docs/policy.md) |
 | 架构 | [架构总览](docs/architecture/overview.md) · [UI 规范](docs/design/ui-guidelines.md) |
 | 决策 | [ADR](docs/adr/) |

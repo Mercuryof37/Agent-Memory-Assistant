@@ -331,3 +331,11 @@
 - **地板**：`docs/eval/s2c-baseline.json` + `s2c-thresholds.json`；`npm run eval:longmem` 可重放。
 - **结果**：BM25/hybrid 均 recall@5 1.0、MRR 0.7917、弃答误报 0；测试 S21.1/S21.2 锁定。
 - **验证**：`npm test` 273 pass / 1 skip；ADR-0036。
+
+### 第 38 轮 · V4.0-S3 Mem0 导入与 API v1（2026-10-18）
+
+- **source 字段**：`{type,id}` 可选，保留外部来源；不伪造 DSH event_seq。
+- **Mem0 adapter**：results/memories/裸数组；memory→body+摘要；metadata.kind/project/tags/categories、created_at→valid_from；`mem import-mem0 <file> [--apply]` 预览/写入，逐行报告。
+- **Memory API v1**：响应头 `x-agent-memory-api-version: 1`；bundle v2；契约文档 docs/guide/api.md。
+- **MCP 对齐**：memory_search/read/list/propose，无 decide/record；server 版本随包。
+- **验证**：S22.1–S22.3；`npm test` 276 pass / 1 skip；ADR-0037。

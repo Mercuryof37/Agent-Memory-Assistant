@@ -1,4 +1,4 @@
-import type { MemoryRelation, RelationType } from './types.ts';
+import type { MemoryRelation, MemorySource, RelationType } from './types.ts';
 
 /**
  * Metadata limits for the v1.4 fields (`project`, `tags`, `relations`).
@@ -72,4 +72,24 @@ export function relationsProblem(value: unknown, selfId?: string): string | unde
 export function normalizeRelations(value: readonly MemoryRelation[] | undefined): readonly MemoryRelation[] {
   if (value === undefined || value.length === 0) return [];
   return value.map((relation) => ({ type: relation.type, target: relation.target }));
+}
+
+/** External provenance marker for imported records (Mem0 first). */
+export function sourceProblem(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value !== 'object' || Array.isArray(value)) return 'source must be an object or null';
+  const source = value as { type?: unknown; id?: unknown };
+  if (typeof source.type !== 'string' || source.type.length === 0 || [...source.type].length > 32) {
+    return 'source.type must be a non-empty string up to 32 characters';
+  }
+  if (typeof source.id !== 'string' || source.id.length === 0 || [...source.id].length > 128) {
+    return 'source.id must be a non-empty string up to 128 characters';
+  }
+  if (/[\r\n]/.test(source.type) || /[\r\n]/.test(source.id)) return 'source values must be single-line';
+  return undefined;
+}
+
+export function normalizeSource(value: MemorySource | null | undefined): MemorySource | null {
+  if (value === null || value === undefined) return null;
+  return { type: value.type, id: value.id };
 }

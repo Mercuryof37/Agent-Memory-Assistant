@@ -15,6 +15,11 @@ export interface MemoryRelation {
   readonly target: MemoryId;
 }
 
+export interface MemorySource {
+  readonly type: string;
+  readonly id: string;
+}
+
 export interface ProvenanceEntry {
   readonly session_id: string;
   readonly event_seq: number;
@@ -31,6 +36,7 @@ export interface MemoryDoc {
   readonly project?: string | null;
   readonly tags?: readonly string[];
   readonly relations?: readonly MemoryRelation[];
+  readonly source?: MemorySource | null;
   readonly abstract: string;
   readonly created_at: string;
   readonly valid_from: string;
@@ -52,6 +58,7 @@ export interface RecordInput {
   readonly project?: string | null;
   readonly tags?: readonly string[];
   readonly relations?: readonly MemoryRelation[];
+  readonly source?: MemorySource;
   readonly valid_from?: string;
   readonly error_signatures?: readonly string[];
   readonly evidence_level: Exclude<EvidenceLevel, 'inferred'>;

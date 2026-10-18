@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { EvidenceLevel, Kind, MemoryDoc, MemoryRelation, ProvenanceEntry, RelationType } from './types.ts';
-import { projectProblem, relationsProblem, tagsProblem } from './metadata.ts';
+import { projectProblem, relationsProblem, sourceProblem, tagsProblem } from './metadata.ts';
 
 /**
  * Frontmatter is one `key: <JSON value>` per line between two `---` fences.
@@ -37,6 +37,7 @@ const FIELD_ORDER = [
   'project',
   'tags',
   'relations',
+  'source',
   'abstract',
   'created_at',
   'valid_from',
@@ -152,6 +153,11 @@ export function parseMemoryFile(text: string, filePath: string, limits: MemoryLi
     return { type: relation.type, target: relation.target } satisfies MemoryRelation;
   });
 
+  const rawSource = values.has('source') ? values.get('source') : null;
+  const sourceIssue = sourceProblem(rawSource);
+  if (sourceIssue !== undefined) fail('source', sourceIssue, filePath);
+  const source = rawSource === null || rawSource === undefined ? null : (rawSource as { type: string; id: string });
+
   const abstract = requireString(values.get('abstract'), 'abstract', filePath);
   if (abstract.trim() === '') fail('abstract', 'must not be empty', filePath);
   if (/[\r\n]/.test(abstract)) fail('abstract', 'must be a single line', filePath);
@@ -240,6 +246,7 @@ export function parseMemoryFile(text: string, filePath: string, limits: MemoryLi
     project,
     tags,
     relations,
+    source,
     abstract,
     created_at: createdAt,
     valid_from: validFrom,
@@ -265,6 +272,7 @@ export function serializeMemory(doc: Omit<MemoryDoc, 'file_path' | 'content_hash
     project: doc.project ?? null,
     tags: doc.tags ?? [],
     relations: doc.relations ?? [],
+    source: doc.source ?? null,
     abstract: doc.abstract,
     created_at: doc.created_at,
     valid_from: doc.valid_from,

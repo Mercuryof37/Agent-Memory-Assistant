@@ -5,7 +5,7 @@ import { ensureDir, writeFileAtomic } from '../fs/atomic.ts';
 import { acquireLock } from '../fs/lock.ts';
 import { Journal } from '../journal/journal.ts';
 import { hashContent, parseMemoryFile, serializeMemory } from '../model/frontmatter.ts';
-import { projectProblem, relationsProblem, tagsProblem } from '../model/metadata.ts';
+import { projectProblem, relationsProblem, sourceProblem, tagsProblem } from '../model/metadata.ts';
 import { isMemoryId, newMemoryId } from '../model/ids.ts';
 import { activeDocs, today } from '../model/validity.ts';
 import { supersedeProblems } from '../model/validity.ts';
@@ -453,6 +453,7 @@ export class MemoryStore {
         project: input.project ?? null,
         tags: input.tags ?? [],
         relations: input.relations ?? [],
+        source: input.source ?? null,
         abstract: input.abstract,
         created_at: now.toISOString(),
         valid_from: validFrom,
@@ -662,6 +663,7 @@ export class MemoryStore {
           project: input.project ?? null,
           tags: input.tags ?? [],
           relations: input.relations ?? [],
+          source: input.source ?? null,
           abstract: input.abstract,
           created_at: now.toISOString(),
           valid_from: input.valid_from ?? today(now),
@@ -884,6 +886,8 @@ export class MemoryStore {
     if (projectIssue !== undefined) throw new MemoryStoreError('INVALID', projectIssue);
     const tagsIssue = tagsProblem(input.tags ?? []);
     if (tagsIssue !== undefined) throw new MemoryStoreError('INVALID', tagsIssue);
+    const sourceIssue = sourceProblem(input.source ?? null);
+    if (sourceIssue !== undefined) throw new MemoryStoreError('INVALID', sourceIssue);
     if (typeof input.abstract !== 'string' || input.abstract.trim() === '') {
       throw new MemoryStoreError('INVALID', 'abstract must not be empty');
     }

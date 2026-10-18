@@ -17,6 +17,8 @@ SemVer.
 - Sidecar embedding cache (`mem embed --apply`, `AGENT_MEMORY_VECTORIZER`) and
   async hybrid recall with BM25 fallback.
 - LongMemEval-style offline subset evaluation (`npm run eval:longmem`).
+- Mem0 import (`mem import-mem0`), `source` metadata, Memory API v1 header and
+  reconciled MCP documentation.
 
 ## [0.2.1] - 2026-10-18
 

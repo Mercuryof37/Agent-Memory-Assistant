@@ -18,7 +18,7 @@ import {
   type Runtime,
 } from '../../core/src/index.ts';
 
-export const MCP_VERSION = '0.1.0';
+export const MCP_VERSION = '0.2.1';
 
 interface JsonRpcRequest {
   readonly jsonrpc?: string;

@@ -44,4 +44,5 @@ export * from './personalization/guidance.ts';
 export * from './personalization/mode.ts';
 export * from './profile/profile.ts';
 export * from './transfer/import.ts';
+export * from './transfer/mem0.ts';
 export * from './projects/projects.ts';

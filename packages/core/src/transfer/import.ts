@@ -28,6 +28,7 @@ export interface ImportMemory {
   readonly project?: string | null;
   readonly tags?: readonly string[];
   readonly relations?: readonly unknown[];
+  readonly source?: { readonly type?: unknown; readonly id?: unknown } | null;
   readonly valid_from?: string;
   readonly error_signatures?: readonly string[];
   readonly evidence_level?: string;
@@ -81,6 +82,12 @@ export function importBundle(store: MemoryStore, bundle: unknown): ImportReport 
                     typeof (entry as { target?: unknown }).target === 'string',
                 ),
               }
+            : {}),
+          ...(typeof raw.source === 'object' &&
+          raw.source !== null &&
+          typeof raw.source.type === 'string' &&
+          typeof raw.source.id === 'string'
+            ? { source: { type: raw.source.type, id: raw.source.id } }
             : {}),
           evidence_level: evidenceLevel,
           ...(typeof raw.valid_from === 'string' ? { valid_from: raw.valid_from } : {}),

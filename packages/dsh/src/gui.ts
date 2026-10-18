@@ -204,6 +204,7 @@ function summary(doc: MemoryDoc, serial: string) {
     project: doc.project ?? null,
     tags: doc.tags ?? [],
     relations: doc.relations ?? [],
+    source: doc.source ?? null,
     author: doc.author,
     valid_from: doc.valid_from,
     valid_until: doc.valid_until,
@@ -440,7 +441,11 @@ export interface GuiConnection {
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-agent-memory-api-version': '1',
+    },
   });
 }
 

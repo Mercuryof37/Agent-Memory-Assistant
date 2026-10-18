@@ -6,7 +6,7 @@
  * `policy seal --accept`, the human-only T2 channel (plan v1.3 §5.4).
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import {
   initStore,
@@ -17,7 +17,9 @@ import {
   ProjectError,
   createProject,
   embedTexts,
+  importMem0,
   listProjects,
+  previewMem0,
   vectorizerCommand,
   writeEmbeddingCache,
   ProposalError,
@@ -75,6 +77,7 @@ Usage:
   mem project list [--home <dir>] [--json]
   mem project add <name> [--description <text>] [--home <dir>] [--json]
   mem embed [--apply] [--home <dir>] [--json]   (sidecar vector cache)
+  mem import-mem0 <file> [--apply] [--home <dir>] [--json]
   mem decide <id> accept|reject [--reason <text>] [--accept] [--json]
   mem decide --batch accept|reject [--reason <text>] [--accept]
   mem rebuild [--json]
@@ -184,6 +187,8 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
         return commandProject(parsed, io);
       case 'embed':
         return await commandEmbed(parsed, io);
+      case 'import-mem0':
+        return await commandImportMem0(parsed, io);
       case 'decide':
         return commandDecide(parsed, io);
       case 'inspect':
@@ -432,8 +437,39 @@ async function commandEmbed(parsed: ParsedArgs, io: CliIo): Promise<number> {
   return EXIT_OK;
 }
 
-function commandProject(parsed: ParsedArgs, io: CliIo): number {
+async function commandImportMem0(parsed: ParsedArgs, io: CliIo): Promise<number> {
+  const file = parsed.positionals[1];
+  if (file === undefined) throw new UsageError('usage: mem import-mem0 <file> [--apply]');
+  if (!existsSync(file)) throw new UsageError(`file not found: ${file}`);
+  let bundle: unknown;
+  try {
+    bundle = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+  } catch (error) {
+    throw new UsageError(`invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const preview = previewMem0(bundle);
+  if (!parsed.flags.has('apply')) {
+    if (parsed.flags.has('json')) io.out(JSON.stringify({ preview, applied: false }, null, 2));
+    else {
+      io.out(`mem0: ${preview.valid}/${preview.total} valid (${preview.invalid} invalid)`);
+      io.out(`  kinds: ${JSON.stringify(preview.byKind)}  projects: ${JSON.stringify(preview.byProject)}`);
+      for (const sample of preview.samples) io.out(`  sample: [${sample.kind}] ${sample.abstract}`);
+      for (const error of preview.errors) io.out(`  invalid row ${error.index + 1}: ${error.reason}`);
+      io.out('dry run; re-run with --apply to import');
+    }
+    return EXIT_OK;
+  }
   const runtime = openRuntime(parsed, io);
+  const report = importMem0(openStore(runtime), bundle);
+  if (parsed.flags.has('json')) io.out(JSON.stringify({ report, applied: true }, null, 2));
+  else {
+    io.out(`mem0: imported ${report.imported}, skipped ${report.skipped}, failed ${report.failed.length}`);
+    for (const failure of report.failed) io.out(`  failed ${failure.abstract}: ${failure.error}`);
+  }
+  return report.failed.length === 0 ? EXIT_OK : EXIT_DEGRADED;
+}
+
+function commandProject(parsed: ParsedArgs, io: CliIo): number {  const runtime = openRuntime(parsed, io);
   const subcommand = parsed.positionals[1];
   if (subcommand === 'list') {
     const projects = listProjects(runtime.home);

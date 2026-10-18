@@ -156,6 +156,15 @@ mem doctor                 # 确认配置
 
 然后在 `config.toml` 打开 `recall.hybrid = true`。缓存或命令缺失、sidecar 失败时会自动回退 BM25 并给 warning，不会静默变空。
 
+### 4.3 从 Mem0 迁移
+
+```powershell
+mem import-mem0 .\mem0-export.json            # 先预览，不写库
+mem import-mem0 .\mem0-export.json --apply    # 再写入
+```
+
+按内容去重；`metadata.project/tags/kind` 会映射到项目、标签、类型；原始 Mem0 id 保存在 `source`，不伪造会话出处。详见 [Memory API](api.md)。
+
 ### 5. 删掉一条
 
 - 普通删除（记录失效，但历史仍可查）：`/mem delete <记忆编号> --reason "原因"`；
