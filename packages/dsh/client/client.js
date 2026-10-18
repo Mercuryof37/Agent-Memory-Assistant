@@ -54,7 +54,9 @@ var styles = {
     maxWidth: "1080px",
     margin: "0 auto",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    color: "var(--dsw-text, #111827)"
+    color: "var(--dsw-text, #111827)",
+    display: "flex",
+    flexDirection: "column"
   },
   header: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "4px" },
   h1: { fontSize: "22px", fontWeight: 600, margin: 0 },
@@ -153,6 +155,7 @@ var styles = {
     fontSize: "13px"
   },
   detail: {
+    order: 1,
     marginTop: "20px",
     padding: "20px",
     border: "1px solid var(--dsw-border, #e5e7eb)",
@@ -287,12 +290,16 @@ function MemoryPage() {
   React.useEffect(load, []);
   const openItem = (id) => {
     setDetail({ loading: true });
+    setRevise(null);
+    if (rootRef.current) rootRef.current.scrollTo({ top: 0, behavior: "smooth" });
     fetch(`/api/agent-memory/item?id=${encodeURIComponent(id)}`, { headers: { accept: "application/json" } }).then((response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
     }).then((data2) => setDetail({ data: data2 })).catch((error) => setDetail({ error: String(error) }));
   };
   const runSearch = () => {
+    setDetail(null);
+    setRevise(null);
     const text = query.trim();
     if (text === "") {
       setSearch(null);
@@ -333,11 +340,16 @@ function MemoryPage() {
   const openProposals = () => {
     setPanel("proposals");
     setNotice("");
+    setDetail(null);
+    setRevise(null);
+    setExpandedProposal(null);
     refreshProposals();
   };
   const openSettings = () => {
     setPanel("settings");
     setNotice("");
+    setDetail(null);
+    setRevise(null);
     fetch("/api/agent-memory/profile", { headers: { accept: "application/json" } }).then((response) => response.json()).then((data2) => setProfileText((data2.entries || []).join("\n\n---\n\n"))).catch(() => setNotice("读取偏好失败"));
     fetch("/api/agent-memory/rules", { headers: { accept: "application/json" } }).then((response) => response.json()).then((data2) => setRulesText(data2.text || "")).catch(() => setNotice("读取规则失败"));
   };
@@ -574,34 +586,60 @@ function MemoryPage() {
         ),
         React.createElement("button", { style: { ...styles.button, marginTop: "12px" }, onClick: () => setPanel(null) }, "返回列表")
       ) : null,
-      panel !== null ? null : state.loading ? React.createElement("p", { style: styles.meta }, "正在读取…") : state.error ? React.createElement("p", { style: styles.meta }, `读取失败：${state.error}`) : search ? React.createElement(
+      panel !== null ? null : React.createElement(
         "div",
-        null,
-        React.createElement("h2", { style: styles.groupTitle }, `搜索「${search.query || query}」`),
-        search.error ? React.createElement("p", { style: styles.meta }, `搜索失败：${search.error}`) : React.createElement(
+        { style: { order: 2 } },
+        state.loading ? React.createElement("p", { style: styles.meta }, "正在读取…") : state.error ? React.createElement("p", { style: styles.meta }, `读取失败：${state.error}`) : search ? React.createElement(
           "div",
-          { style: styles.list },
-          (search.hits || []).length === 0 ? React.createElement("div", { style: styles.empty }, "没有匹配的记忆。") : search.hits.map(
-            (hit) => React.createElement(
-              "button",
-              { key: hit.id, style: styles.row, onClick: () => openItem(hit.id) },
-              badge(hit.kind, hit.serial),
-              React.createElement("span", { style: styles.abstract }, hit.abstract),
-              React.createElement("span", { style: styles.date }, hit.provenance_verifiable ? "有出处" : "无出处")
+          null,
+          React.createElement("h2", { style: styles.groupTitle }, `搜索「${search.query || query}」`),
+          search.error ? React.createElement("p", { style: styles.meta }, `搜索失败：${search.error}`) : React.createElement(
+            "div",
+            { style: styles.list },
+            (search.hits || []).length === 0 ? React.createElement("div", { style: styles.empty }, "没有匹配的记忆。") : search.hits.map(
+              (hit) => React.createElement(
+                "button",
+                { key: hit.id, style: styles.row, onClick: () => openItem(hit.id) },
+                badge(hit.kind, hit.serial),
+                React.createElement("span", { style: styles.abstract }, hit.abstract),
+                React.createElement("span", { style: styles.date }, hit.provenance_verifiable ? "有出处" : "无出处")
+              )
             )
           )
-        )
-      ) : (data.groups || []).map(
-        (group) => React.createElement(
-          "div",
-          { key: group.kind },
-          React.createElement(
-            "h2",
-            { style: styles.groupTitle },
-            KIND_STYLE[group.kind] ? KIND_STYLE[group.kind].label : group.label,
-            React.createElement("span", { style: styles.count }, ` · ${group.items.length}`)
-          ),
-          group.items.length === 0 ? React.createElement("div", { style: styles.empty }, "这一类还没有记忆。") : React.createElement("div", { style: styles.list }, renderRows(group.items))
+        ) : (data.groups || []).map(
+          (group) => React.createElement(
+            "div",
+            { key: group.kind },
+            React.createElement(
+              "h2",
+              { style: styles.groupTitle },
+              KIND_STYLE[group.kind] ? KIND_STYLE[group.kind].label : group.label,
+              React.createElement("span", { style: styles.count }, ` · ${group.items.length}`)
+            ),
+            group.items.length === 0 ? React.createElement("div", { style: styles.empty }, "这一类还没有记忆。") : React.createElement(
+              "div",
+              null,
+              React.createElement("div", { style: styles.list }, renderRows(group.items.slice(0, 8))),
+              group.items.length > 8 ? React.createElement(
+                "div",
+                {
+                  className: "am-memory-scroll",
+                  style: {
+                    ...styles.list,
+                    marginTop: "6px",
+                    maxHeight: "320px",
+                    overflowY: "auto"
+                  }
+                },
+                React.createElement(
+                  "p",
+                  { style: { ...styles.small, margin: "0 0 6px" } },
+                  `还有 ${group.items.length - 8} 条，向下滚动查看`
+                ),
+                renderRows(group.items.slice(8))
+              ) : null
+            )
+          )
         )
       ),
       detail ? React.createElement(
