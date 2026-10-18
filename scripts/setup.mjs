@@ -100,6 +100,8 @@ function main() {
   pkg.dsh.profile.bundles ??= [];
   const hadDependency = pkg.dependencies[bundleName];
   const hasBundle = pkg.dsh.profile.bundles.includes(bundleName);
+  delete pkg.dependencies['@agent-memory/dsh'];
+  pkg.dsh.profile.bundles = pkg.dsh.profile.bundles.filter((name) => name !== '@agent-memory/dsh');
 
   console.log(`setup: profile   ${profile}`);
   console.log(`setup: tarball   ${tgz}`);
@@ -119,6 +121,9 @@ function main() {
     if (existsSync(source)) copyFileSync(source, join(backupDir, name));
   }
   console.log(`setup: backup    ${backupDir}`);
+  // Write the cleaned manifest before pnpm resolves, so the legacy scope is not
+  // pulled back in (0.2.0 -> 0.2.1 renamed @agent-memory/dsh to @agent_memory/dsh).
+  writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
 
   runPnpm(profile, ['add', tgz]);
   const installedPkg = join(profile, 'node_modules', bundleName, 'package.json');
@@ -129,6 +134,8 @@ function main() {
   nextPkg.dsh ??= {};
   nextPkg.dsh.profile ??= {};
   nextPkg.dsh.profile.bundles ??= [];
+  delete nextPkg.dependencies['@agent-memory/dsh'];
+  nextPkg.dsh.profile.bundles = nextPkg.dsh.profile.bundles.filter((name) => name !== '@agent-memory/dsh');
   nextPkg.dependencies[bundleName] = `file:${tgz.replace(/\\/g, '/')}`;
   if (!nextPkg.dsh.profile.bundles.includes(bundleName)) {
     nextPkg.dsh.profile.bundles.push(bundleName);

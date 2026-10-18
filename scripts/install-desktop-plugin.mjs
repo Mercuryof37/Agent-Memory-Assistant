@@ -56,11 +56,19 @@ if (revert) {
   process.exit(0);
 }
 
+const LEGACY_BUNDLE = '@agent-memory/dsh';
 const hadDependency = pkg.dependencies[bundleName];
 const hadBundle = pkg.dsh.profile.bundles.includes(bundleName);
+const hadLegacy = pkg.dependencies[LEGACY_BUNDLE] !== undefined || pkg.dsh.profile.bundles.includes(LEGACY_BUNDLE);
 
+delete pkg.dependencies[LEGACY_BUNDLE];
+pkg.dsh.profile.bundles = pkg.dsh.profile.bundles.filter((name) => name !== LEGACY_BUNDLE);
 pkg.dependencies[bundleName] = dependency;
 if (!hadBundle) pkg.dsh.profile.bundles.push(bundleName);
+
+if (hadLegacy) {
+  console.log(`migrate   removed legacy ${LEGACY_BUNDLE} dependency/bundle entry`);
+}
 
 console.log(`profile   ${profile}`);
 console.log(`plugin    ${pluginRoot}`);
@@ -83,7 +91,7 @@ function install() {
   const result = spawnSync(process.execPath, [pnpm, 'install'], { cwd: profile, stdio: 'inherit' });
   if (result.error !== undefined) fail(`failed to start pnpm: ${result.error.message}`);
   if (result.status !== 0) fail(`pnpm install exited with ${result.status}`);
-  const installed = join(profile, 'node_modules', '@agent-memory', 'dsh', 'package.json');
+  const installed = join(profile, 'node_modules', ...bundleName.split('/'), 'package.json');
   if (!existsSync(installed)) fail(`linked package not found after install: ${installed}`);
   console.log(`\nlinked   ${installed}`);
   console.log('restart the DSH desktop app, then run the M1-M4 checks in docs/ops.md §6.2');
