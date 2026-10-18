@@ -410,3 +410,10 @@
 - **文档缓存**：reload 用 mtime/size 复用已解析 MemoryDoc，只 stat + 账本校验。
 - **结果（1000 条）**：recall P95 130→~3ms；写入 177→~49ms；新 Store reload 仍 ~103ms（写路径/catalog 待 S4b）。
 - **验证**：288 pass / 1 skip；bench 可复现；ADR-0042。
+
+### 第 48 轮 · V5.0-S4b 增量写入（2026-10-18）
+
+- **add 写后不再双 reload**：解析刚写入文件 → 更新 docs/accounted/fileMeta/head → revision++/索引失效 → writeDerived。
+- **head 哈希**：`hashLine(JSON.stringify(entry))` 与 journal 行一致；写入前仍校验一致性/dedupe。
+- **结果（1000 条）**：recall P95 130→2.3ms；写入 177→29.9ms；新 Store reload 102→69ms。
+- **验证**：288 pass / 1 skip；ci/stage 全绿；ADR-0043。

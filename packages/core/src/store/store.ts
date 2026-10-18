@@ -806,18 +806,31 @@ export class MemoryStore {
 
       this.beforeStep?.('before-journal');
       const hash = hashContent(text);
-      this.journal.append({
+      const entry = this.journal.append({
         op: 'record',
         ...(options.opId === undefined ? {} : { opId: options.opId }),
         data: { id: doc.id, sha256: hash },
       });
 
       this.beforeStep?.('before-derived');
-      this.reload();
+      const parsed = parseMemoryFile(text, filePath, {
+        abstractChars: this.config.limits.abstract_chars,
+        bodyChars: this.config.limits.body_chars,
+        maxRecordChars: this.config.storage.max_record_chars,
+      });
+      this.docs.set(parsed.id, parsed);
+      this.accounted.set(parsed.id, hash);
+      this.deleted.delete(parsed.id);
+      this.head = { seq: entry.seq, hash: hashLine(JSON.stringify(entry)) };
+      this.revision += 1;
+      this.cachedIndex = null;
+      try {
+        const stat = statSync(filePath);
+        this.fileMeta.set(parsed.id, { mtimeMs: stat.mtimeMs, size: stat.size });
+      } catch {
+        // derived cache; reload can recover
+      }
       this.writeDerived();
-      // The manifest now records the new head; re-scan so `stats()` and later
-      // reads do not keep the transient head-vs-manifest mismatch.
-      this.reload();
       return { id: doc.id, content_hash: hash, deduplicated: false, warnings: [] };
     } finally {
       lock.release();
