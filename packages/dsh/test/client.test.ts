@@ -12,11 +12,15 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /factory: \(require\) =>/);
   assert.match(source, /ctx\.slots\.inject\("main"/);
   assert.match(source, /ctx\.slots\.inject\("sidebar\.panellist"/);
-  for (const endpoint of ['list', 'item', 'search', 'export']) {
+  for (const endpoint of ['list', 'item', 'search', 'export', 'proposals', 'revise', 'delete', 'profile', 'rules']) {
     assert.match(source, new RegExp(`/api/agent-memory/${endpoint}`));
   }
   assert.match(source, /命令手册/);
   assert.match(source, /F-01/);
+  // P2 human write surfaces: proposals, revise/delete, profile and rules editors.
+  assert.match(source, /采纳/);
+  assert.match(source, /保存修订/);
+  assert.match(source, /保存并重新封存/);
   // The workbench owns a viewport-height scroll container with a styled rail;
   // the host panel does not scroll in windowed mode.
   assert.match(source, /am-memory-scroll/);

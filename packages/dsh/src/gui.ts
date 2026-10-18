@@ -1,11 +1,21 @@
-import { listProposals } from '../../core/src/index.ts';
+import {
+  createProposal,
+  decideProposal,
+  listProposals,
+  loadProfile,
+  readRulesFile,
+  saveProfile,
+  saveRulesFile,
+  sealPolicy,
+} from '../../core/src/index.ts';
+import type { Config } from '../../core/src/config/config.ts';
 import type { MemoryDoc, MemoryId } from '../../core/src/model/types.ts';
 import type { MemoryStore } from '../../core/src/store/store.ts';
 
 /**
- * V2 P1 GUI data plane. Read-only projections over the core store for the
- * client workbench; every write still goes through the existing tool/command/
- * proposal paths. No file I/O here beyond the store API.
+ * V2 GUI data plane. P1 projections are read-only; P2 adds human write routes
+ * that reuse the existing proposal + decision pipeline and journal. No file
+ * I/O here beyond the core API.
  */
 
 const KIND_ORDER = ['fact', 'pitfall', 'exp'] as const;
@@ -123,7 +133,118 @@ export interface GuiRouteDeps {
   readonly home: string;
   readonly mode: string;
   readonly modules: readonly { name: string; ok: boolean; error?: string }[];
+  readonly config: Config;
 }
+
+/** Pending proposals with display serials and target abstracts. */
+export function buildProposals(store: MemoryStore) {
+  const serials = serialsFor(store.active());
+  const abstractOf = (id: string): string => {
+    try {
+      return store.read(id as MemoryId).abstract;
+    } catch {
+      return '（已不存在）';
+    }
+  };
+  return listProposals(store).map((proposal) => ({
+    id: proposal.id,
+    op: proposal.op,
+    reason: proposal.reason,
+    created_at: proposal.created_at,
+    targets: proposal.targets.map((id) => ({ id, serial: serials.get(id) ?? '', abstract: abstractOf(id) })),
+    replacements: proposal.replacements.map((replacement) => ({
+      kind: replacement.kind,
+      abstract: replacement.abstract,
+      body: replacement.body,
+    })),
+  }));
+}
+
+/** Human GUI decision: same proposal pipeline as `/mem decide`, audited as GUI. */
+export function decideGui(
+  store: MemoryStore,
+  config: Config,
+  id: string,
+  decision: 'accept' | 'reject',
+  note?: string,
+): void {
+  decideProposal({ store, config }, { id, decision, ...(note === undefined ? {} : { reason: note }) });
+  store.appendJournal('audit', { event: 'gui-decide', proposal: id, decision });
+}
+
+/**
+ * Human GUI revise: create the supersede proposal, then accept it in the same
+ * human action. Provenance survives from the old record; the decision line is
+ * the GUI confirmation.
+ */
+export function reviseGui(
+  store: MemoryStore,
+  config: Config,
+  id: string,
+  input: { abstract: string; body: string },
+): void {
+  const target = store.read(id as MemoryId);
+  const proposal = createProposal(
+    { store, config },
+    {
+      op: 'supersede',
+      targets: [id],
+      base_hashes: [target.content_hash],
+      reason: '图形界面修订',
+      replacements: [
+        {
+          kind: target.kind,
+          abstract: input.abstract,
+          body: input.body,
+          evidence_level: 'user_confirmed',
+          error_signatures: target.error_signatures,
+          provenance: target.provenance,
+        },
+      ],
+    },
+  );
+  decideProposal({ store, config }, { id: proposal.id, decision: 'accept' });
+  store.appendJournal('audit', { event: 'gui-revise', target: id, proposal: proposal.id });
+}
+
+/** Human GUI delete: delete proposal + immediate acceptance. */
+export function deleteGui(store: MemoryStore, config: Config, id: string, reason = '图形界面删除'): void {
+  const target = store.read(id as MemoryId);
+  const proposal = createProposal(
+    { store, config },
+    { op: 'delete', target: id, base_hash: target.content_hash, reason },
+  );
+  decideProposal({ store, config }, { id: proposal.id, decision: 'accept' });
+  store.appendJournal('audit', { event: 'gui-delete', target: id, proposal: proposal.id });
+}
+
+export function readProfileGui(home: string) {
+  const profile = loadProfile(home);
+  return { entries: [...profile.entries], chars: profile.chars };
+}
+
+export function saveProfileGui(home: string, store: MemoryStore, entries: readonly string[]) {
+  const profile = saveProfile(home, entries);
+  store.appendJournal('audit', { event: 'gui-profile', entries: profile.entries.length });
+  return profile;
+}
+
+export function readRulesGui(home: string) {
+  return { text: readRulesFile(home) };
+}
+
+/**
+ * Human GUI RULES write. Only reachable from the GUI route (no model tool and
+ * no CLI command), validates first, then seals policy with the human click as
+ * the explicit acceptance.
+ */
+export function saveRulesGui(home: string, store: MemoryStore, text: string) {
+  saveRulesFile(home, text);
+  const sealed = sealPolicy({ home, accept: true });
+  store.appendJournal('audit', { event: 'gui-rules', sha256: sealed.sha256 });
+  return { sealed: true };
+}
+
 
 export interface GuiConnection {
   readonly fetch?: { register(route: unknown): unknown };
@@ -138,6 +259,15 @@ function json(value: unknown, status = 200): Response {
 
 function errorResponse(message: string, status = 400): Response {
   return json({ ok: false, error: message }, status);
+}
+
+async function readJson(request: Request): Promise<Record<string, unknown>> {
+  try {
+    const value = (await request.json()) as unknown;
+    return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
 }
 
 /** Register the P1 read-only routes (paths own their full `/api` prefix). */
@@ -210,7 +340,116 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     },
   };
 
-  return [status, list, item, search, exportRoute];
+  const proposalsRoute = {
+    path: '/api/agent-memory/proposals',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async () => json(buildProposals(deps.store)),
+  };
+
+  const decideRoute = {
+    path: '/api/agent-memory/proposals/decide',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      const body = await readJson(request);
+      const id = typeof body.id === 'string' ? body.id : '';
+      const decision = body.decision === 'accept' || body.decision === 'reject' ? body.decision : null;
+      if (id === '' || decision === null) return errorResponse('id and decision are required');
+      try {
+        decideGui(deps.store, deps.config, id, decision, typeof body.note === 'string' ? body.note : undefined);
+        return json({ ok: true });
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 409);
+      }
+    },
+  };
+
+  const reviseRoute = {
+    path: '/api/agent-memory/revise',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      const body = await readJson(request);
+      const id = typeof body.id === 'string' ? body.id : '';
+      const abstract = typeof body.abstract === 'string' ? body.abstract.trim() : '';
+      const text = typeof body.body === 'string' ? body.body : '';
+      if (id === '' || abstract === '') return errorResponse('id and abstract are required');
+      try {
+        reviseGui(deps.store, deps.config, id, { abstract, body: text });
+        return json({ ok: true });
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 409);
+      }
+    },
+  };
+
+  const deleteRoute = {
+    path: '/api/agent-memory/delete',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      const body = await readJson(request);
+      const id = typeof body.id === 'string' ? body.id : '';
+      if (id === '') return errorResponse('id is required');
+      try {
+        deleteGui(deps.store, deps.config, id);
+        return json({ ok: true });
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 409);
+      }
+    },
+  };
+
+  const profileRoute = {
+    path: '/api/agent-memory/profile',
+    methods: ['GET', 'POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      if (request.method === 'GET') return json(readProfileGui(deps.home));
+      const body = await readJson(request);
+      const entries = Array.isArray(body.entries)
+        ? body.entries.filter((entry): entry is string => typeof entry === 'string')
+        : null;
+      if (entries === null) return errorResponse('entries must be a string array');
+      try {
+        return json(saveProfileGui(deps.home, deps.store, entries));
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error));
+      }
+    },
+  };
+
+  const rulesRoute = {
+    path: '/api/agent-memory/rules',
+    methods: ['GET', 'POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      if (request.method === 'GET') return json(readRulesGui(deps.home));
+      const body = await readJson(request);
+      const text = typeof body.text === 'string' ? body.text : null;
+      if (text === null) return errorResponse('text is required');
+      try {
+        return json(saveRulesGui(deps.home, deps.store, text));
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 409);
+      }
+    },
+  };
+
+  return [
+    status,
+    list,
+    item,
+    search,
+    exportRoute,
+    proposalsRoute,
+    decideRoute,
+    reviseRoute,
+    deleteRoute,
+    profileRoute,
+    rulesRoute,
+  ];
 }
 
 export function registerGuiRoutes(

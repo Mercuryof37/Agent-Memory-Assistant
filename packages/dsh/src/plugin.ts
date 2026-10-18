@@ -259,7 +259,7 @@ export function apply(ctx: PluginContextLike): void {
     const installRoutes = (connection: GuiConnection): void => {
       registerGuiRoutes(
         connection,
-        { store: host.store, home, mode: host.mode, modules: moduleHealth },
+        { store: host.store, home, mode: host.mode, modules: moduleHealth, config: host.runtime.config },
         effect,
       );
       try {

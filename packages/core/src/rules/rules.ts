@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { writeFileAtomic } from '../fs/atomic.ts';
 import { memoryPaths } from '../paths.ts';
 
 /**
@@ -144,4 +145,22 @@ export function renderRules(rules: readonly Rule[], options: { includeRevoked?: 
     lines.push(`${rule.number}. [${label}] ${rule.text}`);
   }
   return lines.join('\n');
+}
+
+/** Raw RULES.md text (comments included); empty when the file is absent. */
+export function readRulesFile(home: string): string {
+  const file = memoryPaths(home).rulesFile;
+  return existsSync(file) ? readFileSync(file, 'utf8') : '';
+}
+
+/**
+ * Human GUI save path: validate the whole file, then write it atomically.
+ * It does not seal policy.json; the caller seals with an explicit human action.
+ */
+export function saveRulesFile(home: string, text: string): void {
+  const parsed = parseAndValidateRules(text, { rootDir: home });
+  if (parsed.errors.length > 0) {
+    throw new Error(`RULES.md rejected: ${parsed.errors.join('; ')}`);
+  }
+  writeFileAtomic(memoryPaths(home).rulesFile, text);
 }

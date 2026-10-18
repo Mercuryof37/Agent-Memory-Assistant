@@ -62,6 +62,29 @@ window.__ModuleLoader__.load({
         whiteSpace: "nowrap",
       },
       small: { fontSize: "12px", color: "var(--dsw-text-secondary, #6b7280)" },
+      danger: { color: "#b91c1c", borderColor: "#fecaca" },
+      textarea: {
+        width: "100%",
+        minHeight: "140px",
+        padding: "10px 12px",
+        borderRadius: "8px",
+        border: "1px solid var(--dsw-border, #e5e7eb)",
+        background: "var(--dsw-surface, #fff)",
+        fontSize: "13px",
+        lineHeight: 1.6,
+        fontFamily: "inherit",
+        boxSizing: "border-box",
+        resize: "vertical",
+      },
+      card: {
+        padding: "14px 16px",
+        border: "1px solid var(--dsw-border, #e5e7eb)",
+        borderRadius: "10px",
+        background: "var(--dsw-surface, #fff)",
+        marginBottom: "8px",
+      },
+      actions: { display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" },
+      notice: { fontSize: "12px", color: "#047857", margin: "8px 0 0" },
       groupTitle: {
         display: "flex",
         alignItems: "center",
@@ -216,6 +239,13 @@ window.__ModuleLoader__.load({
       const [manual, setManual] = React.useState(false);
       const rootRef = React.useRef(null);
       const [viewportHeight, setViewportHeight] = React.useState(null);
+      const [panel, setPanel] = React.useState(null);
+      const [proposals, setProposals] = React.useState([]);
+      const [profileText, setProfileText] = React.useState("");
+      const [rulesText, setRulesText] = React.useState("");
+      const [notice, setNotice] = React.useState("");
+      const [busy, setBusy] = React.useState(false);
+      const [revise, setRevise] = React.useState(null);
 
       // Own the scroll viewport: the host page container does not scroll in a
       // windowed desktop window, so measure the distance from the panel top to
@@ -280,6 +310,118 @@ window.__ModuleLoader__.load({
         link.remove();
       };
 
+      const postJson = (url, body) =>
+        fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        }).then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+          return data;
+        });
+
+      const refreshProposals = () =>
+        fetch("/api/agent-memory/proposals", { headers: { accept: "application/json" } })
+          .then((response) => (response.ok ? response.json() : []))
+          .then((data) => setProposals(Array.isArray(data) ? data : []))
+          .catch(() => setProposals([]));
+
+      const openProposals = () => {
+        setPanel("proposals");
+        setNotice("");
+        refreshProposals();
+      };
+
+      const openSettings = () => {
+        setPanel("settings");
+        setNotice("");
+        fetch("/api/agent-memory/profile", { headers: { accept: "application/json" } })
+          .then((response) => response.json())
+          .then((data) => setProfileText((data.entries || []).join("\n\n---\n\n")))
+          .catch(() => setNotice("读取偏好失败"));
+        fetch("/api/agent-memory/rules", { headers: { accept: "application/json" } })
+          .then((response) => response.json())
+          .then((data) => setRulesText(data.text || ""))
+          .catch(() => setNotice("读取规则失败"));
+      };
+
+      const decide = (id, decision) => {
+        setBusy(true);
+        setNotice("");
+        postJson("/api/agent-memory/proposals/decide", { id, decision })
+          .then(() => {
+            setNotice(decision === "accept" ? "已采纳。" : "已驳回。");
+            load();
+            return refreshProposals();
+          })
+          .catch((error) => setNotice(`操作失败：${String(error.message || error)}`))
+          .finally(() => setBusy(false));
+      };
+
+      const startRevise = () => {
+        if (!detail || !detail.data) return;
+        setRevise({ abstract: detail.data.abstract, body: detail.data.body });
+      };
+
+      const saveRevise = () => {
+        if (!revise || !detail || !detail.data) return;
+        setBusy(true);
+        postJson("/api/agent-memory/revise", {
+          id: detail.data.id,
+          abstract: revise.abstract,
+          body: revise.body,
+        })
+          .then(() => {
+            setNotice("已修订，旧记录已失效。");
+            setDetail(null);
+            setRevise(null);
+            allReload();
+          })
+          .catch((error) => setNotice(`修订失败：${String(error.message || error)}`))
+          .finally(() => setBusy(false));
+      };
+
+      const removeItem = () => {
+        if (!detail || !detail.data) return;
+        if (!window.confirm("删除后不可恢复（journal 仍保留记录）。确定删除？")) return;
+        setBusy(true);
+        postJson("/api/agent-memory/delete", { id: detail.data.id })
+          .then(() => {
+            setNotice("已删除。");
+            setDetail(null);
+            allReload();
+          })
+          .catch((error) => setNotice(`删除失败：${String(error.message || error)}`))
+          .finally(() => setBusy(false));
+      };
+
+      const saveProfileNow = () => {
+        const entries = profileText
+          .split(/\n\s*---\s*\n/)
+          .map((entry) => entry.trim())
+          .filter((entry) => entry !== "");
+        setBusy(true);
+        postJson("/api/agent-memory/profile", { entries })
+          .then(() => setNotice("偏好已保存，下一轮注入生效。"))
+          .catch((error) => setNotice(`保存失败：${String(error.message || error)}`))
+          .finally(() => setBusy(false));
+      };
+
+      const saveRulesNow = () => {
+        if (!window.confirm("保存规则会立即封存并影响下一轮注入。确定保存？")) return;
+        setBusy(true);
+        postJson("/api/agent-memory/rules", { text: rulesText })
+          .then(() => setNotice("规则已保存并重新封存。"))
+          .catch((error) => setNotice(`保存失败：${String(error.message || error)}`))
+          .finally(() => setBusy(false));
+      };
+
+      const allReload = () => {
+        load();
+        refreshProposals();
+      };
+
       const data = state.data;
       const total = data ? data.total : "—";
       const pending = data ? data.pending : "—";
@@ -342,10 +484,95 @@ window.__ModuleLoader__.load({
           }),
           React.createElement("button", { style: styles.buttonPrimary, onClick: runSearch }, "搜索"),
           React.createElement("button", { style: styles.button, onClick: exportNow }, "导出备份"),
+          React.createElement("button", { style: styles.button, onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
+          React.createElement("button", { style: styles.button, onClick: openSettings }, "偏好与规则"),
           React.createElement("button", { style: styles.button, onClick: () => setManual(true) }, "命令手册"),
         ),
-        state.loading
-          ? React.createElement("p", { style: styles.meta }, "正在读取…")
+        notice ? React.createElement("p", { style: styles.notice }, notice) : null,
+        panel === "proposals"
+          ? React.createElement(
+              "div",
+              null,
+              React.createElement(
+                "div",
+                { style: styles.groupTitle },
+                "待审提案",
+                React.createElement("span", { style: styles.count }, ` · ${proposals.length}`),
+              ),
+              proposals.length === 0
+                ? React.createElement("div", { style: styles.empty }, "没有待审提案。")
+                : proposals.map((proposal) =>
+                    React.createElement(
+                      "div",
+                      { key: proposal.id, style: styles.card },
+                      React.createElement(
+                        "p",
+                        { style: { margin: 0, fontSize: "14px", fontWeight: 600 } },
+                        `${proposal.op === "delete" ? "删除" : "修订"}：${proposal.targets
+                          .map((target) => `${target.serial || "—"} ${target.abstract}`)
+                          .join("、")}`,
+                      ),
+                      React.createElement("p", { style: styles.small }, proposal.reason || "（无说明）"),
+                      proposal.replacements.map((replacement, index) =>
+                        React.createElement(
+                          "p",
+                          { key: index, style: { ...styles.small, margin: "6px 0 0" } },
+                          `新内容：${replacement.abstract}`,
+                        ),
+                      ),
+                      React.createElement(
+                        "div",
+                        { style: styles.actions },
+                        React.createElement(
+                          "button",
+                          { style: styles.buttonPrimary, disabled: busy, onClick: () => decide(proposal.id, "accept") },
+                          "采纳",
+                        ),
+                        React.createElement(
+                          "button",
+                          { style: styles.button, disabled: busy, onClick: () => decide(proposal.id, "reject") },
+                          "驳回",
+                        ),
+                      ),
+                    ),
+                  ),
+              React.createElement("button", { style: styles.button, onClick: () => setPanel(null) }, "返回列表"),
+            )
+          : panel === "settings"
+            ? React.createElement(
+                "div",
+                null,
+                React.createElement("h2", { style: styles.groupTitle }, "偏好（USER.md）"),
+                React.createElement("textarea", {
+                  style: styles.textarea,
+                  value: profileText,
+                  onChange: (event) => setProfileText(event.target.value),
+                  placeholder: "一条偏好一段，段与段之间用 --- 分隔",
+                }),
+                React.createElement(
+                  "div",
+                  { style: styles.actions },
+                  React.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveProfileNow }, "保存偏好"),
+                ),
+                React.createElement("h2", { style: styles.groupTitle }, "规则（RULES.md，仅限你在此处修改）"),
+                React.createElement("textarea", {
+                  style: styles.textarea,
+                  value: rulesText,
+                  onChange: (event) => setRulesText(event.target.value),
+                }),
+                React.createElement(
+                  "div",
+                  { style: styles.actions },
+                  React.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveRulesNow }, "保存并重新封存"),
+                  React.createElement("span", { style: styles.small }, "保存后立即封存，下一轮注入生效。"),
+                ),
+                React.createElement("button", { style: { ...styles.button, marginTop: "12px" }, onClick: () => setPanel(null) }, "返回列表"),
+              )
+            : null,
+        panel !== null
+          ? null
+          : state.loading
+            ? React.createElement("p", { style: styles.meta }, "正在读取…")
           : state.error
             ? React.createElement("p", { style: styles.meta }, `读取失败：${state.error}`)
             : search
@@ -422,10 +649,35 @@ window.__ModuleLoader__.load({
                             ),
                           )
                         : null,
+                      revise
+                        ? React.createElement(
+                            "div",
+                            { style: { marginTop: "14px" } },
+                            React.createElement("input", {
+                              style: styles.input,
+                              value: revise.abstract,
+                              onChange: (event) => setRevise({ ...revise, abstract: event.target.value }),
+                              placeholder: "一句话摘要",
+                            }),
+                            React.createElement("textarea", {
+                              style: { ...styles.textarea, marginTop: "8px" },
+                              value: revise.body,
+                              onChange: (event) => setRevise({ ...revise, body: event.target.value }),
+                            }),
+                            React.createElement(
+                              "div",
+                              { style: styles.actions },
+                              React.createElement("button", { style: styles.buttonPrimary, disabled: busy, onClick: saveRevise }, "保存修订"),
+                              React.createElement("button", { style: styles.button, onClick: () => setRevise(null) }, "取消"),
+                            ),
+                          )
+                        : null,
                       React.createElement(
-                        "button",
-                        { style: { ...styles.button, marginTop: "14px" }, onClick: () => setDetail(null) },
-                        "收起",
+                        "div",
+                        { style: styles.actions },
+                        React.createElement("button", { style: styles.button, onClick: startRevise }, "修订"),
+                        React.createElement("button", { style: { ...styles.button, ...styles.danger }, onClick: removeItem }, "删除"),
+                        React.createElement("button", { style: styles.button, onClick: () => { setDetail(null); setRevise(null); } }, "收起"),
                       ),
                     ),
             )

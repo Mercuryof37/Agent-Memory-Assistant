@@ -322,4 +322,13 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - 验证：`ci` 全绿（**236 个测试**，`S14.1`–`S14.4`）。
 - 记录：[ADR-0017](docs/adr/0017-v2-p1-workbench.md)。
 
+### 第 17 轮 · V2 P2 图形界面写流与审批（2026-10-18）
+
+- **提案面板**：列出待审提案（目标序号/摘要、原因、替换内容），「采纳/驳回」调用与 `/mem decide` 相同的 `decideProposal`，journal 追加 `gui-decide` 审计。
+- **修订/删除**：详情里「修订」打开行内表单，「删除」二次确认；两者都走提案 + 决定，旧记录失效但 journal 保留。
+- **偏好**：`/api/agent-memory/profile` 读写 USER.md 条目，保存后下一轮注入生效。
+- **规则**：`/api/agent-memory/rules` 读写 RULES.md，保存前整文件校验、保存后重新封存；GUI 是 RULES 的唯一写入口（模型工具与 CLI 都没有）。
+- 客户端仍是手写 loader bundle；`ci` 全绿（**239 个测试**，`S14.5`–`S14.7`）。
+- 记录：[ADR-0018](docs/adr/0018-v2-p2-write-flows.md)。
+
 
