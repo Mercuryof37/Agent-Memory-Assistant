@@ -171,6 +171,25 @@ window.__ModuleLoader__.load({
       "日常不需要命令：在「记忆」页里点条目即可查看；修订与偏好修改都会先弹卡片确认。",
     ].join("\n");
 
+    // Chrome-like scrollbar for the workbench. The host does not scroll our
+    // main panel, so the page owns a viewport-height scroll container; this
+    // stylesheet keeps the rail thin and unobtrusive in both themes.
+    const SCROLL_CSS = [
+      ".am-memory-scroll{scrollbar-width:thin;scrollbar-color:rgba(120,120,128,.45) transparent;overscroll-behavior:contain}",
+      ".am-memory-scroll::-webkit-scrollbar{width:12px;height:12px}",
+      ".am-memory-scroll::-webkit-scrollbar-track{background:transparent}",
+      ".am-memory-scroll::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9ca3af) 42%,transparent);border:3px solid transparent;background-clip:padding-box;border-radius:999px}",
+      ".am-memory-scroll::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9ca3af) 65%,transparent);background-clip:padding-box}",
+    ].join("\n");
+
+    function ensureScrollbarStyles() {
+      if (typeof document === "undefined" || document.getElementById("am-memory-scroll")) return;
+      const style = document.createElement("style");
+      style.id = "am-memory-scroll";
+      style.textContent = SCROLL_CSS;
+      document.head.appendChild(style);
+    }
+
     function badge(kind, serial) {
       const style = KIND_STYLE[kind] || { color: "#374151", background: "#f3f4f6" };
       return React.createElement(
@@ -195,6 +214,23 @@ window.__ModuleLoader__.load({
       const [query, setQuery] = React.useState("");
       const [search, setSearch] = React.useState(null);
       const [manual, setManual] = React.useState(false);
+      const rootRef = React.useRef(null);
+      const [viewportHeight, setViewportHeight] = React.useState(null);
+
+      // Own the scroll viewport: the host page container does not scroll in a
+      // windowed desktop window, so measure the distance from the panel top to
+      // the window bottom and pin the scroll container to it.
+      React.useEffect(() => {
+        const measure = () => {
+          const element = rootRef.current;
+          if (!element) return;
+          const top = element.getBoundingClientRect().top;
+          setViewportHeight(Math.max(240, window.innerHeight - top));
+        };
+        measure();
+        window.addEventListener("resize", measure);
+        return () => window.removeEventListener("resize", measure);
+      }, []);
 
       const load = () => {
         setState({ loading: true });
@@ -261,10 +297,23 @@ window.__ModuleLoader__.load({
 
       return React.createElement(
         "div",
-        { style: styles.page },
+        {
+          ref: rootRef,
+          className: "am-memory-scroll",
+          style: {
+            width: "100%",
+            height: viewportHeight === null ? "100vh" : viewportHeight,
+            overflowY: "auto",
+            overflowX: "hidden",
+            boxSizing: "border-box",
+          },
+        },
         React.createElement(
           "div",
-          { style: styles.header },
+          { style: styles.page },
+          React.createElement(
+            "div",
+            { style: styles.header },
           React.createElement("h1", { style: styles.h1 }, "记忆"),
           metric("共", total),
           metric("待审", pending),
@@ -381,6 +430,7 @@ window.__ModuleLoader__.load({
                     ),
             )
           : null,
+        ),
         manual
           ? React.createElement(
               "div",
@@ -427,6 +477,7 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
+      ensureScrollbarStyles();
       ctx.slots.inject("main", () =>
         ctx.slots.register({ name: "main", key: PANEL_ID }, MemoryPage),
       );

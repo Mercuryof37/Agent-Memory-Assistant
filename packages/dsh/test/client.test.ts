@@ -17,6 +17,11 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   }
   assert.match(source, /命令手册/);
   assert.match(source, /F-01/);
+  // The workbench owns a viewport-height scroll container with a styled rail;
+  // the host panel does not scroll in windowed mode.
+  assert.match(source, /am-memory-scroll/);
+  assert.match(source, /::-webkit-scrollbar-thumb/);
+  assert.match(source, /overflowY: "auto"/);
 });
 
 test('S13.2 package.json declares the client half for the host module graph', () => {
