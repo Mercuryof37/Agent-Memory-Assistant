@@ -428,4 +428,12 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - **文档**：`CHANGELOG.md`、[docs/release.md](docs/release.md) 发布检查单；`ci` 全绿（**257 个测试**，`S18.1`/`S18.2`）。
 - 记录：[ADR-0032](docs/adr/0032-v32-release.md)。
 
+### 第 32 轮 · 发布流程验收（2026-10-18）
+
+- 门禁通过：`ci` 257 测试、`stage S7` green、`npm run pack` 产出 0.2.0 tgz。
+- `npm publish --dry-run` 校验 9 个文件（含 README/LICENSE）；tarball 安装到临时目录成功；SHA256 已记录。
+- 临时 profile 上 `setup --apply`/`--revert` 全链路通过；修复 setup 读取 BOM 的兼容问题。
+- 未对真实 profile 执行安装、未推 tag、未 npm publish（待你确认/凭据）。
+- 验收记录：[docs/release-verification.md](docs/release-verification.md)。
+
 

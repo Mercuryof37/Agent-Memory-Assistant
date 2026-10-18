@@ -70,7 +70,7 @@ function newestTarball() {
 }
 
 function readJson(file) {
-  return JSON.parse(readFileSync(file, 'utf8'));
+  return JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 }
 
 function main() {
