@@ -222,6 +222,21 @@ test('S14.10 an exported bundle imports back and dedupes', (t) => {
   assert.throws(() => importBundle(target.store, { format: 'nope' }), /format/);
 });
 
+test('S14.13 hard delete removes the file so a backup can restore it', (t) => {
+  const { store, config } = fixture(t);
+  const saved = store.add(
+    { kind: 'fact', abstract: '删了还能恢复', body: '正文', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  const bundle = exportBundle(store);
+  deleteGui(store, config, saved.id);
+  assert.equal(store.active().length, 0);
+  const report = importBundle(store, bundle);
+  assert.equal(report.imported, 1);
+  assert.equal(report.skipped, 0);
+  assert.equal(store.active()[0]?.abstract, '删了还能恢复');
+});
+
 test('S14.11 content-only dedupe ignores date and author', (t) => {
   const { store } = fixture(t);
   const first = store.add(

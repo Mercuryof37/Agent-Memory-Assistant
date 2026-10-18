@@ -231,14 +231,37 @@ export function reviseGui(
 }
 
 /** Human GUI delete: delete proposal + immediate acceptance. */
+/**
+ * Human GUI delete is a hard delete: the memory file is removed and pending
+ * proposals targeting it are invalidated. Superseded ancestors are removed in
+ * the same action, otherwise purging the revision would revive the old version.
+ * The journal keeps a delete line with the reason and content hash only — no
+ * body, no recoverable copy.
+ */
 export function deleteGui(store: MemoryStore, config: Config, id: string, reason = '图形界面删除'): void {
+  void config;
   const target = store.read(id as MemoryId);
-  const proposal = createProposal(
-    { store, config },
-    { op: 'delete', target: id, base_hash: target.content_hash, reason },
-  );
-  decideProposal({ store, config }, { id: proposal.id, decision: 'accept' });
-  store.appendJournal('audit', { event: 'gui-delete', target: id, proposal: proposal.id });
+  const ids: string[] = [id];
+  const collect = (docId: string): void => {
+    if (ids.includes(docId)) return;
+    ids.push(docId);
+    try {
+      for (const parent of store.read(docId as MemoryId).supersedes) collect(parent);
+    } catch {
+      // An already-purged ancestor is skipped; the visible one is still removed.
+    }
+  };
+  for (const parent of target.supersedes) collect(parent);
+
+  let proposals = 0;
+  for (const each of ids) {
+    try {
+      proposals += store.purge(each as MemoryId, { reason }).proposals;
+    } catch {
+      // Missing files are fine; the goal is that none of these ids stay active.
+    }
+  }
+  store.appendJournal('audit', { event: 'gui-purge', target: id, removed: ids.length, proposals });
 }
 
 export function readProfileGui(home: string) {

@@ -370,7 +370,7 @@ function MemoryPage() {
   };
   const removeItem = () => {
     if (!detail || !detail.data) return;
-    if (!window.confirm("删除后不可恢复（journal 仍保留记录）。确定删除？")) return;
+    if (!window.confirm("彻底删除这条记忆？文件会被移除，journal 只留下删除记录（不含正文）。")) return;
     setBusy(true);
     postJson("/api/agent-memory/delete", { id: detail.data.id }).then(() => {
       setNotice("已删除。");
