@@ -27,6 +27,10 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.ok(!source.includes('mem policy seal'));
   // V3.1: manual create, deterministic summary and the SOUL path card.
   assert.match(source, /新增一条记忆/);
+  assert.ok(!source.includes('＋ 新增'));
+  assert.match(source, /错误特征（1–3 条，必填）/);
+  assert.match(source, /按字面匹配，不写正则/);
+  assert.match(source, /坑怎么填/);
   assert.match(source, /整理记忆/);
   assert.match(source, /加入规则草稿/);
   assert.match(source, /复制路径/);

@@ -61,6 +61,17 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
         whiteSpace: "nowrap",
       },
       small: { fontSize: "12px", color: "var(--am-text-secondary, #6b7280)" },
+      field: { display: "flex", flexDirection: "column", gap: "4px", marginTop: "12px" },
+      label: { fontSize: "13px", fontWeight: 600 },
+      hint: { fontSize: "12px", color: "var(--am-text-secondary, #6b7280)", lineHeight: 1.6 },
+      callout: {
+        marginTop: "12px",
+        padding: "10px 12px",
+        borderRadius: "8px",
+        background: "var(--am-accent-soft, #e8f0fe)",
+        fontSize: "12px",
+        lineHeight: 1.7,
+      },
       danger: { color: "#b91c1c", borderColor: "#fecaca" },
       textarea: {
         width: "100%",
@@ -616,7 +627,6 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           React.createElement(
             "div",
             { className: "am-toolbar-actions" },
-            React.createElement(AmButton, { variant: "ghost", onClick: () => openCreate("fact") }, "＋ 新增"),
             React.createElement(AmButton, { variant: "ghost", onClick: openSummary }, "整理"),
             React.createElement(AmButton, { variant: "ghost", onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
             React.createElement(AmButton, { variant: "ghost", onClick: openSettings }, "偏好与规则"),
@@ -651,46 +661,102 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                 "你手写的条目会记为「人工维护」；同内容的已有条目会自动跳过。",
               ),
               React.createElement(
-                "select",
-                {
-                  className: "am-input",
-                  style: { marginTop: "12px", width: "180px" },
-                  value: createKind,
-                  onChange: (event) => setCreateKind(event.target.value),
-                },
-                React.createElement("option", { value: "fact" }, "事实"),
-                React.createElement("option", { value: "pitfall" }, "坑"),
-                React.createElement("option", { value: "exp" }, "经验"),
-              ),
-              React.createElement("input", {
-                className: "am-input",
-                style: { marginTop: "8px", width: "100%", boxSizing: "border-box" },
-                placeholder: "一句话摘要（必填）",
-                value: createForm.abstract,
-                onChange: (event) => setCreateForm({ ...createForm, abstract: event.target.value }),
-              }),
-              React.createElement("textarea", {
-                className: "am-textarea",
-                style: { marginTop: "8px", width: "100%", minHeight: "120px", boxSizing: "border-box" },
-                placeholder: "正文（可选）",
-                value: createForm.body,
-                onChange: (event) => setCreateForm({ ...createForm, body: event.target.value }),
-              }),
-              React.createElement("input", {
-                className: "am-input",
-                type: "date",
-                style: { marginTop: "8px" },
-                value: createForm.valid_from,
-                onChange: (event) => setCreateForm({ ...createForm, valid_from: event.target.value }),
-              }),
-              createKind === "pitfall"
-                ? React.createElement("input", {
+                "div",
+                { style: styles.field },
+                React.createElement("label", { style: styles.label }, "类型"),
+                React.createElement(
+                  "select",
+                  {
                     className: "am-input",
-                    style: { marginTop: "8px", width: "100%", boxSizing: "border-box" },
-                    placeholder: "错误特征，逗号分隔（坑必填）",
-                    value: createForm.signatures,
-                    onChange: (event) => setCreateForm({ ...createForm, signatures: event.target.value }),
-                  })
+                    style: { width: "180px" },
+                    value: createKind,
+                    onChange: (event) => setCreateKind(event.target.value),
+                  },
+                  React.createElement("option", { value: "fact" }, "事实"),
+                  React.createElement("option", { value: "pitfall" }, "坑"),
+                  React.createElement("option", { value: "exp" }, "经验"),
+                ),
+              ),
+              React.createElement(
+                "div",
+                { style: styles.field },
+                React.createElement("label", { style: styles.label }, "摘要（必填）"),
+                React.createElement(
+                  "span",
+                  { style: styles.hint },
+                  "一句话说清这是什么；列表和提案里显示的就是它。",
+                ),
+                React.createElement("input", {
+                  className: "am-input",
+                  style: { width: "100%", boxSizing: "border-box" },
+                  placeholder:
+                    createKind === "pitfall"
+                      ? "例：Windows 沙箱里 git push 报 signal pipe"
+                      : "例：部署前先迁移数据库",
+                  value: createForm.abstract,
+                  onChange: (event) => setCreateForm({ ...createForm, abstract: event.target.value }),
+                }),
+              ),
+              React.createElement(
+                "div",
+                { style: styles.field },
+                React.createElement("label", { style: styles.label }, "正文（可选）"),
+                React.createElement(
+                  "span",
+                  { style: styles.hint },
+                  "触发条件、看到的现象、最后怎么处理；可以直接粘贴报错原文。",
+                ),
+                React.createElement("textarea", {
+                  className: "am-textarea",
+                  style: { width: "100%", minHeight: "120px", boxSizing: "border-box" },
+                  placeholder:
+                    createKind === "pitfall"
+                      ? "例：在 oh-my-zsh 的 Windows 环境执行 git push 时报错；改用 PowerShell 7 后正常。"
+                      : "补充背景、步骤或结论。",
+                  value: createForm.body,
+                  onChange: (event) => setCreateForm({ ...createForm, body: event.target.value }),
+                }),
+              ),
+              React.createElement(
+                "div",
+                { style: styles.field },
+                React.createElement("label", { style: styles.label }, "日期"),
+                React.createElement("span", { style: styles.hint }, "从哪天开始适用；留空则用今天。"),
+                React.createElement("input", {
+                  className: "am-input",
+                  type: "date",
+                  style: { width: "180px" },
+                  value: createForm.valid_from,
+                  onChange: (event) => setCreateForm({ ...createForm, valid_from: event.target.value }),
+                }),
+              ),
+              createKind === "pitfall"
+                ? React.createElement(
+                    "div",
+                    null,
+                    React.createElement(
+                      "div",
+                      { style: styles.callout },
+                      "坑怎么填：摘要写「踩了什么坑」，正文写「怎么触发、怎么解决」，错误特征写「报错里固定不变的片段」——以后检索和匹配靠它。",
+                    ),
+                    React.createElement(
+                      "div",
+                      { style: styles.field },
+                      React.createElement("label", { style: styles.label }, "错误特征（1–3 条，必填）"),
+                      React.createElement(
+                        "span",
+                        { style: styles.hint },
+                        "用逗号分隔；按字面匹配，不写正则。例：ECONNREFUSED 5432、Win32 error 5。",
+                      ),
+                      React.createElement("input", {
+                        className: "am-input",
+                        style: { width: "100%", boxSizing: "border-box" },
+                        placeholder: "ECONNREFUSED 5432, Win32 error 5",
+                        value: createForm.signatures,
+                        onChange: (event) => setCreateForm({ ...createForm, signatures: event.target.value }),
+                      }),
+                    ),
+                  )
                 : null,
               React.createElement(
                 "div",
