@@ -378,3 +378,11 @@
 - **调研**：SQLite WAL checkpoint、etcd snapshot/compaction/defrag、Kafka segment retention、Git gc/fsck、RocksDB WAL/MANIFEST、Postgres checkpoint/vacuum、Obsidian 快照保留。
 - **方案**：Merkle checkpoint 分段审计 + checkpoint 状态启动 + 尾部增量 + 归档/保留 + 索引缓存；S1 观测压测 → S2 checkpoint → S3 归档 → S4 性能 → S5 加固。
 - **产出**：docs/plan/v5-robustness.md；未改代码。
+
+### 第 44 轮 · V5.0-S1 观测与压测基线（2026-10-18）
+
+- **doctor**：`mem doctor --json` 增加 `journal{segments,lines,bytes,...}` 与 `reload_ms`；人类可读行也显示行数/段数/KB/reload。
+- **Journal.stats()**：按段统计行数/字节/首末 seq/最大段；不改 journal 格式。
+- **基准确认**：200 条 41ms/条、reload 8.4ms、recall P95 18.7ms；1000 条 177ms/条、reload 102ms、recall 130ms → 每次写入全量 reload 是主要瓶颈。
+- **故障注入**：S24.1–S24.3 覆盖 before-write / before-journal / before-derived 三个崩溃点；before-journal 遗留文件可 quarantined + adopt。
+- **脚本**：`scripts/bench.mjs`（默认 1000，10k 手动）；不进 CI。

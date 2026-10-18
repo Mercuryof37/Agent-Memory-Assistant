@@ -170,7 +170,8 @@ npm run eval:longmem
 - 测试：`packages/*/test/**/*.test.ts`，`node:test`；
 - 发布：更新 `packages/dsh/package.json`/CHANGELOG → `pack` → tag `vX.Y.Z` → GitHub Release → `npm publish ./packages/dsh --access public`；
 - 发布检查单：[docs/development/release.md](../development/release.md)；
-- 当前 V4.0：`0.4.0`，tarball `release/agent_memory-dsh-0.4.0.tgz`。
+- 当前 V4.0：`0.4.0`，tarball `release/agent_memory-dsh-0.4.0.tgz`；
+- 基准：`node scripts/bench.mjs --count 1000`（V5 S1 已加入；输出 add/reload/recall/journal 统计）。
 
 ## 11. 运维与排障
 

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { Config } from '../config/config.ts';
 import { ensureDir, writeFileAtomic } from '../fs/atomic.ts';
 import { acquireLock } from '../fs/lock.ts';
-import { Journal } from '../journal/journal.ts';
+import { Journal, type JournalStats } from '../journal/journal.ts';
 import { hashContent, parseMemoryFile, serializeMemory } from '../model/frontmatter.ts';
 import { projectProblem, relationsProblem, sourceProblem, tagsProblem } from '../model/metadata.ts';
 import { isMemoryId, newMemoryId } from '../model/ids.ts';
@@ -73,6 +73,7 @@ export class MemoryStore {
   private accounted = new Map<MemoryId, string>();
   private issues: string[] = [];
   private head: { seq: number; hash: string } | null = null;
+  private lastReloadMs = 0;
 
   constructor(options: StoreOptions) {
     this.paths = memoryPaths(options.home);
@@ -85,6 +86,7 @@ export class MemoryStore {
 
   /** Re-read the journal and the memory files; classify each file. */
   reload(): void {
+    const started = performance.now();
     const read = this.journal.readAll();
     this.issues = read.issues.map((issue) => issue.message);
     this.head = read.head;
@@ -191,6 +193,7 @@ export class MemoryStore {
     } catch {
       // A missing or unreadable manifest is a cache problem, not a journal one.
     }
+    this.lastReloadMs = performance.now() - started;
   }
 
   active(date: string = today(this.now())): readonly MemoryDoc[] {
@@ -972,8 +975,20 @@ export class MemoryStore {
   }
 
   /** Quarantine and journal diagnostics, used by `mem doctor`. */
-  diagnostics(): { quarantined: ReadonlyMap<MemoryId, string>; issues: readonly string[]; head: { seq: number; hash: string } | null } {
-    return { quarantined: this.quarantined, issues: this.issues, head: this.head };
+  diagnostics(): {
+    quarantined: ReadonlyMap<MemoryId, string>;
+    issues: readonly string[];
+    head: { seq: number; hash: string } | null;
+    journal: JournalStats;
+    reload_ms: number;
+  } {
+    return {
+      quarantined: this.quarantined,
+      issues: this.issues,
+      head: this.head,
+      journal: this.journal.stats(),
+      reload_ms: Number(this.lastReloadMs.toFixed(3)),
+    };
   }
 
   private writeDerived(): void {

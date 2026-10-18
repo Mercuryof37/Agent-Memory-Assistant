@@ -27,6 +27,15 @@ export interface JournalHead {
   readonly hash: string;
 }
 
+export interface JournalStats {
+  readonly segments: number;
+  readonly lines: number;
+  readonly bytes: number;
+  readonly first_seq: number | null;
+  readonly last_seq: number | null;
+  readonly largest_segment_bytes: number;
+}
+
 export interface JournalReadResult {
   readonly entries: readonly JournalEntry[];
   readonly hashes: readonly string[];
@@ -134,6 +143,39 @@ export class Journal {
 
     const head = entries.length === 0 ? null : { seq: entries[entries.length - 1]?.seq ?? 0, hash: prev };
     return { entries, hashes, issues, head };
+  }
+
+  /** Cheap operational summary for `mem doctor` / metrics. */
+  stats(): JournalStats {
+    const segments = this.segments();
+    let lines = 0;
+    let bytes = 0;
+    let largest = 0;
+    let firstSeq: number | null = null;
+    let lastSeq: number | null = null;
+    for (const name of segments) {
+      const text = readFileSync(join(this.dir, name), 'utf8');
+      const size = Buffer.byteLength(text);
+      bytes += size;
+      largest = Math.max(largest, size);
+      const rows = text.split('\n').filter((line) => line !== '');
+      lines += rows.length;
+      if (firstSeq === null && rows.length > 0) {
+        try {
+          firstSeq = (JSON.parse(rows[0] as string) as { seq?: number }).seq ?? null;
+        } catch {
+          firstSeq = null;
+        }
+      }
+      if (rows.length > 0) {
+        try {
+          lastSeq = (JSON.parse(rows[rows.length - 1] as string) as { seq?: number }).seq ?? lastSeq;
+        } catch {
+          // doctor reports parse issues separately
+        }
+      }
+    }
+    return { segments: segments.length, lines, bytes, first_seq: firstSeq, last_seq: lastSeq, largest_segment_bytes: largest };
   }
 
   findByOpId(opId: string): JournalEntry | undefined {

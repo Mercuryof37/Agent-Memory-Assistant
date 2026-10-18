@@ -262,9 +262,9 @@ function commandDoctor(parsed: ParsedArgs, io: CliIo): number {
   const diagnostics = store.diagnostics();
   const quarantined = [...diagnostics.quarantined.entries()].map(([id, reason]) => ({ id, reason }));
   if (parsed.flags.has('json')) {
-    io.out(JSON.stringify({ ...doctorSummary(runtime), stats, quarantine: quarantined, issues: diagnostics.issues }, null, 2));
+    io.out(JSON.stringify({ ...doctorSummary(runtime), stats, journal: diagnostics.journal, reload_ms: diagnostics.reload_ms, quarantine: quarantined, issues: diagnostics.issues }, null, 2));
   } else {
-    io.out(formatDoctor(runtime, stats, diagnostics.issues, quarantined));
+    io.out(formatDoctor(runtime, stats, diagnostics.issues, quarantined, diagnostics.journal, diagnostics.reload_ms));
     const paths = memoryPaths(runtime.home);
     const present = [paths.soulFile, paths.userFile, paths.rulesFile].filter((file) => existsSync(file)).length;
     if (present < 3) {
@@ -746,6 +746,8 @@ function formatDoctor(
   stats: ReturnType<MemoryStore['stats']>,
   issues: readonly string[],
   quarantine: readonly { id: string; reason: string }[],
+  journal: ReturnType<MemoryStore['diagnostics']>['journal'],
+  reloadMs: number,
 ): string {
   const { config } = runtime;
   const lines = [
@@ -756,7 +758,7 @@ function formatDoctor(
     `  capacity: ${config.storage.max_records} records · ${config.storage.max_record_chars} chars/file`,
     `  inject:   ${config.inject.total_max_chars} chars total (persona ${config.inject.persona_max_chars} / guidance ${config.inject.guidance_max_chars} / user ${config.inject.user_max_chars} / rules ${config.inject.rules_max_chars} / index ${config.inject.index_max_chars})`,
     `  recall:   ${config.recall.limit} hits (max ${config.recall.max_limit})`,
-    `  journal:  ${stats.journal_head === null ? 'empty' : `#${stats.journal_head.seq} ${shortHash(stats.journal_head.hash)}`} · ${stats.journal_consistent ? 'consistent' : 'INCONSISTENT'}`,
+    `  journal:  ${stats.journal_head === null ? 'empty' : `#${stats.journal_head.seq} ${shortHash(stats.journal_head.hash)}`} · ${stats.journal_consistent ? 'consistent' : 'INCONSISTENT'} · ${journal.lines} lines / ${journal.segments} seg / ${(journal.bytes / 1024).toFixed(1)} KB · reload ${reloadMs.toFixed(1)} ms`,
     `  records:  ${stats.active} active · ${stats.total_files} files · ${stats.deleted} deleted`,
     `  quarantined: ${stats.quarantined}`,
     `  warnings: ${runtime.warnings.length}`,
