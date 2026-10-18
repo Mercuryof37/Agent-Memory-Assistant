@@ -90,6 +90,16 @@ window.__ModuleLoader__.load({
               metric("写入模式", data && data.mode),
               metric("数据目录", data && data.home),
             ),
+        data && data.modules && data.modules.some((module) => !module.ok)
+          ? React.createElement(
+              "p",
+              { style: styles.error },
+              `部分模块不可用：${data.modules
+                .filter((module) => !module.ok)
+                .map((module) => module.name)
+                .join("、")}`,
+            )
+          : null,
         state.error ? React.createElement("p", { style: styles.error }, `读取失败：${state.error}`) : null,
         React.createElement("button", { style: styles.action, onClick: load }, "刷新"),
       );

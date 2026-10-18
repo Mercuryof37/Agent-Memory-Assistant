@@ -1,26 +1,21 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
 import type { Config } from '../config/config.ts';
 import type { Policy } from '../policy/policy.ts';
 import { verifySealedFiles } from '../policy/policy.ts';
-import { memoryPaths } from '../paths.ts';
-import { parseRules, renderRules, validateRules, type Rule } from '../rules/rules.ts';
+import type { Rule } from '../rules/rules.ts';
 import { today } from '../model/validity.ts';
 import type { MemoryDoc } from '../model/types.ts';
-import { renderGuidance } from '../personalization/guidance.ts';
+import { buildSections, SECTION_ORDERS, type SectionHealth, type SectionSource } from './sections.ts';
 import { readSnapshot, writeSnapshot, PROMPT_SCHEMA_VERSION } from './snapshot.ts';
 
 /**
- * Injection assembly (plan v1.3 §6.1).
+ * Injection assembly (plan v1.3 §6.1; architecture v2 P0.5).
  *
- * Four fixed sections (SOUL, USER, RULES, memory catalog) are rendered with
- * per-section budgets, then wrapped in a random 16-hex delimiter so fenced code
- * or `</memory>` inside a memory cannot escape its block. The text is frozen per
- * session in `.state/snapshots/`; a new session captures the current revision.
- *
- * `RULES.md` over budget is a hard failure, never truncated. The catalog is
- * trimmed deterministically (evidence rank -> valid_from -> id) and always
- * reports how many entries it left out.
+ * Sections come from the registry (`sections.ts`): SOUL, GUIDANCE, RULES, USER,
+ * then the memory catalog built here. A broken optional section degrades to a
+ * visible notice (health entry) instead of failing the whole injection; sealed
+ * files and store integrity remain global failures. The text is frozen per
+ * session in `.state/snapshots/` and wrapped in a random delimiter.
  */
 
 export type InjectionErrorCode = 'RULES_INVALID' | 'RULES_OVER_BUDGET' | 'OVER_BUDGET';
@@ -55,6 +50,8 @@ export interface AssembleInput {
   readonly delimiter?: string;
   /** Test seam: skip snapshot persistence. */
   readonly persist?: boolean;
+  /** Extension seam: extra document layers (P0.5 section registry). */
+  readonly extraSections?: readonly SectionSource[];
 }
 
 export interface InjectionBudget {
@@ -71,8 +68,12 @@ export interface AssembleResult {
   readonly budget: InjectionBudget;
   readonly sections: readonly string[];
   readonly rules: readonly Rule[];
-  /** Per-source text, one entry per human/maintained source (empty when absent). */
-  readonly parts: Readonly<Record<'SOUL' | 'GUIDANCE' | 'RULES' | 'USER' | 'MEMORY', string>>;
+  /** Per-source text, one entry per source (empty when absent). */
+  readonly parts: Readonly<Record<string, string>>;
+  /** Rendered section list in order, so the host can register one prompt section per source. */
+  readonly sectionList: readonly { readonly key: string; readonly order: number; readonly text: string }[];
+  /** Per-section health; a degraded section still appears in `sectionList` as a notice. */
+  readonly health: readonly SectionHealth[];
 }
 
 const EVIDENCE_RANK: Record<string, number> = {
@@ -84,18 +85,6 @@ const EVIDENCE_RANK: Record<string, number> = {
 
 function charCount(text: string): number {
   return [...text].length;
-}
-
-/** Templates ship as HTML comments; they must not reach the prompt or parser. */
-function stripHtmlComments(text: string): string {
-  return text.replace(/<!--[\s\S]*?-->/g, '');
-}
-
-function truncate(text: string, budget: number): string {
-  const points = [...text];
-  if (points.length <= budget) return text;
-  if (budget <= 1) return '…';
-  return `${points.slice(0, budget - 1).join('')}…`;
 }
 
 export function memoryRevision(docs: Iterable<MemoryDoc>): string {
@@ -145,7 +134,6 @@ function counted(text: string, counter: 'chars' | 'tokens', measure?: (text: str
 export function assemble(input: AssembleInput): AssembleResult {
   const now = input.now ?? (() => new Date());
   const date = input.asOf ?? today(now());
-  const paths = memoryPaths(input.home);
 
   // T2: re-check the sealed human files right before reading them, so an edit
   // after startup cannot slip into the prompt.
@@ -158,68 +146,48 @@ export function assemble(input: AssembleInput): AssembleResult {
   if (
     existing !== null &&
     existing.prompt_schema_version === PROMPT_SCHEMA_VERSION &&
-    existing.parts !== undefined
+    existing.parts !== undefined &&
+    existing.sectionList !== undefined
   ) {
     return {
       text: existing.text,
       memory_revision: existing.memory_revision,
       captured: false,
       budget: { counter: input.config.inject.counter, estimated: input.measure === undefined, sections: {}, total: 0 },
-      sections: [],
+      sections: existing.sectionList.map((section) => section.key),
       rules: [],
       parts: existing.parts,
+      sectionList: existing.sectionList,
+      health: existing.health ?? [],
     };
   }
 
-  const readIfExists = (file: string): string =>
-    existsSync(file) ? stripHtmlComments(readFileSync(file, 'utf8')).trim() : '';
+  const built = buildSections({ home: input.home, config: input.config }, input.extraSections ?? []);
+  const sectionList: { key: string; order: number; text: string }[] = [...built.entries];
+  const parts: Record<string, string> = {};
+  for (const entry of sectionList) parts[entry.key] = entry.text;
+  const rules = built.rules;
 
-  const soul = readIfExists(paths.soulFile);
-  const user = readIfExists(paths.userFile);
-  const rulesText = readIfExists(paths.rulesFile);
-  const parsed = parseRules(rulesText);
-  const ruleErrors = [...parsed.errors, ...validateRules(parsed.rules, { rootDir: input.home })];
-  if (ruleErrors.length > 0) {
-    throw new InjectionError('RULES_INVALID', `RULES.md rejected: ${ruleErrors.join('; ')}`);
-  }
-  const rules = parsed.rules;
-  const renderedRules = renderRules(rules, { includeRevoked: false });
-
-  const parts: Record<'SOUL' | 'GUIDANCE' | 'RULES' | 'USER' | 'MEMORY', string> = {
-    SOUL: soul === '' ? '' : truncate(soul, input.config.inject.persona_max_chars),
-    GUIDANCE: truncate(renderGuidance(input.config.personalization.mode), input.config.inject.guidance_max_chars),
-    USER: user === '' ? '' : truncate(user, input.config.inject.user_max_chars),
-    RULES: renderedRules,
-    MEMORY: '',
-  };
-  const sections: Array<{ title: string; text: string }> = [];
-  for (const title of ['SOUL', 'GUIDANCE', 'RULES', 'USER'] as const) {
-    if (parts[title] !== '') sections.push({ title, text: parts[title] });
-  }
-  if (renderedRules !== '' && charCount(renderedRules) > input.config.inject.rules_max_chars) {
-    throw new InjectionError(
-      'RULES_OVER_BUDGET',
-      `RULES.md renders to ${charCount(renderedRules)} chars, over inject.rules_max_chars (${input.config.inject.rules_max_chars}); trim the rules instead of relying on truncation`,
-    );
-  }
   const catalog = fitCatalog(active, input.config.inject.index_max_chars);
   if (catalog !== '') {
     parts.MEMORY = catalog;
-    sections.push({ title: 'MEMORY', text: catalog });
+    sectionList.push({ key: 'MEMORY', order: SECTION_ORDERS.MEMORY, text: catalog });
   }
+  sectionList.sort((left, right) => left.order - right.order);
 
-  let body = sections.map((section) => `## ${section.title}\n${section.text}`).join('\n\n');
+  let body = sectionList.map((section) => `## ${section.key}\n${section.text}`).join('\n\n');
   const counter = input.config.inject.counter;
   let total = counted(body, counter, input.measure);
   if (total > input.config.inject.total_max_chars) {
-    // Only the catalog may be trimmed further; rules were already checked.
-    const indexSection = sections.find((section) => section.title === 'MEMORY');
+    // Only the catalog may be trimmed further; all other sections are capped.
+    const indexSection = sectionList.find((section) => section.key === 'MEMORY');
     if (indexSection === undefined) {
       throw new InjectionError('OVER_BUDGET', `injection is over inject.total_max_chars (${input.config.inject.total_max_chars})`);
     }
     const excess = total - input.config.inject.total_max_chars;
     indexSection.text = fitCatalog(active, Math.max(0, input.config.inject.index_max_chars - excess - 8));
-    body = sections.map((section) => `## ${section.title}\n${section.text}`).join('\n\n');
+    parts.MEMORY = indexSection.text;
+    body = sectionList.map((section) => `## ${section.key}\n${section.text}`).join('\n\n');
     total = counted(body, counter, input.measure);
     if (total > input.config.inject.total_max_chars) {
       throw new InjectionError('OVER_BUDGET', `injection is over inject.total_max_chars (${input.config.inject.total_max_chars})`);
@@ -231,7 +199,9 @@ export function assemble(input: AssembleInput): AssembleResult {
   const text = `<<AM-${delimiter}>>\n${escaped}\n<<AM-${delimiter}>>`;
 
   const sectionBudgets: Record<string, number> = {};
-  for (const section of sections) sectionBudgets[section.title] = counted(section.text, counter, input.measure);
+  for (const section of sectionList) {
+    sectionBudgets[section.key] = counted(section.text, counter, input.measure);
+  }
 
   const record = {
     session_id: input.sessionId,
@@ -240,6 +210,8 @@ export function assemble(input: AssembleInput): AssembleResult {
     created_at: now().toISOString(),
     text,
     parts,
+    sectionList,
+    health: built.health,
   };
   if (input.persist !== false) {
     writeSnapshot(input.home, record);
@@ -265,9 +237,11 @@ export function assemble(input: AssembleInput): AssembleResult {
       sections: sectionBudgets,
       total,
     },
-    sections: sections.map((section) => section.title),
+    sections: sectionList.map((section) => section.key),
     rules,
     parts,
+    sectionList,
+    health: built.health,
   };
 }
 

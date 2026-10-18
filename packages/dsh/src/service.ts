@@ -294,15 +294,12 @@ export function openHostService(
         source: store,
         sessionId,
       });
-      const order = { SOUL: 100, GUIDANCE: 110, RULES: 150, USER: 200, MEMORY: 300 } as const;
-      return (['SOUL', 'GUIDANCE', 'RULES', 'USER', 'MEMORY'] as const)
-        .filter((key) => result.parts[key] !== '')
-        .map((key) => ({
-          name: `agent-memory:${key.toLowerCase()}`,
-          order: order[key],
-          text: result.parts[key],
-          interpolate: false as const,
-        }));
+      return result.sectionList.map((section) => ({
+        name: `agent-memory:${section.key.toLowerCase()}`,
+        order: section.order,
+        text: section.text,
+        interpolate: false as const,
+      }));
     },
   };
 }

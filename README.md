@@ -301,4 +301,15 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - 验证：`ci` 全绿（**228 个测试**，S12.1）；生成的 preset 补丁经 YAML 解析验证（2 个顶层项、20 个插件、末项为只读记忆插件）。
 - 记录：[ADR-0015](docs/adr/0015-preset-and-tool-trimming.md)。
 
+### 第 15 轮 · V2 P0 探针与 P0.5 解耦（2026-10-18）
+
+- **P0 探针**：客户端半层（手写 loader bundle）注册侧栏「记忆」入口与全页工作台；宿主新增只读路由 `/api/agent-memory/status`；侧栏、页面、接口三项闸门在真实桌面全部通过（路由前缀为 `/api/...`，注册走 `ctx.effect` + `ctx.inject(['connection'])`）。
+- **P0.5 解耦**：
+  - **段注册表** `inject/sections.ts`：新增文档层只需加一个 `SectionSource`（测试 `S13.4` 验证 PRINCIPLES 段按 order 插入）；
+  - **模块健康隔离**：RULES 非法/超预算只降级该段为可见提示（`S13.3`），不再拖垮整次注入；profile / session / injection 各自 guard，`/api/agent-memory/status` 返回 `modules`，GUI 显示「部分模块不可用」；
+  - **能力组** `capabilitiesFor(mode, depth)`（`S13.5`）：readonly 只缺 `facts.write`，子 agent 只有读组；
+  - 快照 schema 升到 v4（`sectionList` + `health`），旧快照自动重捕。
+- 验证：`ci` 全绿（**232 个测试**）；P0 真实桌面通过（侧栏入口、全页工作台、状态接口）。
+- 记录：[ADR-0016](docs/adr/0016-p05-section-registry.md)。
+
 

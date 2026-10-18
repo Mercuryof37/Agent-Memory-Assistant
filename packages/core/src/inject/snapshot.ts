@@ -12,7 +12,7 @@ import { writeFileAtomic } from '../fs/atomic.ts';
  * 20 snapshots are kept (oldest removed on capture).
  */
 
-export const PROMPT_SCHEMA_VERSION = 3;
+export const PROMPT_SCHEMA_VERSION = 4;
 export const SNAPSHOT_KEEP = 20;
 
 export interface SnapshotRecord {
@@ -22,7 +22,9 @@ export interface SnapshotRecord {
   readonly created_at: string;
   readonly text: string;
   /** Per-section text so the host can register one prompt section per source. */
-  readonly parts?: Readonly<Record<'SOUL' | 'GUIDANCE' | 'RULES' | 'USER' | 'MEMORY', string>>;
+  readonly parts?: Readonly<Record<string, string>>;
+  readonly sectionList?: readonly { readonly key: string; readonly order: number; readonly text: string }[];
+  readonly health?: readonly { readonly key: string; readonly ok: boolean; readonly message?: string }[];
 }
 
 export function snapshotPath(home: string, sessionId: string): string {

@@ -228,6 +228,21 @@ export interface TrustedActor {
   readonly delegationDepth: number;
 }
 
+/** Capability groups (architecture v2 P0.5): preset/GUI/MCP compose these. */
+export type CapabilityGroup = 'facts.read' | 'facts.write' | 'proposals.review' | 'rules.read';
+
+export function capabilitiesFor(
+  mode: 'confirm' | 'direct' | 'readonly',
+  delegationDepth: number,
+): readonly CapabilityGroup[] {
+  const capabilities: CapabilityGroup[] = ['facts.read', 'rules.read'];
+  if (delegationDepth === 0) {
+    capabilities.push('proposals.review');
+    if (mode !== 'readonly') capabilities.push('facts.write');
+  }
+  return capabilities;
+}
+
 export interface ToolRegistry {
   register(definition: unknown): unknown;
 }
@@ -247,12 +262,10 @@ export function registerTools(
   quota: SessionQuota = new SessionQuota(service.config.quota.t0_per_session),
   hooks: ToolHooks = {},
 ): RegisteredTool {
+  const capabilities = new Set(capabilitiesFor(service.mode, actor.delegationDepth));
   const names: ToolName[] = ['memory_recall', 'memory_read', 'memory_context', 'rules_list'];
-  if (actor.delegationDepth === 0) {
-    // readonly keeps review (a human decision), but never advertises write tools.
-    names.push('memory_review');
-    if (service.mode !== 'readonly') names.push('memory_record', 'memory_propose');
-  }
+  if (capabilities.has('proposals.review')) names.push('memory_review');
+  if (capabilities.has('facts.write')) names.push('memory_record', 'memory_propose');
 
 /** Tool copy is human-facing; Chinese is the project's default (user preference). */
 const TOOL_DESCRIPTIONS: Readonly<Record<ToolName, string>> = {

@@ -43,9 +43,9 @@ test('S10.1 untouched templates inject nothing; edited SOUL needs a reseal', (t)
   const { home } = fixture(t);
   scaffoldPersonalization({ home });
   const empty = assembleAt(home, 's-empty');
-  assert.equal(empty.parts.SOUL, '');
-  assert.equal(empty.parts.USER, '');
-  assert.equal(empty.parts.RULES, '');
+  assert.equal(empty.parts.SOUL ?? '', '');
+  assert.equal(empty.parts.USER ?? '', '');
+  assert.equal(empty.parts.RULES ?? '', '');
 
   writeFileSync(join(home, 'SOUL.md'), '人格：测试角色\n');
   assert.throws(() => startup({ home }), /SOUL\.md/);

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SessionQuota } from '../../core/src/service/quota.ts';
 import {
+  capabilitiesFor,
   registerTools,
   TOOL_NAMES,
   TOOL_SCHEMAS,
@@ -172,6 +173,13 @@ test('S12.1 readonly hides write tools from the model', () => {
   assert.ok(names.includes('memory_recall' as never));
   assert.ok(names.includes('memory_review' as never));
   assert.equal(service.calls.length, 0);
+});
+
+test('S13.5 capability groups follow mode and delegation depth', () => {
+  assert.deepEqual(capabilitiesFor('confirm', 0), ['facts.read', 'rules.read', 'proposals.review', 'facts.write']);
+  assert.deepEqual(capabilitiesFor('direct', 0), ['facts.read', 'rules.read', 'proposals.review', 'facts.write']);
+  assert.deepEqual(capabilitiesFor('readonly', 0), ['facts.read', 'rules.read', 'proposals.review']);
+  assert.deepEqual(capabilitiesFor('confirm', 1), ['facts.read', 'rules.read']);
 });
 
 test('S4.6 a sub-agent gets read tools only; decide is never a tool', () => {

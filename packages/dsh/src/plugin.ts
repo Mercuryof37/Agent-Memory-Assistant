@@ -198,6 +198,21 @@ export function apply(ctx: PluginContextLike): void {
         ...(commandsNow === undefined ? {} : { commands: commandsNow }),
       };
     };
+    // Module health (architecture v2 P0.5): one failing optional module must
+    // not take the others down. `/api/agent-memory/status` exposes this list.
+    const moduleHealth: { name: string; ok: boolean; error?: string }[] = [];
+    const guard = (name: string, run: () => void): void => {
+      try {
+        run();
+        moduleHealth.push({ name, ok: true });
+      } catch (error) {
+        moduleHealth.push({
+          name,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    };
     // S9 review card: propose opens a Chinese button card and the click runs
     // `/mem decide …`; the model never supplies the verdict (ADR-0012).
     registerTools(ctx as never, host, { sessionId, delegationDepth: 0 }, undefined, {
@@ -217,18 +232,22 @@ export function apply(ctx: PluginContextLike): void {
     });
     // P1: USER.md profile tool (read always; writes need a prior read + card).
     const readSessions = new Set<string>();
-    registerUserProfileTool(ctx as never, {
-      home,
-      store: host.store,
-      resolveQuestions,
-      mode: host.mode,
-      readSessions,
-    });
+    guard('user-profile', () =>
+      registerUserProfileTool(ctx as never, {
+        home,
+        store: host.store,
+        resolveQuestions,
+        mode: host.mode,
+        readSessions,
+      }),
+    );
     // P2: session-history tools over the host's native sessionQuery service.
-    registerSessionTools(ctx as never, {
-      resolveQuery: () => service<SessionQueryLike>(ctx, 'sessionQuery'),
-      sessionId,
-    });
+    guard('session-tools', () =>
+      registerSessionTools(ctx as never, {
+        resolveQuery: () => service<SessionQueryLike>(ctx, 'sessionQuery'),
+        sessionId,
+      }),
+    );
     // V2 P0 probe: one read-only exact Fetch route for the client panel. Exact
     // routes own their full `/api/...` path (see dsh-api-session-controller).
     const statusRoute = {
@@ -245,6 +264,7 @@ export function apply(ctx: PluginContextLike): void {
             pending: stats.pending_proposals,
             journal_head: stats.journal_head,
             mode: host.mode,
+            modules: moduleHealth,
           }),
           {
             status: 200,
@@ -294,12 +314,10 @@ export function apply(ctx: PluginContextLike): void {
     } catch {
       // A journal problem is reported by `mem doctor`; the panel can still load.
     }
-    try {
+    guard('injection', () => {
       const prompt = service<PromptRegistryLike>(ctx, 'systemPrompt');
       for (const section of host.assembleSections()) prompt?.section(section);
-    } catch {
-      // Injection problems are reported by `mem doctor`; keep the tools usable.
-    }
+    });
 
     // S6 closeout: `/closeout` opens a round, registers `closeout_submit` only
     // for that round, and disposes it after submit (or when a new round opens).

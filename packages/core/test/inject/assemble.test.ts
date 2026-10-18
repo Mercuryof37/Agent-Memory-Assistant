@@ -6,7 +6,7 @@ import { initStore } from '../../src/init.ts';
 import { loadConfig } from '../../src/config/load.ts';
 import { loadPolicy, sealPolicy, type Policy } from '../../src/policy/policy.ts';
 import { MemoryStore } from '../../src/store/store.ts';
-import { assemble, InjectionError } from '../../src/inject/assemble.ts';
+import { assemble } from '../../src/inject/assemble.ts';
 import { snapshotPath, writeSnapshot, PROMPT_SCHEMA_VERSION } from '../../src/inject/snapshot.ts';
 import { StartupError } from '../../src/errors.ts';
 import type { MemoryDoc } from '../../src/model/types.ts';
@@ -130,13 +130,19 @@ test('S3.4 snapshots keep only the newest 20', (t) => {
   assert.equal(files.length, 20);
 });
 
-test('S3.5 rules over budget fail loudly instead of truncating', (t) => {
+test('S13.3 rules over budget degrade only the rules section', (t) => {
   const { home, config, policy } = fixture(t);
+  writeFileSync(join(home, 'SOUL.md'), '人格：仍然可用\n');
+  sealPolicy({ home, accept: true });
   writeFileSync(join(home, 'RULES.md'), `1. [模型指引] ${'长'.repeat(config.inject.rules_max_chars + 100)}\n`);
-  assert.throws(
-    () => assemble({ home, config, policy, source: source([]), sessionId: 's1', persist: false }),
-    (error: unknown) => error instanceof InjectionError && error.code === 'RULES_OVER_BUDGET',
-  );
+  const result = assemble({ home, config, policy, source: source([]), sessionId: 's1', persist: false });
+  const rulesHealth = result.health.find((entry) => entry.key === 'RULES');
+  assert.equal(rulesHealth?.ok, false);
+  assert.match(result.parts.RULES ?? '', /本节不可用（RULES）/);
+  // The other sections keep rendering: SOUL is still there and the body has no
+  // hard-fail; only the RULES block was replaced by the notice.
+  assert.match(result.parts.SOUL ?? '', /人格：仍然可用/);
+  assert.ok(result.sectionList.some((section) => section.key === 'RULES'));
 });
 
 test('S3.5 empty sections produce no empty headings', (t) => {
@@ -188,12 +194,33 @@ test('S11.3 the guidance section follows personalization.mode and stays in budge
     });
 
   const confirm = assembleWith('confirm', 'g1');
-  assert.match(confirm.parts.GUIDANCE, /记忆与方法复用/);
-  assert.match(confirm.parts.GUIDANCE, /确认卡片/);
-  assert.ok([...confirm.parts.GUIDANCE].length <= config.inject.guidance_max_chars);
+  assert.match(confirm.parts.GUIDANCE ?? '', /记忆与方法复用/);
+  assert.match(confirm.parts.GUIDANCE ?? '', /确认卡片/);
+  assert.ok([...(confirm.parts.GUIDANCE ?? '')].length <= config.inject.guidance_max_chars);
 
-  assert.match(assembleWith('direct', 'g2').parts.GUIDANCE, /直接写入/);
-  assert.match(assembleWith('readonly', 'g3').parts.GUIDANCE, /只读/);
+  assert.match(assembleWith('direct', 'g2').parts.GUIDANCE ?? '', /直接写入/);
+  assert.match(assembleWith('readonly', 'g3').parts.GUIDANCE ?? '', /只读/);
+});
+
+test('S13.4 an extra document layer plugs into the section registry', (t) => {
+  const { home, config, policy } = fixture(t);
+  writeFileSync(join(home, 'RULES.md'), '1. [模型指引] 测试规则\n');
+  const result = assemble({
+    home,
+    config,
+    policy,
+    source: source([]),
+    sessionId: 'extra-doc',
+    persist: false,
+    extraSections: [
+      { key: 'PRINCIPLES', order: 120, load: () => '原则：先读后写，再改。' },
+    ],
+  });
+  assert.match(result.parts.PRINCIPLES ?? '', /先读后写/);
+  assert.ok(result.health.some((entry) => entry.key === 'PRINCIPLES' && entry.ok));
+  const keys = result.sectionList.map((section) => section.key);
+  assert.ok(keys.indexOf('PRINCIPLES') > keys.indexOf('GUIDANCE'));
+  assert.ok(keys.indexOf('PRINCIPLES') < keys.indexOf('RULES'));
 });
 
 test('T3 a deleted memory never reaches the assembled text', (t) => {
