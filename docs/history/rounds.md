@@ -445,3 +445,9 @@
 - 风险：memory_propose 创建后立即弹卡并返回 review；宿主自动回答即可把创建和审批耦合。
 - 修复：memory_propose 只创建 pending；review answer id 必须匹配提案；decide 后复核 pending。
 - 测试：S9.1 改造 + answer 错配用例；全量 295 pass / 1 skip。
+
+### 第 53 轮 · 0.5.4 提案审批提醒（2026-10-18）
+
+- `memory_propose` 返回 `status: pending` 与 `reminder`；渲染文本明确“去【记忆 → 提案】审批”。
+- 仍不弹卡、不 decide；提醒只是可见输出，不改变审批门禁。
+- 测试：S9.1 断言 reminder 含“记忆 → 提案”和提案编号；全量 295 pass / 1 skip。

@@ -148,13 +148,15 @@ test('S9.1 memory_propose only creates a pending proposal; memory_review opens t
   });
   const propose = calls.find((call) => call.name === 'memory_propose');
   assert.ok(propose);
-  const result = await propose.execute({
+  const result = (await propose.execute({
     op: 'delete',
     ids: ['mem-20261017-00000001'],
     base_hashes: ['x'],
     reason: 'r',
-  });
-  assert.deepEqual(result, { id: 'prop-1' });
+  })) as { status: string; reminder: string };
+  assert.equal(result.status, 'pending');
+  assert.match(result.reminder, /记忆 → 提案/);
+  assert.match(result.reminder, /prop-1/);
   assert.equal(reviewed.length, 0);
 
   const review = calls.find((call) => call.name === 'memory_review');

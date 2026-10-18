@@ -4,6 +4,13 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
+## [0.5.4] - 2026-10-18
+
+### Added
+
+- `memory_propose` now returns a pending reminder and the tool output explicitly
+  tells the user to approve in **Memory → Proposals**; it still never decides.
+
 ## [0.5.3] - 2026-10-18
 
 ### Security

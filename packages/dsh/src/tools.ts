@@ -224,13 +224,17 @@ export interface ToolService {
 }
 
 /**
- * Host-side review card hooks (ADR-0012). `memory_propose` opens the card right
- * after a proposal is stored; `memory_review` re-opens it for a deferred one.
- * The hook turns the click into `/mem decide …` and returns the outcome.
+ * Host-side review card hooks (ADR-0012). `memory_review` opens the card for a
+ * pending proposal; `memory_propose` only stores a proposal and leaves approval
+ * to the human (ADR-0048).
  */
 export interface ToolHooks {
   readonly reviewProposal?: (proposal: unknown, exec?: unknown) => Promise<unknown>;
   readonly reviewPending?: (proposalId: string | undefined, exec?: unknown) => Promise<unknown>;
+}
+
+export function proposalPendingReminder(proposalId: string): string {
+  return `提案已创建（${proposalId}），等待人工审批。请到【记忆 → 提案】查看并点击「采纳」或「驳回」。`;
 }
 
 export interface TrustedActor {
@@ -282,7 +286,7 @@ const TOOL_DESCRIPTIONS: Readonly<Record<ToolName, string>> = {
   memory_recall: '检索长期记忆：按查询返回相关摘要与记忆编号',
   memory_read: '读取一条记忆的全文、出处与状态',
   memory_record: '写入一条新记忆（必须给出真实事件出处）',
-  memory_propose: '提出记忆修订或删除提案；只创建待审提案，不自动审批',
+  memory_propose: '提出记忆修订或删除提案；只创建待审提案，创建后必须提醒用户去【记忆 → 提案】审批，不自动审批',
   memory_review: '为待审提案弹出中文审批卡片',
   memory_context: '查看当前会话最近事件，取得可用于出处的 event_seq',
   rules_list: '列出当前生效的规则',
@@ -302,10 +306,13 @@ const TOOL_DESCRIPTIONS: Readonly<Record<ToolName, string>> = {
         const proposal = (candidate.proposal as { id?: unknown } | undefined) ?? candidate;
         const review = candidate.review as { decision?: unknown } | undefined;
         const proposalId = name === 'memory_propose' && review === undefined ? proposal.id : undefined;
-        const hint =
-          typeof proposalId === 'string'
-            ? `\n\n人在聊天框决定：/mem decide ${proposalId} accept 或 reject；也可调用 memory_review 重新弹出卡片`
-            : '';
+        const reminder =
+          typeof candidate.reminder === 'string'
+            ? candidate.reminder
+            : typeof proposalId === 'string'
+              ? proposalPendingReminder(proposalId)
+              : '';
+        const hint = reminder === '' ? '' : `\n\n${reminder}`;
         return [{ type: 'text', text: text + hint }];
       },
     },
@@ -341,7 +348,13 @@ const TOOL_DESCRIPTIONS: Readonly<Record<ToolName, string>> = {
       // Deliberately do NOT open a review card here. Approval is a separate
       // human action (proposal page or memory_review); creating a proposal must
       // never be able to select an option on the human's behalf.
-      return service.propose(args, actor, exec);
+      const proposal = (await service.propose(args, actor, exec)) as { id?: unknown };
+      const proposalId = typeof proposal.id === 'string' ? proposal.id : '';
+      return {
+        ...proposal,
+        status: 'pending',
+        reminder: proposalPendingReminder(proposalId),
+      };
     },
     memory_review: async (args, exec) => {
       if (hooks.reviewPending === undefined) {

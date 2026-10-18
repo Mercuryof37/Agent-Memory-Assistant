@@ -21,7 +21,8 @@
 2. 审批只能由人从提案页操作，或显式调用 `memory_review` 后由人点击卡片；
 3. `reviewProposal` 必须校验 answer 的 `id` 等于当前 proposal id，否则一律 defer；
 4. 执行 `/mem decide` 后再次检查 proposal 是否仍在 pending；仍存在则返回失败，不报“已采纳”；
-5. 保留 `decide` 不是模型工具的红线。
+5. 保留 `decide` 不是模型工具的红线；
+6. **每次创建提案都返回 `reminder`**，并渲染“请到【记忆 → 提案】审批”，模型必须把提示转告用户（0.5.4）。
 
 ## 结果
 
