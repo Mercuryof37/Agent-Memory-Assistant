@@ -421,7 +421,13 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
         setUpdateInfo({ checking: true });
         fetch("/api/agent-memory/update/check", { headers: { accept: "application/json" } })
           .then(async (response) => {
-            const data = await response.json();
+            const text = await response.text();
+            let data;
+            try {
+              data = JSON.parse(text);
+            } catch {
+              throw new Error(`更新接口返回非 JSON（HTTP ${response.status}）：${text.slice(0, 80)}`);
+            }
             if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
             return data;
           })
@@ -440,7 +446,13 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           body: JSON.stringify({ version: updateInfo.latest }),
         })
           .then(async (response) => {
-            const data = await response.json();
+            const text = await response.text();
+            let data;
+            try {
+              data = JSON.parse(text);
+            } catch {
+              throw new Error(`更新接口返回非 JSON（HTTP ${response.status}）：${text.slice(0, 80)}`);
+            }
             if (!response.ok || data.ok === false) throw new Error(data.error || `HTTP ${response.status}`);
             return data;
           })

@@ -711,7 +711,13 @@ function MemoryPage() {
     setUpdateBusy(true);
     setUpdateInfo({ checking: true });
     fetch("/api/agent-memory/update/check", { headers: { accept: "application/json" } }).then(async (response) => {
-      const data2 = await response.json();
+      const text = await response.text();
+      let data2;
+      try {
+        data2 = JSON.parse(text);
+      } catch {
+        throw new Error(`更新接口返回非 JSON（HTTP ${response.status}）：${text.slice(0, 80)}`);
+      }
       if (!response.ok) throw new Error(data2.error || `HTTP ${response.status}`);
       return data2;
     }).then((data2) => setUpdateInfo(data2)).catch((error) => setUpdateInfo({ error: String(error) })).finally(() => setUpdateBusy(false));
@@ -725,7 +731,13 @@ function MemoryPage() {
       headers: { accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify({ version: updateInfo.latest })
     }).then(async (response) => {
-      const data2 = await response.json();
+      const text = await response.text();
+      let data2;
+      try {
+        data2 = JSON.parse(text);
+      } catch {
+        throw new Error(`更新接口返回非 JSON（HTTP ${response.status}）：${text.slice(0, 80)}`);
+      }
       if (!response.ok || data2.ok === false) throw new Error(data2.error || `HTTP ${response.status}`);
       return data2;
     }).then((data2) => setUpdateInfo((previous) => ({ ...previous || {}, applied: data2 }))).catch((error) => setUpdateInfo((previous) => ({ ...previous || {}, applyError: String(error) }))).finally(() => setUpdateBusy(false));

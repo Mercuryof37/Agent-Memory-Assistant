@@ -6,7 +6,7 @@
  * spec; it never downloads or executes a caller-supplied URL.
  */
 
-export const PLUGIN_VERSION = '0.5.1';
+export const PLUGIN_VERSION = '0.5.2';
 const PACKAGE_NAME = '@agent_memory/dsh';
 const REGISTRY_LATEST = [
   'https://registry.npmjs.org/@agent_memory%2Fdsh/latest',
@@ -61,8 +61,16 @@ export function createUpdateService(manager: BundleManager | undefined, fetcher:
             headers: { accept: 'application/json' },
             signal: AbortSignal.timeout(8000),
           });
-          if (!response.ok) throw new Error(`registry returned HTTP ${response.status}`);
-          const body = (await response.json()) as { version?: unknown; dist?: { tarball?: unknown } };
+          const text = await response.text();
+          if (!response.ok) {
+            throw new Error(`registry returned HTTP ${response.status}: ${text.slice(0, 120)}`);
+          }
+          let body: { version?: unknown; dist?: { tarball?: unknown } };
+          try {
+            body = JSON.parse(text) as typeof body;
+          } catch {
+            throw new Error(`registry returned non-JSON: ${text.slice(0, 120)}`);
+          }
           if (typeof body.version !== 'string' || !/^\d+\.\d+\.\d+/.test(body.version)) {
             throw new Error('registry response has no valid version');
           }

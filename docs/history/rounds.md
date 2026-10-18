@@ -431,3 +431,10 @@
 - **一键升级**：只调用宿主 `pluginManager.installBundle("@agent_memory/dsh@x.y.z")`；无服务时 fail-closed 提示手动更新。
 - **安全**：拒绝 URL/任意 spec；不后台轮询；不自动重启；安装后提示完整重启。
 - **测试**：S29.1–S29.3；GUI 路由登记；用户手册/公告/ADR-0047。
+
+### 第 51 轮 · 0.5.2 更新检查错误处理（2026-10-18）
+
+- 现象：检查更新报 `SyntaxError: Unexpected token 'o', "not found" is not valid JSON`。
+- 原因定位：更新路由未注册/旧进程未重启时，宿主返回纯文本 `not found`；客户端直接 `response.json()`。
+- 修复：服务端先读文本、校验 HTTP/JSON 并回退镜像；客户端防御性解析，提示完整重启 DSH。
+- 测试：S29.4 纯文本响应 → `non-JSON`；全量 294 pass + 1 skip。

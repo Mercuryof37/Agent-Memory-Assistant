@@ -49,3 +49,11 @@ test('S29.3 without a host manager, upgrade fails closed with manual guidance', 
   assert.equal(result.manual, true);
   assert.match(result.error ?? '', /设置/);
 });
+
+test('S29.4 a plain-text registry response becomes a useful error, not SyntaxError', async () => {
+  const service = createUpdateService(
+    undefined,
+    async () => new Response('not found', { status: 200 }),
+  );
+  await assert.rejects(service.check(), /non-JSON.*not found/);
+});

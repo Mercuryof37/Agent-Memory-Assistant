@@ -4,6 +4,15 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
+## [0.5.2] - 2026-10-18
+
+### Fixed
+
+- Update check no longer surfaces `SyntaxError` when the local GUI route or a
+  registry returns plain text; it reports the HTTP status and a short snippet.
+- Client parses update responses defensively and tells the user to fully
+  restart DSH when the update route is not registered.
+
 ## [0.5.1] - 2026-10-18
 
 ### Added
