@@ -54,7 +54,7 @@
 
 ```text
 ~/.dsh/memory/
-  SOUL.md USER.md RULES.md GUIDANCE.md   # 人维护，注入
+  SOUL.md USER.md RULES.md                # 人维护，注入（RULES/SOUL 封存）
   policy.json seal.json                   # 封存
   memories/<kind>/<id>.md                 # 不可变记录
   proposals/pending/<id>.json             # 待审提案
@@ -62,13 +62,15 @@
   .state/index/  .state/snapshots/         # 可重建缓存
 ```
 
+**GUIDANCE 不是文件**：它是 `renderGuidance(personalization.mode)` 在注入时生成的短指引（记忆分类、先读后写、写入必须带出处、当前模式的写权限、子 agent 只读），没有用户可编辑的 `GUIDANCE.md`。
+
 记录（v1.3）：`id, kind(fact|pitfall|exp), abstract, body, valid_from/valid_until, supersedes, author, evidence_level, error_signatures, provenance, content_hash`。删除不写回旧文件，只在 journal 追加；`purge` 才物理移除。
 
 ## 5. 关键流程
 
 ### 5.1 注入
 
-`assemble()` 读取段注册表（SOUL/GUIDANCE/RULES/USER/MEMORY），按预算渲染 → 每会话冻结到 snapshot（schema v4）→ 宿主注册为独立 systemPrompt section。可选段失败只降级该段并写 health；封存/存储完整性仍是全局失败。
+`assemble()` 读取段注册表（SOUL 100 / GUIDANCE 110 / RULES 150 / USER 200 / MEMORY 300），按预算渲染 → 每会话冻结到 snapshot（schema v4）→ 宿主注册为独立 systemPrompt section。GUIDANCE 随 `personalization.mode` 变化（confirm/direct/readonly），预算 `inject.guidance_max_chars`（默认 300）。可选段失败只降级该段并写 health；封存/存储完整性仍是全局失败。
 
 ### 5.2 写入
 
