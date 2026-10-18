@@ -4,6 +4,7 @@
 
 - 开发方案：[v1.3](docs/research/V1.0-开发方案-v1.3.md)（取代 v1.2 与更早版本）
 - **V2.0 方案**：[图形化与分发](docs/plan/v2-gui-and-distribution.md)（客户端插件、一键部署、跨平台外挂）；**架构审核与 10 问决策**：[v2-architecture-review.md](docs/plan/v2-architecture-review.md)；**UI 命名规范**：[ui-guidelines.md](docs/design/ui-guidelines.md)
+- **V3.0 方案**：[独立视觉、手写工作流与正式发布](docs/plan/v3-visual-and-workflows.md)（调研稿，未开工）
 - 原始调研材料：[docs/research/](docs/research/)
 - 当前阶段：**V1.0 全部阶段完成**（S0–S14；[ADR-0010](docs/adr/0010-s7-ops.md) 起，最新 [ADR-0015](docs/adr/0015-preset-and-tool-trimming.md)）
 - 配置与策略：**config v2（24 键）/ policy v2（8 + sealed_files 3 键）**，见 [ADR-0004](docs/adr/0004-plan-v1.3.md)
