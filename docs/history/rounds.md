@@ -323,3 +323,11 @@
 - **异步检索**：`MemoryStore.recallAsync` 融合 BM25 + 缓存向量 + 查询向量；DSH/GUI/CLI/MCP 已接入；缓存/命令缺失自动回退 BM25 并 warning。
 - **边界**：插件不内置 ONNX（node 301MB/web 145MB），运行时由用户安装；模型走 sidecar。
 - **验证**：S20.4 fake vectorizer 端到端；`npm test` 271 pass / 1 skip；ADR-0035。
+
+### 第 37 轮 · V4.0-S2c LongMemEval-style 评测（2026-10-18）
+
+- **夹具**：24 条记忆 / 10 问，覆盖单会话用户/助手、多会话、时序、知识更新、弃答；明确非官方数据集。
+- **指标**：BM25 与 hash-hybrid 各评 recall@5、MRR、弃答误报、分类召回、P95；固定日期基线 2026-10-17。
+- **地板**：`docs/eval/s2c-baseline.json` + `s2c-thresholds.json`；`npm run eval:longmem` 可重放。
+- **结果**：BM25/hybrid 均 recall@5 1.0、MRR 0.7917、弃答误报 0；测试 S21.1/S21.2 锁定。
+- **验证**：`npm test` 273 pass / 1 skip；ADR-0036。

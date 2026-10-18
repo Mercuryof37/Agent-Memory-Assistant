@@ -1,0 +1,12 @@
+{
+  "bm25": {
+    "recallAt5": 0.9,
+    "mrr": 0.7,
+    "abstentionFPMax": 0.1
+  },
+  "hybrid": {
+    "recallAt5": 0.9,
+    "mrr": 0.7,
+    "abstentionFPMax": 0.1
+  }
+}

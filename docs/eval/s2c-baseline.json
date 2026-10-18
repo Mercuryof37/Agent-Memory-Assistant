@@ -1,0 +1,33 @@
+{
+  "memories": 24,
+  "queries": 10,
+  "baselineDate": "2026-10-17",
+  "bm25": {
+    "recallAt5": 1,
+    "mrr": 0.7917,
+    "abstentionFalsePositiveRate": 0,
+    "perCategory": {
+      "single_session_user": 1,
+      "single_session_assistant": 1,
+      "multi_session": 1,
+      "temporal": 1,
+      "knowledge_update": 1,
+      "abstention": 1
+    },
+    "p95Ms": 7.482
+  },
+  "hybrid": {
+    "recallAt5": 1,
+    "mrr": 0.7917,
+    "abstentionFalsePositiveRate": 0,
+    "perCategory": {
+      "single_session_user": 1,
+      "single_session_assistant": 1,
+      "multi_session": 1,
+      "temporal": 1,
+      "knowledge_update": 1,
+      "abstention": 1
+    },
+    "p95Ms": 1.51
+  }
+}

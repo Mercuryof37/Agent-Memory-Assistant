@@ -16,6 +16,7 @@ SemVer.
   local embedding fallback (ONNX provider in S2b).
 - Sidecar embedding cache (`mem embed --apply`, `AGENT_MEMORY_VECTORIZER`) and
   async hybrid recall with BM25 fallback.
+- LongMemEval-style offline subset evaluation (`npm run eval:longmem`).
 
 ## [0.2.1] - 2026-10-18
 

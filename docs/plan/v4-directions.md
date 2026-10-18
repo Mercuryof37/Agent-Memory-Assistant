@@ -242,7 +242,7 @@ git -c http.sslBackend=openssl -c credential.helper= clone --depth 1 <repo>
 | 阶段 | 内容 | 出口（测试/体验） |
 |---|---|---|
 | **S1 数据与项目** ✅ | frontmatter v1.4（`project/tags/relations`）、用户自建项目、读时兼容、导入导出补字段；见 [ADR-0033](../adr/0033-v4-data-projects.md) | 旧记录读取不变；项目创建/列表；三类边校验；roundtrip |
-| **S2 检索** | S2a provider seam/hybrid；S2b sidecar 向量缓存 + `recallAsync`；S2c LongMemEval 子集评测 | S2a/S2b ✅（[ADR-0034](../adr/0034-v4-s2a-hybrid.md)、[0035](../adr/0035-v4-s2b-sidecar.md)）；S2c 待开始 |
+| **S2 检索** ✅ | S2a provider seam/hybrid；S2b sidecar 向量缓存 + `recallAsync`；S2c LongMemEval-style 子集评测 | 见 [ADR-0034](../adr/0034-v4-s2a-hybrid.md)、[0035](../adr/0035-v4-s2b-sidecar.md)、[0036](../adr/0036-v4-s2c-longmem.md) |
 | **S3 互操作** | Mem0 adapter（预览/去重/来源）、Memory API v1、MCP 工具对齐 | Mem0 样本导入逐条报告；导出 roundtrip；MCP 四端握手 |
 | **S4 工作树** | 项目树 L0–L2、焦点局部图、冲突提示、只读派生缓存 | 50/200 节点上限；深度/过滤；点击焦点；无图数据库 |
 
