@@ -31,6 +31,12 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /查看详情/);
   assert.match(source, /目标全文/);
   assert.match(source, /修改后摘要/);
+  // Backup buttons sit at the end of the toolbar (after the manual button).
+  const manualAt = source.indexOf('命令手册');
+  const exportAt = source.indexOf('导出备份');
+  const importAt = source.indexOf('导入备份');
+  assert.ok(manualAt !== -1 && exportAt !== -1 && importAt !== -1);
+  assert.ok(manualAt < exportAt && exportAt < importAt);
   assert.ok(!/detail\.data\.id\s*\}?\s*·/.test(source));
   // The workbench owns a viewport-height scroll container with a styled rail;
   // the host panel does not scroll in windowed mode.

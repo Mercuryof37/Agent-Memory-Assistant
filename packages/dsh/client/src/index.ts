@@ -495,6 +495,9 @@ import * as React from "react";
             },
           }),
           React.createElement("button", { style: styles.buttonPrimary, onClick: runSearch }, "搜索"),
+          React.createElement("button", { style: styles.button, onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
+          React.createElement("button", { style: styles.button, onClick: openSettings }, "偏好与规则"),
+          React.createElement("button", { style: styles.button, onClick: () => setManual(true) }, "命令手册"),
           React.createElement("button", { style: styles.button, onClick: exportNow }, "导出备份"),
           React.createElement("input", {
             ref: fileInputRef,
@@ -511,9 +514,6 @@ import * as React from "react";
             { style: styles.button, disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
             "导入备份",
           ),
-          React.createElement("button", { style: styles.button, onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
-          React.createElement("button", { style: styles.button, onClick: openSettings }, "偏好与规则"),
-          React.createElement("button", { style: styles.button, onClick: () => setManual(true) }, "命令手册"),
         ),
         notice ? React.createElement("p", { style: styles.notice }, notice) : null,
         panel === "proposals"

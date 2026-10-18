@@ -792,7 +792,10 @@ export class MemoryStore {
   }
 
   private findDuplicate(input: RecordInput, author: 'agent' | 'human'): MemoryDoc | undefined {
-    const validFrom = input.valid_from ?? today(this.now());
+    // Content-only dedupe (user request): the date, author and evidence level
+    // do not make the same text a new memory. Importing yesterday's export on
+    // a new date must skip, not duplicate.
+    void author;
     // The stored body always carries the file's single trailing newline.
     const body = input.body.endsWith('\n') ? input.body : `${input.body}\n`;
     for (const doc of this.docs.values()) {
@@ -801,9 +804,6 @@ export class MemoryStore {
         doc.kind === input.kind &&
         doc.abstract === input.abstract &&
         doc.body === body &&
-        doc.valid_from === validFrom &&
-        doc.author === author &&
-        doc.evidence_level === input.evidence_level &&
         JSON.stringify(doc.error_signatures) === JSON.stringify(input.error_signatures ?? []) &&
         doc.supersedes.length === 0
       ) {

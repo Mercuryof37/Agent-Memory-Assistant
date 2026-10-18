@@ -221,3 +221,35 @@ test('S14.10 an exported bundle imports back and dedupes', (t) => {
 
   assert.throws(() => importBundle(target.store, { format: 'nope' }), /format/);
 });
+
+test('S14.11 content-only dedupe ignores date and author', (t) => {
+  const { store } = fixture(t);
+  const first = store.add(
+    { kind: 'fact', abstract: '同一条内容', body: '同样正文', valid_from: '2026-10-01', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  const second = store.add(
+    { kind: 'fact', abstract: '同一条内容', body: '同样正文', valid_from: '2026-10-18', evidence_level: 'user_confirmed' },
+    { author: 'human' },
+  );
+  assert.equal(first.deduplicated, false);
+  assert.equal(second.deduplicated, true);
+  assert.equal(store.active().length, 1);
+});
+
+test('S14.12 lists sort by valid_from, newest first', (t) => {
+  const { store } = fixture(t);
+  const older = store.add(
+    { kind: 'fact', abstract: '较早的事', body: 'old', valid_from: '2026-10-17', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  const newer = store.add(
+    { kind: 'fact', abstract: '较晚的事', body: 'new', valid_from: '2026-10-18', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  // Importing now does not reorder by created_at: the date shown wins.
+  const serials = serialsFor(store.active());
+  assert.equal(serials.get(newer.id as never), 'F-01');
+  assert.equal(serials.get(older.id as never), 'F-02');
+  assert.equal(buildList(store).groups[0]?.items[0]?.abstract, '较晚的事');
+});

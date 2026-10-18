@@ -24,6 +24,9 @@ const KIND_LABEL: Record<string, string> = { fact: '事实', pitfall: '坑', exp
 const KIND_PREFIX: Record<string, string> = { fact: 'F', pitfall: 'P', exp: 'E' };
 
 function byDateDesc(left: MemoryDoc, right: MemoryDoc): number {
+  // Sort by the date the UI shows (valid_from), not import/creation time:
+  // restored entries keep their original date and must not jump to the top.
+  if (left.valid_from !== right.valid_from) return right.valid_from.localeCompare(left.valid_from);
   if (left.created_at !== right.created_at) return right.created_at.localeCompare(left.created_at);
   return right.id.localeCompare(left.id);
 }
