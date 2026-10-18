@@ -34,6 +34,7 @@ V1.0 已完成；V2/V3 的功能迭代见 [开发历程](../history/rounds.md) �
 | V5.0-S2 | checkpoint + 尾部重放 + Merkle/HMAC | ✅ 完成 | [ADR-0040](../adr/0040-v5-checkpoint.md) |
 | V5.0-S3 | 归档/保留/自动维护 | ✅ 完成 | [ADR-0041](../adr/0041-v5-archive.md) |
 | V5.0-S4 | 读/写路径缓存与增量写入 | ✅ 完成（10k/100k 待 S5 压测） | [ADR-0042](../adr/0042-v5-read-cache.md) / [0043](../adr/0043-v5-write-path.md) |
+| V5.0-S5 | verify --deep、HMAC 只读、归档顺序、10k 批量/group commit、0.5.0 | ✅ 完成 | [ADR-0044](../adr/0044-v5-verify.md) / [0045](../adr/0045-v5-batch-wal.md) / [0046](../adr/0046-v5-group-commit.md) |
 
 ## 闭环检查
 

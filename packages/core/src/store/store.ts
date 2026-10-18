@@ -82,6 +82,14 @@ export class MemoryStore {
   private cachedIndex: { revision: number; asOf: string; index: ReturnType<typeof buildIndex> } | null = null;
   private revision = 0;
   private fileMeta = new Map<MemoryId, { mtimeMs: number; size: number }>();
+  private dirtyDerived = 0;
+  private pendingAdds: {
+    input: RecordInput;
+    options: { author: 'agent' | 'human'; opId?: string; provenance?: readonly ProvenanceEntry[] };
+    resolve: (result: WriteResult) => void;
+    reject: (error: unknown) => void;
+  }[] = [];
+  private addTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(options: StoreOptions) {
     this.paths = memoryPaths(options.home);
@@ -633,6 +641,7 @@ export class MemoryStore {
     const archiveDir = this.paths.journalArchiveDir;
     ensureDir(archiveDir);
     const archived: string[] = [];
+    const toDelete: string[] = [];
     let throughSeq = 0;
     let throughHash = '';
     for (const name of segments.slice(0, at)) {
@@ -660,7 +669,7 @@ export class MemoryStore {
       writeFileAtomic(join(archiveDir, `${base}.meta.json`), `${JSON.stringify(meta, null, 2)}\n`);
       throughSeq = last.seq;
       throughHash = lastHash;
-      rmSync(file, { force: true });
+      toDelete.push(file);
       archived.push(name);
     }
     if (archived.length > 0) {
@@ -668,6 +677,9 @@ export class MemoryStore {
         join(archiveDir, 'index.json'),
         `${JSON.stringify({ schema: 1, through_seq: throughSeq, through_hash: throughHash, segments: archived }, null, 2)}\n`,
       );
+      // Delete originals only after the archive index is durable. A crash after
+      // this point leaves duplicate lines, which readAll skips by seq.
+      for (const file of toDelete) rmSync(file, { force: true });
       this.journal.append({ op: 'audit', data: { event: 'journal-archive', segments: archived, through_seq: throughSeq } });
     }
     return archived;
@@ -834,6 +846,64 @@ export class MemoryStore {
       return { id: doc.id, content_hash: hash, deduplicated: false, warnings: [] };
     } finally {
       lock.release();
+    }
+  }
+
+  /**
+   * Group-commit variant of `add`: concurrent callers are coalesced for a short
+   * window, then written with one journal fsync. Sequential awaited calls still
+   * pay one commit each; use it when several producers write at once.
+   */
+  addAsync(
+    input: RecordInput,
+    options: { author: 'agent' | 'human'; opId?: string; provenance?: readonly ProvenanceEntry[] },
+  ): Promise<WriteResult> {
+    return new Promise((resolve, reject) => {
+      this.pendingAdds.push({ input, options, resolve, reject });
+      if (this.addTimer === undefined) {
+        this.addTimer = setTimeout(() => {
+          this.addTimer = undefined;
+          this.flushAddGroup();
+        }, 2);
+      }
+    });
+  }
+
+  private flushAddGroup(): void {
+    const pending = this.pendingAdds.splice(0);
+    if (pending.length === 0) return;
+    try {
+      this.reload();
+      if (this.issues.length > 0) {
+        throw new MemoryStoreError('CONFLICT', `journal is inconsistent, writes are blocked: ${this.issues[0]}`);
+      }
+      const unique: typeof pending = [];
+      for (const job of pending) {
+        const duplicate = this.findDuplicate(job.input, job.options.author);
+        if (duplicate === undefined) {
+          unique.push(job);
+        } else {
+          this.appendAudit({ event: 'dedupe', id: duplicate.id });
+          job.resolve({ id: duplicate.id, content_hash: duplicate.content_hash, deduplicated: true, warnings: [] });
+        }
+      }
+      for (const author of ['human', 'agent'] as const) {
+        const group = unique.filter((job) => job.options.author === author);
+        if (group.length === 0) continue;
+        const commonOpId = group.length === 1 ? group[0]?.options.opId : undefined;
+        const results = this.addMany(
+          group.map((job) => ({
+            ...job.input,
+            ...(job.options.provenance === undefined ? {} : { provenance: job.options.provenance }),
+          })),
+          { author, ...(commonOpId === undefined ? {} : { opId: commonOpId }) },
+        );
+        for (let index = 0; index < group.length; index += 1) {
+          (group[index] as (typeof group)[number]).resolve(results[index] as WriteResult);
+        }
+      }
+    } catch (error) {
+      for (const job of pending) job.reject(error);
     }
   }
 
@@ -1038,20 +1108,39 @@ export class MemoryStore {
       }
 
       this.beforeStep?.('before-journal');
-      for (const entry of prepared) {
-        const hash = hashContent(entry.text);
-        this.journal.append({
-          op: 'record',
+      const journalEntries = this.journal.appendBatch(
+        prepared.map((entry) => ({
+          op: 'record' as const,
           ...(options.opId === undefined ? {} : { opId: `${options.opId}-${entry.id}` }),
-          data: { id: entry.id, sha256: hash },
+          data: { id: entry.id, sha256: hashContent(entry.text) },
+        })),
+      );
+      for (let index = 0; index < prepared.length; index += 1) {
+        const entry = prepared[index] as { id: string; text: string; hash: string; kind: string };
+        entry.hash = hashContent(entry.text);
+        const file = join(this.paths.memoriesDir, entry.kind, `${entry.id}.md`);
+        const parsed = parseMemoryFile(entry.text, file, {
+          abstractChars: this.config.limits.abstract_chars,
+          bodyChars: this.config.limits.body_chars,
+          maxRecordChars: this.config.storage.max_record_chars,
         });
-        (entry as { hash: string }).hash = hash;
+        this.docs.set(parsed.id, parsed);
+        this.accounted.set(parsed.id, entry.hash);
+        this.deleted.delete(parsed.id);
+        try {
+          const stat = statSync(file);
+          this.fileMeta.set(parsed.id, { mtimeMs: stat.mtimeMs, size: stat.size });
+        } catch {
+          // derived cache; reload can recover
+        }
       }
+      const lastJournalEntry = journalEntries[journalEntries.length - 1] as { seq: number };
+      this.head = { seq: lastJournalEntry.seq, hash: hashLine(JSON.stringify(lastJournalEntry)) };
 
       this.beforeStep?.('before-derived');
-      this.reload();
+      this.revision += 1;
+      this.cachedIndex = null;
       this.writeDerived();
-      this.reload();
       return prepared.map((entry) => ({
         id: entry.id,
         content_hash: entry.hash,
@@ -1170,7 +1259,7 @@ export class MemoryStore {
           `journal is inconsistent, repair it before rebuild: ${this.issues[0]}`,
         );
       }
-      this.writeDerived();
+      this.writeDerived(true);
       this.checkpoint();
       return {
         records: this.accounted.size,
@@ -1205,7 +1294,18 @@ export class MemoryStore {
     };
   }
 
-  private writeDerived(): void {
+  private writeDerived(force = false): void {
+    // Above 1000 records, coalesce O(n) manifest/catalog writes; the journal is
+    // still the source of truth and the cache catches up every 50 writes.
+    if (!force && this.docs.size > 1000) {
+      this.dirtyDerived += 1;
+      if (this.dirtyDerived < 50) {
+        this.maybeCheckpoint();
+        if (this.head !== null && this.head.seq % 500 === 0) this.maybeArchive();
+        return;
+      }
+    }
+    this.dirtyDerived = 0;
     const active = this.active();
     const manifest = {
       schema: 1,
@@ -1263,7 +1363,7 @@ export class MemoryStore {
 
   private maybeCheckpoint(force = false): void {
     if (this.head === null) return;
-    if (!force && this.head.seq - this.lastCheckpointSeq < 200) return;
+    if (!force && this.head.seq - this.lastCheckpointSeq < 1000) return;
     this.checkpoint();
   }
 

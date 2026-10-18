@@ -39,6 +39,7 @@ export * from './actor.ts';
 export * from './service/quota.ts';
 export * from './distill/closeout.ts';
 export * from './ops/ops.ts';
+export * from './ops/verify.ts';
 export * from './human/command.ts';
 export * from './personalization/scaffold.ts';
 export * from './personalization/guidance.ts';

@@ -16,8 +16,11 @@ const root = resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
 const countIndex = args.indexOf('--count');
 const count = countIndex >= 0 ? Number(args[countIndex + 1]) : 1000;
-if (!Number.isSafeInteger(count) || count < 1) {
-  console.error('usage: node scripts/bench.mjs --count <n>');
+const batchIndex = args.indexOf('--batch');
+const batchSize = batchIndex >= 0 ? Number(args[batchIndex + 1]) : 1;
+const group = args.includes('--group');
+if (!Number.isSafeInteger(count) || count < 1 || !Number.isSafeInteger(batchSize) || batchSize < 1) {
+  console.error('usage: node scripts/bench.mjs --count <n> [--batch <n>]');
   process.exit(1);
 }
 
@@ -29,19 +32,27 @@ try {
   const store = new MemoryStore({ home, config });
 
   const addStart = performance.now();
-  for (let index = 0; index < count; index += 1) {
-    store.add(
-      {
-        kind: index % 7 === 0 ? 'pitfall' : index % 5 === 0 ? 'exp' : 'fact',
-        abstract: `bench record ${index} deployservice token${index % 50}`,
-        body: `benchmark body ${index} keyword${index % 100} project${index % 20}`,
-        project: `P${index % 20}`,
-        tags: [`t${index % 10}`],
-        ...(index % 7 === 0 ? { error_signatures: [`E${index % 50}`] } : {}),
-        evidence_level: 'observed',
-      },
-      { author: 'human' },
+  const makeInput = (index) => ({
+    kind: index % 7 === 0 ? 'pitfall' : index % 5 === 0 ? 'exp' : 'fact',
+    abstract: `bench record ${index} deployservice token${index % 50}`,
+    body: `benchmark body ${index} keyword${index % 100} project${index % 20}`,
+    project: `P${index % 20}`,
+    tags: [`t${index % 10}`],
+    ...(index % 7 === 0 ? { error_signatures: [`E${index % 50}`] } : {}),
+    evidence_level: 'observed',
+  });
+  if (group) {
+    await Promise.all(
+      Array.from({ length: count }, (_, index) => store.addAsync(makeInput(index), { author: 'human' })),
     );
+  } else {
+    for (let start = 0; start < count; start += batchSize) {
+      const end = Math.min(count, start + batchSize);
+      const inputs = [];
+      for (let index = start; index < end; index += 1) inputs.push(makeInput(index));
+      if (inputs.length === 1) store.add(inputs[0], { author: 'human' });
+      else store.addMany(inputs, { author: 'human' });
+    }
   }
   const addMs = performance.now() - addStart;
 

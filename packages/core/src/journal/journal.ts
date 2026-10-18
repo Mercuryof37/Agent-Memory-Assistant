@@ -310,6 +310,58 @@ export class Journal {
     }
     return entry;
   }
+
+  /**
+   * Append a batch with one fsync. Bulk import writes files first, then one
+   * journal batch makes the whole import durable. A torn final line is ignored
+   * by recovery just like a single torn append.
+   */
+  appendBatch(inputs: readonly AppendInput[]): JournalEntry[] {
+    if (inputs.length === 0) return [];
+    mkdirSync(this.dir, { recursive: true });
+    const segments = this.segments();
+    let segmentPath = join(this.dir, segments[segments.length - 1] ?? '0001.jsonl');
+    let size = 0;
+    try {
+      size = statSync(segmentPath).size;
+    } catch {
+      size = 0;
+    }
+    let head = this.head();
+    const entries: JournalEntry[] = [];
+    let fd = openSync(segmentPath, 'a');
+    try {
+      for (const input of inputs) {
+        const seq = head === null ? 1 : head.seq + 1;
+        const prev = head === null ? ZERO_HASH : head.hash;
+        const entry: JournalEntry = {
+          seq,
+          prev,
+          at: input.at ?? new Date().toISOString(),
+          op: input.op,
+          op_id: input.opId ?? `op-${seq}-${hashLine(`${seq}:${input.op}:${JSON.stringify(input.data)}`).slice(0, 8)}`,
+          data: input.data,
+        };
+        const line = JSON.stringify(entry);
+        if (size > 0 && size + Buffer.byteLength(line) + 1 > SEGMENT_BYTES) {
+          closeSync(fd);
+          const baseName = segmentPath.split(/[\\/]/).pop() as string;
+          const nextNumber = Number(baseName.slice(0, 4)) + 1;
+          segmentPath = join(this.dir, `${String(nextNumber).padStart(4, '0')}.jsonl`);
+          fd = openSync(segmentPath, 'a');
+          size = 0;
+        }
+        writeSync(fd, `${line}\n`);
+        size += Buffer.byteLength(line) + 1;
+        head = { seq, hash: hashLine(line) };
+        entries.push(entry);
+      }
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+    return entries;
+  }
 }
 
 /** One human-readable line for `mem inspect --audit`. */

@@ -56,20 +56,25 @@ function docsRoot(docs: readonly CheckpointDoc[]): string {
   return merkleRoot(docs.map((doc) => `${doc.id}:${doc.sha256}:${doc.deleted ? '1' : '0'}`).sort());
 }
 
-function checkpointKey(home: string): Buffer {
+function readKey(home: string): Buffer | undefined {
   const file = memoryPaths(home).checkpointKeyFile;
-  if (existsSync(file)) {
-    const key = readFileSync(file);
-    if (key.length === 32) return key;
-    throw new Error('checkpoint key must be 32 bytes');
-  }
+  if (!existsSync(file)) return undefined;
+  const key = readFileSync(file);
+  if (key.length !== 32) throw new Error('checkpoint key must be 32 bytes');
+  return key;
+}
+
+function checkpointKey(home: string): Buffer {
+  const existing = readKey(home);
+  if (existing !== undefined) return existing;
+  const file = memoryPaths(home).checkpointKeyFile;
   const key = randomBytes(32);
   try {
     writeFileSync(file, key, { flag: 'wx', mode: 0o600 });
     return key;
   } catch {
-    const existing = readFileSync(file);
-    if (existing.length === 32) return existing;
+    const raced = readKey(home);
+    if (raced !== undefined) return raced;
     throw new Error('checkpoint key is unreadable');
   }
 }
@@ -120,7 +125,9 @@ export function readCheckpoint(home: string): CheckpointRead {
   if (docsRoot(parsed.docs) !== parsed.docs_root) return { error: 'checkpoint docs root mismatch' };
   let key: Buffer;
   try {
-    key = checkpointKey(home);
+    const found = readKey(home);
+    if (found === undefined) return { error: 'checkpoint key is missing (restore .state/checkpoint.key or remove checkpoint)' };
+    key = found;
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   }

@@ -417,3 +417,10 @@
 - **head 哈希**：`hashLine(JSON.stringify(entry))` 与 journal 行一致；写入前仍校验一致性/dedupe。
 - **结果（1000 条）**：recall P95 130→2.3ms；写入 177→29.9ms；新 Store reload 102→69ms。
 - **验证**：288 pass / 1 skip；ci/stage 全绿；ADR-0043。
+
+### 第 49 轮 · V5.0 发布 0.5.0（2026-10-18）
+
+- **S5 完成**：verify --deep、HMAC 缺失只读、归档顺序、10k 批量/group commit。
+- **性能**：10k 批量 2.62ms/条、并发 group commit 2.43ms/条、reload 624–660ms、recall P95 20–22ms。
+- **发布**：版本 0.5.0；公告 docs/development/v5.0-announcement.md。
+- **验证**：ci、stage S5、smoke、pack。

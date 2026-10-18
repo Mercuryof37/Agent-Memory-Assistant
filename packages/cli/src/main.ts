@@ -31,6 +31,7 @@ import {
   resolveHome,
   scaffoldPersonalization,
   sealPolicy,
+  verifyStore,
   startup,
   StartupError,
   type EnvLike,
@@ -82,6 +83,7 @@ Usage:
   mem decide --batch accept|reject [--reason <text>] [--accept]
   mem rebuild [--json]
   mem maintain [--retention-days <n>] [--json]
+  mem verify [--deep] [--json]
   mem inspect [--limit <n>] [--json]
   mem export <dir>
   mem pack <dir>
@@ -117,7 +119,7 @@ const VALUE_FLAGS = new Set([
   'reason',
   'retention-days',
 ]);
-const BOOLEAN_FLAGS = new Set(['accept', 'batch', 'json', 'help', 'version', 'seal-user', 'apply']);
+const BOOLEAN_FLAGS = new Set(['accept', 'batch', 'json', 'help', 'version', 'seal-user', 'apply', 'deep']);
 const KINDS: readonly Kind[] = ['fact', 'pitfall', 'exp'];
 
 class UsageError extends Error {
@@ -185,6 +187,8 @@ export async function run(argv: readonly string[], options: CliOptions = {}): Pr
         return commandRebuild(parsed, io);
       case 'maintain':
         return commandMaintain(parsed, io);
+      case 'verify':
+        return commandVerify(parsed, io);
       case 'proposals':
         return commandProposals(parsed, io);
       case 'project':
@@ -424,6 +428,21 @@ function commandMaintain(parsed: ParsedArgs, io: CliIo): number {
   io.out(`archived: ${report.archived.length === 0 ? 'none' : report.archived.join(', ')}`);
   io.out(`pruned: ${report.pruned.length === 0 ? 'none' : report.pruned.join(', ')}`);
   return EXIT_OK;
+}
+
+function commandVerify(parsed: ParsedArgs, io: CliIo): number {
+  const runtime = openRuntime(parsed, io);
+  const report = verifyStore(runtime.home, { deep: parsed.flags.has('deep') });
+  if (parsed.flags.has('json')) {
+    io.out(JSON.stringify(report, null, 2));
+  } else {
+    io.out(`verify: ${report.ok ? 'ok' : 'FAILED'}${report.deep ? ' (deep)' : ''}`);
+    io.out(`journal: ${report.journal.lines} lines / ${(report.journal.bytes / 1024).toFixed(1)} KB`);
+    io.out(`checkpoint: ${report.checkpoint === null ? 'none' : `#${report.checkpoint.seq}`}`);
+    io.out(`archives: ${report.archives.length} (${report.archives.filter((entry) => entry.ok).length} ok)`);
+    for (const issue of report.issues) io.out(`  ! ${issue}`);
+  }
+  return report.ok ? EXIT_OK : EXIT_DEGRADED;
 }
 
 async function commandEmbed(parsed: ParsedArgs, io: CliIo): Promise<number> {

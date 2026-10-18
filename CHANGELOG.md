@@ -4,6 +4,32 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
+## [0.5.0] - 2026-10-18
+
+### Added
+
+- Checkpoint state (`.state/checkpoint.json`) with HMAC, Merkle roots and
+  tail-only startup; removing it falls back to the full journal.
+- Journal archiving (`mem maintain`) with 50k hot-line threshold, gzip
+  segments, archive metadata and root-only retention after 365 days.
+- Read-path caches (BM25 index, parsed docs, recall fast path) and incremental
+  write path; `addAsync` group commit and `addMany` batch WAL.
+- `mem verify [--deep]` for checkpoint/HMAC, journal chain and archived
+  sha256/seq/Merkle checks.
+- `scripts/bench.mjs` (`--batch`, `--group`) and crash-point tests S24/S25/S26/S27/S28.
+
+### Changed
+
+- Reference derived files are coalesced above 1000 records; checkpoints every
+  1000 journal lines.
+- HMAC key missing is a read-only error instead of silently regenerating.
+- Archive deletes originals only after the archive index is durable.
+
+### Security
+
+- Default HMAC-protected checkpoint root; key stored in
+  `.state/checkpoint.key` and included in backups.
+
 ## [0.4.0] - 2026-10-18
 
 ### Added
