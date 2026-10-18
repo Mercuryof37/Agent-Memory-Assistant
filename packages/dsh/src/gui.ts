@@ -1,7 +1,9 @@
 import {
   createProposal,
+  createProject,
   decideProposal,
   importBundle,
+  listProjects,
   listProposals,
   loadProfile,
   memoryPaths,
@@ -261,8 +263,96 @@ export async function buildSearch(store: MemoryStore, query: string, limit = 20)
   };
 }
 
-export function exportBundle(store: MemoryStore) {
+export interface GraphNode {
+  readonly id: string;
+  readonly serial: string;
+  readonly display: string;
+  readonly kind: string;
+  readonly project: string;
+  readonly tags: readonly string[];
+  readonly relations: readonly { type: string; target: string }[];
+  readonly supersedes: readonly string[];
+  readonly valid_from: string;
+}
+
+export interface GraphProject {
+  readonly name: string;
+  readonly count: number;
+  readonly last_updated: string | null;
+}
+
+/** Read-only worktree projection (S4): projects, memory nodes and three edge types. */
+export function buildGraph(store: MemoryStore, home: string) {
   const active = store.active();
+  const serials = serialsFor(active);
+  const registered = listProjects(home).map((project) => project.name);
+  const names = new Set(registered);
+  for (const doc of active) names.add(doc.project ?? '未归类');
+  const projects: GraphProject[] = [...names].map((name) => {
+    const docs = active.filter((doc) => (doc.project ?? '未归类') === name);
+    const last = docs.map((doc) => doc.valid_from).sort().at(-1) ?? null;
+    return { name, count: docs.length, last_updated: last };
+  });
+  projects.sort((left, right) => right.count - left.count || left.name.localeCompare(right.name));
+
+  const limited = active
+    .slice()
+    .sort((left, right) => right.valid_from.localeCompare(left.valid_from) || right.created_at.localeCompare(left.created_at))
+    .slice(0, 200);
+  const ids = new Set(limited.map((doc) => doc.id));
+  const nodes: GraphNode[] = limited.map((doc) => {
+    const serial = serials.get(doc.id) ?? '';
+    return {
+      id: doc.id,
+      serial,
+      display: displayName(serial, doc.abstract),
+      kind: doc.kind,
+      project: doc.project ?? '未归类',
+      tags: doc.tags ?? [],
+      relations: (doc.relations ?? []).map((relation) => ({ type: relation.type, target: relation.target })),
+      supersedes: doc.supersedes,
+      valid_from: doc.valid_from,
+    };
+  });
+  const edges: { from: string; to: string; type: string }[] = [];
+  for (const doc of limited) {
+    for (const target of doc.supersedes) {
+      if (ids.has(target)) edges.push({ from: doc.id, to: target, type: 'supersedes' });
+    }
+    for (const relation of doc.relations ?? []) {
+      if (ids.has(relation.target)) edges.push({ from: doc.id, to: relation.target, type: relation.type });
+    }
+  }
+  const conflicts: { a: string; b: string; project: string; reason: string }[] = [];
+  for (let left = 0; left < limited.length; left += 1) {
+    for (let right = left + 1; right < limited.length; right += 1) {
+      const a = limited[left] as MemoryDoc;
+      const b = limited[right] as MemoryDoc;
+      if ((a.project ?? '未归类') !== (b.project ?? '未归类')) continue;
+      const shared = (a.tags ?? []).some((tag) => (b.tags ?? []).includes(tag));
+      if (!shared) continue;
+      const charsA = new Set([...a.abstract.replace(/\s+/g, '')]);
+      const charsB = new Set([...b.abstract.replace(/\s+/g, '')]);
+      let overlap = 0;
+      for (const char of charsA) if (charsB.has(char)) overlap += 1;
+      const similarity = overlap / Math.max(1, new Set([...charsA, ...charsB]).size);
+      if (similarity >= 0.8) {
+        conflicts.push({ a: a.id, b: b.id, project: a.project ?? '未归类', reason: '同项目同标签且摘要高度重叠' });
+      }
+    }
+  }
+  return {
+    schema: 1,
+    generated_at: new Date().toISOString(),
+    truncated: active.length > limited.length,
+    projects,
+    nodes,
+    edges,
+    conflicts,
+  };
+}
+
+export function exportBundle(store: MemoryStore) {  const active = store.active();
   const serials = serialsFor(active);
   const memories = active
     .slice()
@@ -489,6 +579,34 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     fetch: async () => json(buildList(deps.store)),
   };
 
+  const graph = {
+    path: '/api/agent-memory/graph',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async () => json(buildGraph(deps.store, deps.home)),
+  };
+
+  const projects = {
+    path: '/api/agent-memory/projects',
+    methods: ['GET', 'POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      if (request.method === 'GET') return json({ projects: listProjects(deps.home) });
+      const body = await readJson(request);
+      if (typeof body.name !== 'string' || body.name.trim() === '') return errorResponse('name is required');
+      try {
+        const project = createProject({
+          home: deps.home,
+          name: body.name,
+          ...(typeof body.description === 'string' ? { description: body.description } : {}),
+        });
+        return json({ project });
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 409);
+      }
+    },
+  };
+
   const item = {
     path: '/api/agent-memory/item',
     methods: ['GET'],
@@ -704,6 +822,8 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
   return [
     status,
     list,
+    graph,
+    projects,
     item,
     search,
     exportRoute,

@@ -19,6 +19,8 @@ SemVer.
 - LongMemEval-style offline subset evaluation (`npm run eval:longmem`).
 - Mem0 import (`mem import-mem0`), `source` metadata, Memory API v1 header and
   reconciled MCP documentation.
+- Project worktree UI (L0–L2): project cards, project tree, focus relation graph
+  and similarity hints.
 
 ## [0.2.1] - 2026-10-18
 

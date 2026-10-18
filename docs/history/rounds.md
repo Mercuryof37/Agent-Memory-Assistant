@@ -339,3 +339,11 @@
 - **Memory API v1**：响应头 `x-agent-memory-api-version: 1`；bundle v2；契约文档 docs/guide/api.md。
 - **MCP 对齐**：memory_search/read/list/propose，无 decide/record；server 版本随包。
 - **验证**：S22.1–S22.3；`npm test` 276 pass / 1 skip；ADR-0037。
+
+### 第 39 轮 · V4.0-S4 项目工作树（2026-10-18）
+
+- **派生图**：`buildGraph` 从活动记录 + projects.json 计算 projects/nodes/edges/conflicts；节点上限 200，只读、不落盘。
+- **L0**：项目卡片（记忆数/最近更新/相似提示）+ 新建项目；`GET/POST /api/agent-memory/projects`。
+- **L1/L2**：项目树按 kind 分组；选中节点显示 1 跳 SVG 局部图与详情；三种边 supersedes/relates_to/derived_from。
+- **冲突提示**：同项目、共享标签、摘要字符重叠 ≥0.8 标记「相似提示」，不自动合并。
+- **验证**：S23.1 图投影；S14.4 路由表；client 构建通过；`npm test` 277 pass / 1 skip；ADR-0038。

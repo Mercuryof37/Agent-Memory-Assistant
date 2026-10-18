@@ -6,6 +6,7 @@ import { loadConfig } from '../../core/src/config/load.ts';
 import { cleanupHome, tempHome } from '../../core/test/helpers.ts';
 import {
   buildList,
+  buildGraph,
   buildProposals,
   buildSearch,
   createGui,
@@ -82,6 +83,31 @@ test('S14.2 list groups by kind with counts and serials', (t) => {
   assert.equal(list.groups.find((group) => group.kind === 'pitfall')?.items[0]?.serial, 'P-01');
 });
 
+test('S23.1 the graph projection groups by project and keeps three edge types', (t) => {
+  const { home, store } = fixture(t);
+  const first = store.add(
+    { kind: 'fact', abstract: 'worktree groups memories', body: 'b', project: 'Agent Memory', tags: ['v4'], evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  const second = store.add(
+    {
+      kind: 'exp',
+      abstract: 'focus graph uses one hop',
+      body: 'b',
+      project: 'Agent Memory',
+      tags: ['v4'],
+      relations: [{ type: 'relates_to', target: first.id }],
+      evidence_level: 'observed',
+    },
+    { author: 'human' },
+  );
+  const graph = buildGraph(store, home);
+  assert.equal(graph.schema, 1);
+  assert.equal(graph.projects.find((project) => project.name === 'Agent Memory')?.count, 2);
+  assert.equal(graph.nodes.length, 2);
+  assert.deepEqual(graph.edges, [{ from: second.id, to: first.id, type: 'relates_to' }]);
+});
+
 test('S14.4 every GUI route owns its full /api path', (t) => {
   const { home, store, config } = fixture(t);
   const routes = guiRoutes({ store, home, mode: 'confirm', modules: [], config }) as Array<{
@@ -92,11 +118,13 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
     '/api/agent-memory/create',
     '/api/agent-memory/delete',
     '/api/agent-memory/export',
+    '/api/agent-memory/graph',
     '/api/agent-memory/import',
     '/api/agent-memory/item',
     '/api/agent-memory/list',
     '/api/agent-memory/policy/seal',
     '/api/agent-memory/profile',
+    '/api/agent-memory/projects',
     '/api/agent-memory/proposals',
     '/api/agent-memory/proposals/decide',
     '/api/agent-memory/revise',

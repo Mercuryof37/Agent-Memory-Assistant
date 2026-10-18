@@ -235,6 +235,9 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
       const [selectedSuggestions, setSelectedSuggestions] = React.useState([]);
       const [soulPath, setSoulPath] = React.useState(null);
       const [theme, setTheme] = React.useState(() => initialTheme());
+      const [tree, setTree] = React.useState(null);
+      const [treeProject, setTreeProject] = React.useState(null);
+      const [focusId, setFocusId] = React.useState(null);
 
       React.useEffect(() => {
         persistTheme(theme);
@@ -264,6 +267,21 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           })
           .then((data) => setState({ data }))
           .catch((error) => setState({ error: String(error) }));
+      };
+
+      const openTree = () => {
+        setPanel("tree");
+        setTree({ loading: true });
+        setTreeProject(null);
+        setFocusId(null);
+        setDetail(null);
+        fetch("/api/agent-memory/graph", { headers: { accept: "application/json" } })
+          .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          })
+          .then((data) => setTree({ data }))
+          .catch((error) => setTree({ error: String(error) }));
       };
 
       React.useEffect(load, []);
@@ -545,6 +563,207 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
         refreshProposals();
       };
 
+      const graphData = tree && tree.data ? tree.data : null;
+      const graphNodes = graphData ? graphData.nodes : [];
+      const graphEdges = graphData ? graphData.edges : [];
+      const focusNode = focusId === null ? null : graphNodes.find((node) => node.id === focusId) || null;
+      const focusNeighbors = focusNode
+        ? graphEdges
+            .filter((edge) => edge.from === focusNode.id || edge.to === focusNode.id)
+            .map((edge) => {
+              const id = edge.from === focusNode.id ? edge.to : edge.from;
+              return { node: graphNodes.find((node) => node.id === id), edge };
+            })
+            .filter((entry) => entry.node)
+        : [];
+
+      const renderTreeCards = () => {
+        if (!graphData) return null;
+        return React.createElement(
+          "div",
+          { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "12px", marginTop: "6px" } },
+          graphData.projects.map((project) =>
+            React.createElement(
+              "button",
+              {
+                key: project.name,
+                className: "am-row",
+                style: { display: "block", width: "100%", textAlign: "left", padding: "14px", cursor: "pointer" },
+                onClick: () => {
+                  setTreeProject(project.name);
+                  setFocusId(null);
+                  setDetail(null);
+                },
+              },
+              React.createElement("div", { style: { fontWeight: 600, marginBottom: "4px" } }, project.name),
+              React.createElement("div", { style: styles.small }, `${project.count} 条记忆`),
+              graphData.conflicts && graphData.conflicts.some((conflict) => conflict.project === project.name)
+                ? React.createElement("div", { style: { ...styles.small, color: "var(--am-warn)" } }, `相似提示 ${graphData.conflicts.filter((conflict) => conflict.project === project.name).length}`)
+                : null,
+              React.createElement(
+                "div",
+                { style: { ...styles.small, color: "var(--am-text-tertiary)", marginTop: "2px" } },
+                project.last_updated ? `最近更新 ${project.last_updated}` : "还没有记忆",
+              ),
+            ),
+          ),
+        );
+      };
+
+      const renderFocus = () => {
+        if (focusNode === null) {
+          return React.createElement(
+            "div",
+            { style: { ...styles.small, padding: "18px" } },
+            "点左侧一条记忆，查看它的局部关系。",
+          );
+        }
+        const width = 460;
+        const height = 280;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 92;
+        const around = focusNeighbors.slice(0, 8).map((entry, index) => {
+          const angle = (Math.PI * 2 * index) / Math.max(1, Math.min(8, focusNeighbors.length));
+          return { ...entry, x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius };
+        });
+        const label = (node) => (node.display ? node.display.replace(/^[FPE]-\d+\s*/, "") : node.id).slice(0, 16);
+        return React.createElement(
+          "div",
+          { style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: "12px" } },
+          React.createElement(
+            "svg",
+            { viewBox: `0 0 ${width} ${height}`, style: { width: "100%", height: "280px", background: "var(--am-surface-muted)", borderRadius: "12px" } },
+            ...around.map((entry) =>
+              React.createElement("line", {
+                key: `line-${entry.node.id}`,
+                x1: centerX,
+                y1: centerY,
+                x2: entry.x,
+                y2: entry.y,
+                stroke: "var(--am-border-strong)",
+                strokeWidth: 1.2,
+              }),
+            ),
+            React.createElement("circle", { cx: centerX, cy: centerY, r: 34, fill: "var(--am-accent-soft)", stroke: "var(--am-accent)" }),
+            React.createElement(
+              "text",
+              { x: centerX, y: centerY + 4, textAnchor: "middle", fontSize: 10, fill: "var(--am-text)" },
+              focusNode.serial || "SEL",
+            ),
+            ...around.flatMap((entry) => [
+              React.createElement("circle", {
+                key: `node-${entry.node.id}`,
+                cx: entry.x,
+                cy: entry.y,
+                r: 20,
+                fill: "var(--am-surface)",
+                stroke: `var(--am-${entry.node.kind})`,
+                strokeWidth: 2,
+                style: { cursor: "pointer" },
+                onClick: () => {
+                  setFocusId(entry.node.id);
+                  openItem(entry.node.id);
+                },
+              }),
+              React.createElement(
+                "text",
+                { key: `text-${entry.node.id}`, x: entry.x, y: entry.y + 4, textAnchor: "middle", fontSize: 8, fill: "var(--am-text-secondary)" },
+                label(entry.node),
+              ),
+            ]),
+          ),
+          detail && detail.data
+            ? React.createElement(
+                "div",
+                { style: { padding: "0 2px" } },
+                React.createElement("div", { style: styles.small }, `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind}`),
+                React.createElement("div", { style: { fontWeight: 600, margin: "6px 0" } }, detail.data.abstract),
+                React.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body),
+              )
+            : null,
+        );
+      };
+
+      const renderTreePanel = () => {
+        if (!tree || tree.loading) return React.createElement("div", { style: styles.small }, "正在加载项目…");
+        if (tree.error) return React.createElement("div", { style: styles.small }, `加载失败：${tree.error}`);
+        if (treeProject === null) {
+          return React.createElement(
+            "div",
+            null,
+            React.createElement("h2", { style: styles.groupTitle }, "项目"),
+            React.createElement("p", { style: styles.small }, "按项目查看记忆；点一个项目进入工作树。"),
+            React.createElement(AmButton, {
+              variant: "ghost",
+              onClick: () => {
+                const name = window.prompt("新项目名称（例如 Agent Memory）");
+                if (name === null || name.trim() === "") return;
+                postJson("/api/agent-memory/projects", { name: name.trim() })
+                  .then(() => openTree())
+                  .catch((error) => setNotice(`新建项目失败：${String(error.message || error)}`));
+              },
+            }, "＋ 新建项目"),
+            renderTreeCards(),
+          );
+        }
+        const docs = graphNodes.filter((node) => node.project === treeProject);
+        return React.createElement(
+          "div",
+          null,
+          React.createElement(
+            "div",
+            { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" } },
+            React.createElement(AmButton, { variant: "ghost", onClick: () => { setTreeProject(null); setFocusId(null); } }, "← 全部项目"),
+            React.createElement("h2", { style: { ...styles.groupTitle, margin: 0 } }, treeProject),
+            React.createElement("span", { style: styles.small }, `${docs.length} 条`),
+          ),
+          React.createElement(
+            "div",
+            { style: { display: "grid", gridTemplateColumns: "minmax(220px, 320px) minmax(0, 1fr)", gap: "18px", alignItems: "start" } },
+            React.createElement(
+              "div",
+              { style: { borderRight: "1px solid var(--am-border)", paddingRight: "12px" } },
+              ...["fact", "pitfall", "exp"].map((kind) => {
+                const rows = docs.filter((node) => node.kind === kind);
+                if (rows.length === 0) return null;
+                return React.createElement(
+                  "div",
+                  { key: kind, style: { marginBottom: "14px" } },
+                  React.createElement("div", { style: { ...styles.small, fontWeight: 600, marginBottom: "4px" } }, KIND_STYLE[kind] ? KIND_STYLE[kind].label : kind),
+                  ...rows.map((node) =>
+                    React.createElement(
+                      "button",
+                      {
+                        key: node.id,
+                        className: "am-row",
+                        style: {
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "7px 9px",
+                          marginBottom: "2px",
+                          cursor: "pointer",
+                          background: focusId === node.id ? "var(--am-accent-soft)" : "transparent",
+                          border: "none",
+                        },
+                        onClick: () => {
+                          setFocusId(node.id);
+                          openItem(node.id);
+                        },
+                      },
+                      React.createElement("div", { style: { fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, node.display),
+                      React.createElement("div", { style: { ...styles.small, marginTop: "1px" } }, `${node.valid_from}${node.tags.length ? ` · ${node.tags.slice(0, 2).join(" ")}` : ""}`),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            renderFocus(),
+          ),
+        );
+      };
+
       const data = state.data;
       const total = data ? data.total : "—";
       const pending = data ? data.pending : "—";
@@ -610,6 +829,10 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
         React.createElement(
           "div",
           { className: "am-toolbar" },
+          React.createElement(AmButton, {
+            variant: "ghost",
+            onClick: panel === "tree" ? () => setPanel(null) : openTree,
+          }, panel === "tree" ? "← 列表" : "项目"),
           React.createElement(
             "div",
             { className: "am-toolbar-search" },
@@ -650,7 +873,9 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           ),
         ),
         notice ? React.createElement("p", { style: styles.notice }, notice) : null,
-        panel === "create"
+        panel === "tree"
+          ? renderTreePanel()
+          : panel === "create"
           ? React.createElement(
               "div",
               null,
