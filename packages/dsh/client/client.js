@@ -172,6 +172,39 @@ ${TOKENS_CSS}
 .am-btn:hover { background: var(--am-surface-muted); border-color: var(--am-border-strong); }
 .am-btn:focus-visible { outline: 2px solid var(--am-accent); outline-offset: 2px; }
 .am-btn:disabled { opacity: .5; cursor: not-allowed; }
+.am-tree-panel {
+  background: var(--am-surface);
+  border: 1px solid var(--am-border);
+  border-radius: 14px;
+  padding: 10px 10px 12px;
+}
+.am-tree-group { margin-bottom: 12px; }
+.am-tree-group:last-child { margin-bottom: 0; }
+.am-tree-group-title {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--am-text-secondary);
+  padding: 4px 8px 6px;
+}
+.am-tree-row {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 6px 8px; border-radius: 9px;
+  border: 1px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.am-tree-row:hover { background: var(--am-surface-muted); }
+.am-tree-row.is-selected {
+  background: var(--am-accent-soft);
+  border-color: color-mix(in srgb, var(--am-accent) 25%, transparent);
+}
+.am-tree-row input[type="checkbox"] { margin-top: 3px; accent-color: var(--am-accent); }
+.am-tree-link {
+  flex: 1 1 auto; min-width: 0; display: block;
+  border: none; background: transparent; color: var(--am-text);
+  text-align: left; padding: 0; cursor: pointer; font: inherit;
+}
+.am-tree-title { font-size: 12.5px; font-weight: 550; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am-tree-meta { color: var(--am-text-tertiary); font-size: 11px; margin-top: 1px; }
 .am-btn-primary {
   background: var(--am-accent); border-color: var(--am-accent); color: #fff;
 }
@@ -495,7 +528,7 @@ var MANUAL = [
   "/mem proposals              查看待审提案",
   "/mem review                 逐条弹出审批卡",
   "/mem recall <关键词>        检索记忆",
-  "/mem read <库编号>          查看全文与出处（如 F-01）",
+  "/mem read <库编号>          查看全文（如 F-01）",
   "/mem profile                查看你的偏好",
   "/mem export <目录>          完整备份",
   "/mem inspect                一屏概况",
@@ -546,6 +579,9 @@ function MemoryPage() {
   const [newProjectName, setNewProjectName] = React2.useState("");
   const [selectedIds, setSelectedIds] = React2.useState([]);
   const [moveTarget, setMoveTarget] = React2.useState("");
+  const [tagDraft, setTagDraft] = React2.useState("");
+  const [relationTarget, setRelationTarget] = React2.useState("");
+  const [relationType, setRelationType] = React2.useState("relates_to");
   React2.useEffect(() => {
     persistTheme(theme);
   }, [theme]);
@@ -578,6 +614,12 @@ function MemoryPage() {
       return response.json();
     }).then((data2) => setTree({ data: data2 })).catch((error) => setTree({ error: String(error) }));
   };
+  React2.useEffect(() => {
+    if (detail && detail.data) {
+      setTagDraft((detail.data.tags || []).join(", "));
+      setRelationTarget("");
+    }
+  }, [detail]);
   React2.useEffect(() => {
     if (panel !== "tree") {
       setTreeProject(null);
@@ -981,13 +1023,96 @@ ${lines.join("\n")}`);
       );
     }
     const docs = graphNodes.filter((node) => node.project === treeProject);
-    const detailCard = focusNode && detail && detail.data ? React2.createElement(
-      "div",
-      { style: { border: "1px solid var(--am-border)", background: "var(--am-surface)", borderRadius: "12px", padding: "16px", marginBottom: "14px" } },
-      React2.createElement("div", { style: styles.small }, `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind} · ${detail.data.valid_from}`),
-      React2.createElement("h2", { style: { margin: "6px 0 8px", fontSize: "18px" } }, detail.data.abstract),
-      React2.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body)
-    ) : null;
+    const detailCard = focusNode && detail && detail.data ? (() => {
+      const current = detail.data;
+      const relations = current.relations || [];
+      const candidates = graphNodes.filter((node) => node.id !== current.id && node.project === treeProject);
+      const saveTags = () => {
+        const tags = tagDraft.split(",").map((tag) => tag.trim()).filter((tag) => tag !== "");
+        postJson("/api/agent-memory/meta", { id: current.id, tags }).then(() => openItem(current.id)).catch((error) => setNotice(`保存标签失败：${String(error.message || error)}`));
+      };
+      const saveRelations = (next) => {
+        postJson("/api/agent-memory/meta", { id: current.id, relations: next }).then(() => openItem(current.id)).catch((error) => setNotice(`保存关系失败：${String(error.message || error)}`));
+      };
+      return React2.createElement(
+        "div",
+        { style: { border: "1px solid var(--am-border)", background: "var(--am-surface)", borderRadius: "12px", padding: "18px", marginBottom: "14px" } },
+        React2.createElement("div", { style: styles.small }, `${current.serial || "—"} · ${KIND_STYLE[current.kind] ? KIND_STYLE[current.kind].label : current.kind} · ${current.valid_from}`),
+        React2.createElement("h2", { style: { margin: "6px 0 8px", fontSize: "18px" } }, current.abstract),
+        React2.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap", marginBottom: "14px" } }, current.body),
+        React2.createElement(
+          "div",
+          { style: { display: "grid", gap: "10px", borderTop: "1px solid var(--am-border)", paddingTop: "12px" } },
+          React2.createElement(
+            "div",
+            { style: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" } },
+            React2.createElement("span", { style: { ...styles.small, fontWeight: 600 } }, "标签"),
+            React2.createElement("input", {
+              className: "am-input",
+              style: { width: "260px" },
+              placeholder: "逗号分隔，例如 v4, ui, release",
+              value: tagDraft,
+              onChange: (event) => setTagDraft(event.target.value),
+              onKeyDown: (event) => {
+                if (event.key === "Enter") saveTags();
+              }
+            }),
+            React2.createElement(AmButton, { variant: "ghost", onClick: saveTags }, "保存标签"),
+            React2.createElement("span", { style: styles.small }, "最多 8 个，每个 ≤32 字符")
+          ),
+          React2.createElement(
+            "div",
+            { style: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" } },
+            React2.createElement("span", { style: { ...styles.small, fontWeight: 600 } }, "关系"),
+            ...relations.map(
+              (relation) => React2.createElement(
+                "span",
+                { key: `${relation.type}:${relation.target}`, style: { ...styles.small, background: "var(--am-surface-muted)", padding: "2px 7px", borderRadius: "999px" } },
+                `${relation.type === "relates_to" ? "相关" : "来源"} → ${(graphNodes.find((node) => node.id === relation.target) || { display: relation.target }).display}`,
+                " ",
+                React2.createElement("span", {
+                  style: { cursor: "pointer", color: "var(--am-danger)" },
+                  onClick: () => saveRelations(relations.filter((entry) => entry.target !== relation.target || entry.type !== relation.type))
+                }, "×")
+              )
+            ),
+            relations.length === 0 ? React2.createElement("span", { style: styles.small }, "暂无关系，可在下方添加") : null
+          ),
+          React2.createElement(
+            "div",
+            { style: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" } },
+            React2.createElement(
+              "select",
+              {
+                className: "am-input",
+                style: { width: "120px" },
+                value: relationType,
+                onChange: (event) => setRelationType(event.target.value)
+              },
+              React2.createElement("option", { value: "relates_to" }, "相关"),
+              React2.createElement("option", { value: "derived_from" }, "来源")
+            ),
+            React2.createElement(
+              "select",
+              {
+                className: "am-input",
+                style: { width: "240px" },
+                value: relationTarget,
+                onChange: (event) => setRelationTarget(event.target.value)
+              },
+              React2.createElement("option", { value: "" }, "选择目标记忆…"),
+              ...candidates.map((node) => React2.createElement("option", { key: node.id, value: node.id }, node.display))
+            ),
+            React2.createElement(AmButton, {
+              variant: "ghost",
+              disabled: relationTarget === "",
+              onClick: () => saveRelations([...relations, { type: relationType, target: relationTarget }])
+            }, "添加关系"),
+            React2.createElement("span", { style: styles.small }, "关系只连接同项目记忆；用于工作树，不改变记忆内容")
+          )
+        )
+      );
+    })() : null;
     return React2.createElement(
       "div",
       null,
@@ -1050,18 +1175,23 @@ ${lines.join("\n")}`);
         { style: { display: "grid", gridTemplateColumns: "minmax(220px, 320px) minmax(0, 1fr)", gap: "18px", alignItems: "start" } },
         React2.createElement(
           "div",
-          { style: { borderRight: "1px solid var(--am-border)", paddingRight: "12px" } },
+          { className: "am-tree-panel" },
           ...["fact", "pitfall", "exp"].map((kind) => {
             const rows = docs.filter((node) => node.kind === kind);
             if (rows.length === 0) return null;
             return React2.createElement(
               "div",
-              { key: kind, style: { marginBottom: "14px" } },
-              React2.createElement("div", { style: { ...styles.small, fontWeight: 600, marginBottom: "4px" } }, KIND_STYLE[kind] ? KIND_STYLE[kind].label : kind),
+              { key: kind, className: "am-tree-group" },
+              React2.createElement(
+                "div",
+                { className: "am-tree-group-title" },
+                React2.createElement("span", null, KIND_STYLE[kind] ? KIND_STYLE[kind].label : kind),
+                React2.createElement("span", null, String(rows.length))
+              ),
               ...rows.map(
                 (node) => React2.createElement(
                   "div",
-                  { key: node.id, style: { display: "flex", alignItems: "center", gap: "5px" } },
+                  { key: node.id, className: `am-tree-row${focusId === node.id ? " is-selected" : ""}` },
                   React2.createElement("input", {
                     type: "checkbox",
                     checked: selectedIds.includes(node.id),
@@ -1072,25 +1202,14 @@ ${lines.join("\n")}`);
                   React2.createElement(
                     "button",
                     {
-                      className: "am-row",
-                      style: {
-                        display: "block",
-                        flex: "1 1 auto",
-                        minWidth: 0,
-                        textAlign: "left",
-                        padding: "7px 9px",
-                        marginBottom: "2px",
-                        cursor: "pointer",
-                        background: focusId === node.id ? "var(--am-accent-soft)" : "transparent",
-                        border: "none"
-                      },
+                      className: "am-tree-link",
                       onClick: () => {
                         setFocusId(node.id);
                         openItem(node.id);
                       }
                     },
-                    React2.createElement("div", { style: { fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, node.display),
-                    React2.createElement("div", { style: { ...styles.small, marginTop: "1px" } }, `${node.valid_from}${node.tags.length ? ` · ${node.tags.slice(0, 2).join(" ")}` : ""}`)
+                    React2.createElement("div", { className: "am-tree-title" }, node.display),
+                    React2.createElement("div", { className: "am-tree-meta" }, `${node.valid_from}${node.tags.length ? ` · ${node.tags.slice(0, 2).join(" ")}` : ""}`)
                   )
                 )
               )
@@ -1153,7 +1272,7 @@ ${lines.join("\n")}`);
       React2.createElement(
         "p",
         { className: "am-subtitle" },
-        data && data.modules && data.modules.some((module2) => !module2.ok) ? `部分模块不可用：${data.modules.filter((module2) => !module2.ok).map((module2) => module2.name).join("、")}` : "这里是助手记住的事。点一条查看原文与出处；修订会先弹卡片确认。"
+        data && data.modules && data.modules.some((module2) => !module2.ok) ? `部分模块不可用：${data.modules.filter((module2) => !module2.ok).map((module2) => module2.name).join("、")}` : "这里是助手记住的事。点一条查看原文；修订会先弹卡片确认。"
       ),
       React2.createElement(
         "div",

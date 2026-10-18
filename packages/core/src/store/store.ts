@@ -457,6 +457,67 @@ export class MemoryStore {
     }
   }
 
+  /** Update tags/relations in place (organisational metadata, not a revision). */
+  updateMeta(
+    id: MemoryId,
+    patch: { tags?: readonly string[]; relations?: readonly { type: 'relates_to' | 'derived_from'; target: string }[] },
+  ): MemoryDoc {
+    if (patch.tags !== undefined) {
+      const issue = tagsProblem(patch.tags);
+      if (issue !== undefined) throw new MemoryStoreError('INVALID', issue);
+    }
+    if (patch.relations !== undefined) {
+      const issue = relationsProblem(patch.relations, id);
+      if (issue !== undefined) throw new MemoryStoreError('INVALID', issue);
+    }
+    const lock = acquireLock({
+      file: this.paths.lockFile,
+      config: {
+        heartbeatMs: this.config.lock.heartbeat_ms,
+        staleMs: this.config.lock.stale_ms,
+        timeoutMs: this.config.lock.timeout_ms,
+      },
+      now: () => this.now().getTime(),
+    });
+    try {
+      this.reload();
+      if (this.issues.length > 0) {
+        throw new MemoryStoreError('CONFLICT', `journal is inconsistent, writes are blocked: ${this.issues[0]}`);
+      }
+      const doc = this.docs.get(id);
+      if (doc === undefined) throw new MemoryStoreError('NOT_FOUND', `no memory with id ${id}`);
+      const next = {
+        id: doc.id,
+        mem_schema: doc.mem_schema,
+        kind: doc.kind,
+        scope: doc.scope,
+        project: doc.project ?? null,
+        tags: patch.tags ?? doc.tags ?? [],
+        relations: patch.relations ?? doc.relations ?? [],
+        source: doc.source ?? null,
+        abstract: doc.abstract,
+        created_at: doc.created_at,
+        valid_from: doc.valid_from,
+        valid_until: doc.valid_until,
+        supersedes: doc.supersedes,
+        author: doc.author,
+        evidence_level: doc.evidence_level,
+        error_signatures: doc.error_signatures,
+        provenance: doc.provenance,
+        body: doc.body,
+      };
+      const text = serializeMemory(next);
+      writeFileAtomic(join(this.paths.memoriesDir, doc.kind, `${doc.id}.md`), text);
+      this.journal.append({ op: 'record', data: { id, sha256: hashContent(text) } });
+      this.journal.append({ op: 'audit', data: { event: 'memory-meta', id } });
+      this.reload();
+      this.writeDerived();
+      return this.docs.get(id) as MemoryDoc;
+    } finally {
+      lock.release();
+    }
+  }
+
   stats(): Stats {
     return {
       active: this.active().length,

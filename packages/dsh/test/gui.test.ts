@@ -123,6 +123,7 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
     '/api/agent-memory/import',
     '/api/agent-memory/item',
     '/api/agent-memory/list',
+    '/api/agent-memory/meta',
     '/api/agent-memory/policy/seal',
     '/api/agent-memory/profile',
     '/api/agent-memory/projects',

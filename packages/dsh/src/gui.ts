@@ -641,6 +641,43 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     },
   };
 
+  const meta = {
+    path: '/api/agent-memory/meta',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      const body = await readJson(request);
+      if (typeof body.id !== 'string' || body.id === '') return errorResponse('id is required');
+      if (body.tags !== undefined && (!Array.isArray(body.tags) || body.tags.some((tag) => typeof tag !== 'string'))) {
+        return errorResponse('tags must be a string array');
+      }
+      if (
+        body.relations !== undefined &&
+        (!Array.isArray(body.relations) ||
+          body.relations.some(
+            (relation) =>
+              typeof relation !== 'object' ||
+              relation === null ||
+              typeof (relation as { type?: unknown }).type !== 'string' ||
+              typeof (relation as { target?: unknown }).target !== 'string',
+          ))
+      ) {
+        return errorResponse('relations must be {type,target} objects');
+      }
+      try {
+        const doc = deps.store.updateMeta(body.id, {
+          ...(body.tags === undefined ? {} : { tags: body.tags as string[] }),
+          ...(body.relations === undefined
+            ? {}
+            : { relations: body.relations as { type: 'relates_to' | 'derived_from'; target: string }[] }),
+        });
+        return json({ ok: true, id: doc.id, project: doc.project ?? null, tags: doc.tags ?? [], relations: doc.relations ?? [] });
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error), 409);
+      }
+    },
+  };
+
   const item = {
     path: '/api/agent-memory/item',
     methods: ['GET'],
@@ -859,6 +896,7 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     graph,
     projects,
     moveProject,
+    meta,
     item,
     search,
     exportRoute,

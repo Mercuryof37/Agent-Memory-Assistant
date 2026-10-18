@@ -137,6 +137,39 @@ ${TOKENS_CSS}
 .am-btn:hover { background: var(--am-surface-muted); border-color: var(--am-border-strong); }
 .am-btn:focus-visible { outline: 2px solid var(--am-accent); outline-offset: 2px; }
 .am-btn:disabled { opacity: .5; cursor: not-allowed; }
+.am-tree-panel {
+  background: var(--am-surface);
+  border: 1px solid var(--am-border);
+  border-radius: 14px;
+  padding: 10px 10px 12px;
+}
+.am-tree-group { margin-bottom: 12px; }
+.am-tree-group:last-child { margin-bottom: 0; }
+.am-tree-group-title {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--am-text-secondary);
+  padding: 4px 8px 6px;
+}
+.am-tree-row {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 6px 8px; border-radius: 9px;
+  border: 1px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.am-tree-row:hover { background: var(--am-surface-muted); }
+.am-tree-row.is-selected {
+  background: var(--am-accent-soft);
+  border-color: color-mix(in srgb, var(--am-accent) 25%, transparent);
+}
+.am-tree-row input[type="checkbox"] { margin-top: 3px; accent-color: var(--am-accent); }
+.am-tree-link {
+  flex: 1 1 auto; min-width: 0; display: block;
+  border: none; background: transparent; color: var(--am-text);
+  text-align: left; padding: 0; cursor: pointer; font: inherit;
+}
+.am-tree-title { font-size: 12.5px; font-weight: 550; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am-tree-meta { color: var(--am-text-tertiary); font-size: 11px; margin-top: 1px; }
 .am-btn-primary {
   background: var(--am-accent); border-color: var(--am-accent); color: #fff;
 }
