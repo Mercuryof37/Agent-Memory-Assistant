@@ -1,13 +1,13 @@
 /**
- * Agent Memory — DSH client half (P0 probe).
+ * Agent Memory — DSH client half (V2 P1 workbench).
  *
- * Loaded by the host module loader as a Cordis client plugin. It registers:
- *   - a sidebar panel entry "记忆" that selects the `main` panel below;
- *   - the full-page workbench at `main` keyed by `agent-memory`;
- *   - one read-only status fetch against the host's exact Fetch route.
+ * Read-only workbench: grouped memory list (F-01/P-02/E-03 serials, newest
+ * first inside each kind), detail with provenance, keyword search, JSON export
+ * and a small command-manual button. All data comes from the host's
+ * `/api/agent-memory/*` routes; this file never touches files.
  *
- * Written in the loader's factory form by hand so P0 does not depend on a
- * client build toolchain; P1 will move this to a bundled TypeScript source.
+ * Kept in the loader's factory form by hand until the client build toolchain
+ * lands (P1 follow-up); the surface is React + the host slot registry only.
  */
 window.__ModuleLoader__.load({
   id: "@agent-memory/dsh",
@@ -15,51 +15,190 @@ window.__ModuleLoader__.load({
     const React = require("react");
     const PANEL_ID = "agent-memory";
 
+    const KIND_STYLE = {
+      fact: { label: "事实", color: "#2563eb", background: "#eff6ff" },
+      pitfall: { label: "坑", color: "#b45309", background: "#fffbeb" },
+      exp: { label: "经验", color: "#047857", background: "#ecfdf5" },
+    };
+
     const styles = {
       page: {
-        padding: "32px 40px",
-        maxWidth: "960px",
+        padding: "28px 40px 48px",
+        maxWidth: "1080px",
         margin: "0 auto",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        color: "var(--dsw-text, #111827)",
       },
-      h1: { fontSize: "22px", fontWeight: 600, margin: "0 0 6px" },
-      sub: { color: "var(--dsw-text-secondary, #6b7280)", fontSize: "13px", margin: "0 0 24px" },
-      row: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px" },
-      card: {
-        padding: "16px",
-        borderRadius: "12px",
+      header: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "4px" },
+      h1: { fontSize: "22px", fontWeight: 600, margin: 0 },
+      meta: { color: "var(--dsw-text-secondary, #6b7280)", fontSize: "13px" },
+      toolbar: { display: "flex", gap: "8px", alignItems: "center", margin: "18px 0 22px" },
+      input: {
+        flex: "1 1 320px",
+        padding: "8px 12px",
+        borderRadius: "8px",
         border: "1px solid var(--dsw-border, #e5e7eb)",
         background: "var(--dsw-surface, #fff)",
+        fontSize: "13px",
       },
-      label: { fontSize: "12px", color: "var(--dsw-text-secondary, #6b7280)", margin: "0 0 6px" },
-      value: { fontSize: "20px", fontWeight: 600, margin: 0 },
-      action: {
-        marginTop: "24px",
-        padding: "8px 16px",
+      button: {
+        padding: "7px 12px",
         borderRadius: "8px",
         border: "1px solid var(--dsw-border, #e5e7eb)",
         background: "transparent",
+        color: "var(--dsw-text, #111827)",
         cursor: "pointer",
         fontSize: "13px",
+        whiteSpace: "nowrap",
       },
-      error: { color: "#b91c1c", fontSize: "13px", marginTop: "12px" },
+      buttonPrimary: {
+        padding: "7px 12px",
+        borderRadius: "8px",
+        border: "1px solid var(--dsw-accent, #2563eb)",
+        background: "var(--dsw-accent, #2563eb)",
+        color: "#fff",
+        cursor: "pointer",
+        fontSize: "13px",
+        whiteSpace: "nowrap",
+      },
+      small: { fontSize: "12px", color: "var(--dsw-text-secondary, #6b7280)" },
+      groupTitle: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        margin: "22px 0 8px",
+        fontSize: "13px",
+        fontWeight: 600,
+      },
+      count: { color: "var(--dsw-text-secondary, #6b7280)", fontWeight: 400 },
+      list: { display: "flex", flexDirection: "column", gap: "6px" },
+      row: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        padding: "10px 12px",
+        borderRadius: "10px",
+        border: "1px solid transparent",
+        background: "var(--dsw-surface, #fff)",
+        cursor: "pointer",
+        textAlign: "left",
+        width: "100%",
+        fontSize: "14px",
+      },
+      serial: {
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: "12px",
+        padding: "2px 6px",
+        borderRadius: "6px",
+        whiteSpace: "nowrap",
+      },
+      abstract: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+      date: { fontSize: "12px", color: "var(--dsw-text-secondary, #6b7280)", whiteSpace: "nowrap" },
+      empty: {
+        padding: "40px 16px",
+        textAlign: "center",
+        color: "var(--dsw-text-secondary, #6b7280)",
+        border: "1px dashed var(--dsw-border, #e5e7eb)",
+        borderRadius: "12px",
+        fontSize: "13px",
+      },
+      detail: {
+        marginTop: "20px",
+        padding: "20px",
+        border: "1px solid var(--dsw-border, #e5e7eb)",
+        borderRadius: "12px",
+        background: "var(--dsw-surface, #fff)",
+      },
+      detailTitle: { fontSize: "16px", fontWeight: 600, margin: "0 0 8px" },
+      body: {
+        whiteSpace: "pre-wrap",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        margin: "12px 0 0",
+        padding: "12px",
+        borderRadius: "8px",
+        background: "var(--dsw-hover, #f9fafb)",
+        fontFamily: "inherit",
+      },
+      provenance: {
+        marginTop: "12px",
+        paddingLeft: "18px",
+        fontSize: "12px",
+        color: "var(--dsw-text-secondary, #6b7280)",
+        lineHeight: 1.7,
+      },
+      overlay: {
+        position: "fixed",
+        inset: 0,
+        background: "rgba(17, 24, 39, 0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+      },
+      modal: {
+        width: "min(560px, calc(100vw - 48px))",
+        maxHeight: "70vh",
+        overflow: "auto",
+        background: "var(--dsw-surface, #fff)",
+        borderRadius: "14px",
+        padding: "22px 24px",
+        boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+      },
+      pre: {
+        margin: "12px 0 0",
+        padding: "12px",
+        borderRadius: "8px",
+        background: "var(--dsw-hover, #f9fafb)",
+        fontSize: "12px",
+        lineHeight: 1.8,
+        whiteSpace: "pre-wrap",
+      },
     };
+
+    const MANUAL = [
+      "常用命令（在聊天框输入，无需终端）：",
+      "/mem proposals              查看待审提案",
+      "/mem decide <id> accept     采纳一条提案",
+      "/mem decide <id> reject     驳回",
+      "/mem recall <关键词>        检索记忆",
+      "/mem read <编号>            查看全文与出处",
+      "/mem profile                查看你的偏好",
+      "/mem export <目录>          完整备份",
+      "/mem inspect                一屏概况",
+      "/mem help                   全部命令",
+      "",
+      "日常不需要命令：在「记忆」页里点条目即可查看；修订与偏好修改都会先弹卡片确认。",
+    ].join("\n");
+
+    function badge(kind, serial) {
+      const style = KIND_STYLE[kind] || { color: "#374151", background: "#f3f4f6" };
+      return React.createElement(
+        "span",
+        { style: { ...styles.serial, color: style.color, background: style.background } },
+        serial || "—",
+      );
+    }
 
     function metric(label, value) {
       return React.createElement(
-        "div",
-        { style: styles.card },
-        React.createElement("p", { style: styles.label }, label),
-        React.createElement("p", { style: styles.value }, value == null ? "—" : String(value)),
+        "span",
+        { style: styles.meta },
+        `${label} ${value == null ? "—" : String(value)}`,
+        "\u00a0\u00a0",
       );
     }
 
     function MemoryPage() {
       const [state, setState] = React.useState({ loading: true });
+      const [detail, setDetail] = React.useState(null);
+      const [query, setQuery] = React.useState("");
+      const [search, setSearch] = React.useState(null);
+      const [manual, setManual] = React.useState(false);
 
       const load = () => {
         setState({ loading: true });
-        fetch("/api/agent-memory/status", { headers: { accept: "application/json" } })
+        fetch("/api/agent-memory/list", { headers: { accept: "application/json" } })
           .then((response) => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return response.json();
@@ -70,38 +209,200 @@ window.__ModuleLoader__.load({
 
       React.useEffect(load, []);
 
+      const openItem = (id) => {
+        setDetail({ loading: true });
+        fetch(`/api/agent-memory/item?id=${encodeURIComponent(id)}`, { headers: { accept: "application/json" } })
+          .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          })
+          .then((data) => setDetail({ data }))
+          .catch((error) => setDetail({ error: String(error) }));
+      };
+
+      const runSearch = () => {
+        const text = query.trim();
+        if (text === "") {
+          setSearch(null);
+          return;
+        }
+        fetch(`/api/agent-memory/search?q=${encodeURIComponent(text)}`, { headers: { accept: "application/json" } })
+          .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          })
+          .then((data) => setSearch(data))
+          .catch((error) => setSearch({ error: String(error) }));
+      };
+
+      const exportNow = () => {
+        const link = document.createElement("a");
+        link.href = "/api/agent-memory/export";
+        link.download = "agent-memory.json";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      };
+
       const data = state.data;
+      const total = data ? data.total : "—";
+      const pending = data ? data.pending : "—";
+
+      const renderRows = (items) =>
+        items.map((item) =>
+          React.createElement(
+            "button",
+            { key: item.id, style: styles.row, onClick: () => openItem(item.id) },
+            badge(item.kind, item.serial),
+            React.createElement("span", { style: styles.abstract }, item.abstract),
+            React.createElement("span", { style: styles.date }, item.valid_from || item.created_at.slice(0, 10)),
+          ),
+        );
+
       return React.createElement(
         "div",
         { style: styles.page },
-        React.createElement("h1", { style: styles.h1 }, "记忆"),
+        React.createElement(
+          "div",
+          { style: styles.header },
+          React.createElement("h1", { style: styles.h1 }, "记忆"),
+          metric("共", total),
+          metric("待审", pending),
+        ),
         React.createElement(
           "p",
-          { style: styles.sub },
-          "你的 AI 助手记住的事。这里是 P0 探针页面：先确认侧栏入口、页面与只读接口都通了。",
-        ),
-        state.loading
-          ? React.createElement("p", { style: styles.sub }, "正在读取…")
-          : React.createElement(
-              "div",
-              { style: styles.row },
-              metric("活动记忆", data && data.active),
-              metric("待审提案", data && data.pending),
-              metric("写入模式", data && data.mode),
-              metric("数据目录", data && data.home),
-            ),
-        data && data.modules && data.modules.some((module) => !module.ok)
-          ? React.createElement(
-              "p",
-              { style: styles.error },
-              `部分模块不可用：${data.modules
+          { style: { ...styles.meta, margin: "2px 0 0" } },
+          data && data.modules && data.modules.some((module) => !module.ok)
+            ? `部分模块不可用：${data.modules
                 .filter((module) => !module.ok)
                 .map((module) => module.name)
-                .join("、")}`,
+                .join("、")}`
+            : "这里是助手记住的事。点一条查看原文与出处；修订会先弹卡片确认。",
+        ),
+        React.createElement(
+          "div",
+          { style: styles.toolbar },
+          React.createElement("input", {
+            style: styles.input,
+            placeholder: "搜索记忆（关键词）",
+            value: query,
+            onChange: (event) => setQuery(event.target.value),
+            onKeyDown: (event) => {
+              if (event.key === "Enter") runSearch();
+            },
+          }),
+          React.createElement("button", { style: styles.buttonPrimary, onClick: runSearch }, "搜索"),
+          React.createElement("button", { style: styles.button, onClick: exportNow }, "导出备份"),
+          React.createElement("button", { style: styles.button, onClick: () => setManual(true) }, "命令手册"),
+        ),
+        state.loading
+          ? React.createElement("p", { style: styles.meta }, "正在读取…")
+          : state.error
+            ? React.createElement("p", { style: styles.meta }, `读取失败：${state.error}`)
+            : search
+              ? React.createElement(
+                  "div",
+                  null,
+                  React.createElement("h2", { style: styles.groupTitle }, `搜索「${search.query || query}」`),
+                  search.error
+                    ? React.createElement("p", { style: styles.meta }, `搜索失败：${search.error}`)
+                    : React.createElement(
+                        "div",
+                        { style: styles.list },
+                        (search.hits || []).length === 0
+                          ? React.createElement("div", { style: styles.empty }, "没有匹配的记忆。")
+                          : search.hits.map((hit) =>
+                              React.createElement(
+                                "button",
+                                { key: hit.id, style: styles.row, onClick: () => openItem(hit.id) },
+                                badge(hit.kind, hit.serial),
+                                React.createElement("span", { style: styles.abstract }, hit.abstract),
+                                React.createElement("span", { style: styles.date }, hit.provenance_verifiable ? "有出处" : "无出处"),
+                              ),
+                            ),
+                      ),
+                )
+              : (data.groups || []).map((group) =>
+                  React.createElement(
+                    "div",
+                    { key: group.kind },
+                    React.createElement(
+                      "h2",
+                      { style: styles.groupTitle },
+                      KIND_STYLE[group.kind] ? KIND_STYLE[group.kind].label : group.label,
+                      React.createElement("span", { style: styles.count }, ` · ${group.items.length}`),
+                    ),
+                    group.items.length === 0
+                      ? React.createElement("div", { style: styles.empty }, "这一类还没有记忆。")
+                      : React.createElement("div", { style: styles.list }, renderRows(group.items)),
+                  ),
+                ),
+        detail
+          ? React.createElement(
+              "div",
+              { style: styles.detail },
+              detail.loading
+                ? React.createElement("p", { style: styles.meta }, "正在读取…")
+                : detail.error
+                  ? React.createElement("p", { style: styles.meta }, `读取失败：${detail.error}`)
+                  : React.createElement(
+                      "div",
+                      null,
+                      React.createElement(
+                        "div",
+                        { style: { display: "flex", alignItems: "center", gap: "8px" } },
+                        badge(detail.data.kind, detail.data.serial),
+                        React.createElement("h2", { style: styles.detailTitle }, detail.data.abstract),
+                      ),
+                      React.createElement(
+                        "p",
+                        { style: styles.small },
+                        `${detail.data.id} · ${detail.data.author === "human" ? "人工维护" : "助手记录"} · ${detail.data.valid_from}`,
+                      ),
+                      React.createElement("pre", { style: styles.body }, detail.data.body),
+                      (detail.data.provenance || []).length > 0
+                        ? React.createElement(
+                            "ul",
+                            { style: styles.provenance },
+                            detail.data.provenance.map((entry, index) =>
+                              React.createElement(
+                                "li",
+                                { key: index },
+                                `${entry.speaker === "user" ? "用户" : entry.speaker} #${entry.event_seq}：「${entry.quote}」`,
+                              ),
+                            ),
+                          )
+                        : null,
+                      React.createElement(
+                        "button",
+                        { style: { ...styles.button, marginTop: "14px" }, onClick: () => setDetail(null) },
+                        "收起",
+                      ),
+                    ),
             )
           : null,
-        state.error ? React.createElement("p", { style: styles.error }, `读取失败：${state.error}`) : null,
-        React.createElement("button", { style: styles.action, onClick: load }, "刷新"),
+        manual
+          ? React.createElement(
+              "div",
+              { style: styles.overlay, onClick: () => setManual(false) },
+              React.createElement(
+                "div",
+                { style: styles.modal, onClick: (event) => event.stopPropagation() },
+                React.createElement("h2", { style: styles.detailTitle }, "命令手册"),
+                React.createElement(
+                  "p",
+                  { style: styles.small },
+                  "高级用法。日常只需要点按钮；命令是可选的快捷方式。",
+                ),
+                React.createElement("pre", { style: styles.pre }, MANUAL),
+                React.createElement(
+                  "button",
+                  { style: { ...styles.button, marginTop: "14px" }, onClick: () => setManual(false) },
+                  "关闭",
+                ),
+              ),
+            )
+          : null,
       );
     }
 

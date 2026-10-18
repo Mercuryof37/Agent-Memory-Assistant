@@ -35,6 +35,7 @@ import { registerTools } from './tools.ts';
 import { reviewProposal, type ReviewExecLike, type UserQuestionsLike } from './review.ts';
 import { registerUserProfileTool } from './personalization.ts';
 import { registerSessionTools, type SessionQueryLike } from './session-tools.ts';
+import { registerGuiRoutes, type GuiConnection } from './gui.ts';
 import { openHostService, type SessionStoreLike } from './service.ts';
 
 export const name = 'agent-memory';
@@ -248,67 +249,41 @@ export function apply(ctx: PluginContextLike): void {
         sessionId,
       }),
     );
-    // V2 P0 probe: one read-only exact Fetch route for the client panel. Exact
-    // routes own their full `/api/...` path (see dsh-api-session-controller).
-    const statusRoute = {
-      path: '/api/agent-memory/status',
-      methods: ['GET'],
-      requestBody: 'buffered',
-      fetch: async () => {
-        const stats = host.store.stats();
-        return new Response(
-          JSON.stringify({
-            ok: true,
-            home,
-            active: stats.active,
-            pending: stats.pending_proposals,
-            journal_head: stats.journal_head,
-            mode: host.mode,
-            modules: moduleHealth,
-          }),
-          {
-            status: 200,
-            headers: {
-              'content-type': 'application/json; charset=utf-8',
-              'cache-control': 'no-store',
-            },
-          },
-        );
-      },
+    // V2 GUI routes: status/list/item/search/export. Exact routes own their
+    // full `/api/...` path (see dsh-api-session-controller).
+    const effectful = ctx as unknown as {
+      effect?: (install: () => unknown, label?: string) => unknown;
     };
-    const registerStatusRoute = (connection: { fetch?: { register(route: unknown): unknown } }): void => {
-      const effectful = ctx as unknown as {
-        effect?: (install: () => unknown, label?: string) => unknown;
-      };
-      if (connection.fetch === undefined) return;
-      if (typeof effectful.effect === 'function') {
-        effectful.effect(() => connection.fetch?.register(statusRoute), 'agent-memory: status route');
-      } else {
-        connection.fetch.register(statusRoute);
-      }
+    const effect = (install: () => unknown, label?: string): unknown =>
+      typeof effectful.effect === 'function' ? effectful.effect(install, label) : install();
+    const installRoutes = (connection: GuiConnection): void => {
+      registerGuiRoutes(
+        connection,
+        { store: host.store, home, mode: host.mode, modules: moduleHealth },
+        effect,
+      );
       try {
-        host.store.appendAudit({ event: 'gui-route', state: 'registered', path: statusRoute.path });
+        host.store.appendAudit({ event: 'gui-route', state: 'registered', path: '/api/agent-memory/*' });
       } catch {
         // Journal problems are reported by `mem doctor`.
       }
     };
-    const connectionNow = service<{ fetch?: { register(route: unknown): unknown } }>(ctx, 'connection');
-    if (connectionNow !== undefined) registerStatusRoute(connectionNow);
+    const connectionNow = service<GuiConnection>(ctx, 'connection');
+    if (connectionNow !== undefined) installRoutes(connectionNow);
     else {
       (ctx as unknown as {
         inject?: (deps: string[], callback: (child: unknown) => void) => unknown;
       }).inject?.(['connection'], (child) => {
         // The injected child is a Context; the service hangs off `.connection`,
-        // not off the child itself (the previous cast looked one level too high).
-        const connection = (child as { connection?: { fetch?: { register(route: unknown): unknown } } })
-          .connection;
-        if (connection !== undefined) registerStatusRoute(connection);
+        // not off the child itself.
+        const connection = (child as { connection?: GuiConnection }).connection;
+        if (connection !== undefined) installRoutes(connection);
       });
     }
     try {
       host.store.appendAudit({
         event: 'gui-route',
-        path: statusRoute.path,
+        path: '/api/agent-memory/*',
         at: connectionNow !== undefined ? 'apply' : 'deferred',
       });
     } catch {

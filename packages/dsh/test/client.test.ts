@@ -12,7 +12,11 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /factory: \(require\) =>/);
   assert.match(source, /ctx\.slots\.inject\("main"/);
   assert.match(source, /ctx\.slots\.inject\("sidebar\.panellist"/);
-  assert.match(source, /\/api\/agent-memory\/status/);
+  for (const endpoint of ['list', 'item', 'search', 'export']) {
+    assert.match(source, new RegExp(`/api/agent-memory/${endpoint}`));
+  }
+  assert.match(source, /命令手册/);
+  assert.match(source, /F-01/);
 });
 
 test('S13.2 package.json declares the client half for the host module graph', () => {
