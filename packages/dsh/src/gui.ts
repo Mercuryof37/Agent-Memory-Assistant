@@ -39,9 +39,23 @@ export function serialsFor(docs: readonly MemoryDoc[]): ReadonlyMap<MemoryId, st
   return serials;
 }
 
+/** Human-facing summary: whitespace collapsed, hard cap of 12 characters. */
+export function summarize(text: string, limit = 12): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  const points = [...clean];
+  return points.length <= limit ? clean : points.slice(0, limit).join('');
+}
+
+/** Existing memory: `F-01 中文优先偏好`; new content: just the summary. */
+export function displayName(serial: string, abstract: string): string {
+  const text = summarize(abstract);
+  return serial === '' ? text : `${serial} ${text}`;
+}
+
 function summary(doc: MemoryDoc, serial: string) {
   return {
     serial,
+    display: displayName(serial, doc.abstract),
     id: doc.id,
     kind: doc.kind,
     abstract: doc.abstract,
@@ -151,10 +165,15 @@ export function buildProposals(store: MemoryStore) {
     op: proposal.op,
     reason: proposal.reason,
     created_at: proposal.created_at,
-    targets: proposal.targets.map((id) => ({ id, serial: serials.get(id) ?? '', abstract: abstractOf(id) })),
+    targets: proposal.targets.map((id) => {
+      const serial = serials.get(id) ?? '';
+      const abstract = abstractOf(id);
+      return { id, serial, abstract, display: displayName(serial, abstract) };
+    }),
     replacements: proposal.replacements.map((replacement) => ({
       kind: replacement.kind,
       abstract: replacement.abstract,
+      display: summarize(replacement.abstract),
       body: replacement.body,
     })),
   }));

@@ -3,7 +3,7 @@
 给 DSH 用的本地长期记忆：**一条记忆一个 Markdown 文件**，索引是可随时删掉重建的缓存，注入是每会话冻结一次的快照。目标是几十到几百条记忆、可 grep、可 diff、可回滚，并且**不靠提示词守边界**。
 
 - 开发方案：[v1.3](docs/research/V1.0-开发方案-v1.3.md)（取代 v1.2 与更早版本）
-- **V2.0 方案**：[图形化与分发](docs/plan/v2-gui-and-distribution.md)（客户端插件、一键部署、跨平台外挂）；**架构审核与 10 问决策**：[v2-architecture-review.md](docs/plan/v2-architecture-review.md)
+- **V2.0 方案**：[图形化与分发](docs/plan/v2-gui-and-distribution.md)（客户端插件、一键部署、跨平台外挂）；**架构审核与 10 问决策**：[v2-architecture-review.md](docs/plan/v2-architecture-review.md)；**UI 命名规范**：[ui-guidelines.md](docs/design/ui-guidelines.md)
 - 原始调研材料：[docs/research/](docs/research/)
 - 当前阶段：**V1.0 全部阶段完成**（S0–S14；[ADR-0010](docs/adr/0010-s7-ops.md) 起，最新 [ADR-0015](docs/adr/0015-preset-and-tool-trimming.md)）
 - 配置与策略：**config v2（24 键）/ policy v2（8 + sealed_files 3 键）**，见 [ADR-0004](docs/adr/0004-plan-v1.3.md)
@@ -330,5 +330,13 @@ S0 兼容性 ─► S1 骨架 ─► S2a 存储核心 ─► S2b 完整性 ─�
 - **规则**：`/api/agent-memory/rules` 读写 RULES.md，保存前整文件校验、保存后重新封存；GUI 是 RULES 的唯一写入口（模型工具与 CLI 都没有）。
 - 客户端仍是手写 loader bundle；`ci` 全绿（**239 个测试**，`S14.5`–`S14.7`）。
 - 记录：[ADR-0018](docs/adr/0018-v2-p2-write-flows.md)。
+
+### 第 18 轮 · UI 命名：库编号 + 内容总结（2026-10-18）
+
+- 事实基础：用户不知道 `mem-20261017-dc3339cf` 代表什么；界面不再展示内部 ID。
+- **已有记忆**：库编号 + 内容总结（≤12 字），如 `F-01 中文优先偏好`；**新内容**只有总结；类型只用中文（事实/坑/经验、修订/删除）。
+- 服务端统一产出 `display`（`summarize` / `displayName`），列表、详情、提案卡共用；详情行改为 `F-01 · 事实 · 人工维护 · 日期`。
+- 规范文档：[docs/design/ui-guidelines.md](docs/design/ui-guidelines.md)。
+- `ci` 全绿（**240 个测试**，`S14.9`）；记录：[ADR-0019](docs/adr/0019-ui-naming.md)。
 
 

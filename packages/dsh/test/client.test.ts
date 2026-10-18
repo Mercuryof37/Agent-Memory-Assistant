@@ -21,6 +21,11 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /采纳/);
   assert.match(source, /保存修订/);
   assert.match(source, /保存并重新封存/);
+  // UI naming: existing memory shows serial + summary, never a raw mem id.
+  assert.match(source, /detail\.data\.serial/);
+  assert.match(source, /target\.display/);
+  assert.match(source, /replacement\.display/);
+  assert.ok(!/detail\.data\.id\s*\}?\s*·/.test(source));
   // The workbench owns a viewport-height scroll container with a styled rail;
   // the host panel does not scroll in windowed mode.
   assert.match(source, /am-memory-scroll/);

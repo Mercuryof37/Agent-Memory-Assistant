@@ -6,9 +6,11 @@ import { loadConfig } from '../../core/src/config/load.ts';
 import { cleanupHome, tempHome } from '../../core/test/helpers.ts';
 import {
   buildList,
+  buildProposals,
   buildSearch,
   decideGui,
   deleteGui,
+  displayName,
   exportBundle,
   guiRoutes,
   readProfileGui,
@@ -17,6 +19,7 @@ import {
   saveProfileGui,
   saveRulesGui,
   serialsFor,
+  summarize,
 } from '../src/gui.ts';
 import type { MemoryDoc } from '../../core/src/model/types.ts';
 
@@ -148,6 +151,36 @@ test('S14.7 GUI profile and rules writes seal the human files', (t) => {
 
   saveRulesGui(home, store, '1. [模型指引] 测试规则\n');
   assert.match(readRulesGui(home).text, /测试规则/);
+});
+
+test('S14.9 UI names use serial + 12-char summary, never internal ids', (t) => {
+  const { store, config } = fixture(t);
+  const saved = store.add(
+    { kind: 'fact', abstract: '用户偏好：界面文案与工具描述优先使用中文', body: 'b', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  const item = buildList(store).groups[0]?.items[0];
+  assert.equal(item?.display, `F-01 ${summarize('用户偏好：界面文案与工具描述优先使用中文')}`);
+  assert.ok([...summarize('用户偏好：界面文案与工具描述优先使用中文')].length <= 12);
+  assert.ok(!item?.display.includes('mem-'));
+
+  createProposal(
+    { store, config },
+    {
+      op: 'supersede',
+      targets: [saved.id],
+      base_hashes: [saved.content_hash],
+      reason: '命名测试',
+      replacements: [
+        { kind: 'fact', abstract: '新的偏好总结不超过十二个字', body: 'new', evidence_level: 'user_confirmed', provenance: [] },
+      ],
+    },
+  );
+  const proposal = buildProposals(store)[0];
+  assert.ok(proposal?.targets[0]?.display.startsWith('F-01 '));
+  assert.ok(!proposal?.targets[0]?.display.includes('mem-'));
+  assert.ok([...(proposal?.replacements[0]?.display ?? '')].length <= 12);
+  assert.equal(displayName('', '无编号的新内容'), '无编号的新内容');
 });
 
 test('S14.3 search and export read through the store only', (t) => {

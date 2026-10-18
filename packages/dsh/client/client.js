@@ -182,16 +182,16 @@ window.__ModuleLoader__.load({
     const MANUAL = [
       "常用命令（在聊天框输入，无需终端）：",
       "/mem proposals              查看待审提案",
-      "/mem decide <id> accept     采纳一条提案",
-      "/mem decide <id> reject     驳回",
+      "/mem review                 逐条弹出审批卡",
       "/mem recall <关键词>        检索记忆",
-      "/mem read <编号>            查看全文与出处",
+      "/mem read <库编号>          查看全文与出处（如 F-01）",
       "/mem profile                查看你的偏好",
       "/mem export <目录>          完整备份",
       "/mem inspect                一屏概况",
       "/mem help                   全部命令",
       "",
       "日常不需要命令：在「记忆」页里点条目即可查看；修订与偏好修改都会先弹卡片确认。",
+      "编号一律是库编号（F-01 / P-01 / E-01），不是长串内部 ID。",
     ].join("\n");
 
     // Chrome-like scrollbar for the workbench. The host does not scroll our
@@ -508,8 +508,8 @@ window.__ModuleLoader__.load({
                       React.createElement(
                         "p",
                         { style: { margin: 0, fontSize: "14px", fontWeight: 600 } },
-                        `${proposal.op === "delete" ? "删除" : "修订"}：${proposal.targets
-                          .map((target) => `${target.serial || "—"} ${target.abstract}`)
+                        `${proposal.op === "delete" ? "删除" : "修订"} · ${proposal.targets
+                          .map((target) => target.display || target.abstract)
                           .join("、")}`,
                       ),
                       React.createElement("p", { style: styles.small }, proposal.reason || "（无说明）"),
@@ -517,7 +517,7 @@ window.__ModuleLoader__.load({
                         React.createElement(
                           "p",
                           { key: index, style: { ...styles.small, margin: "6px 0 0" } },
-                          `新内容：${replacement.abstract}`,
+                          `新内容：${replacement.display || replacement.abstract}`,
                         ),
                       ),
                       React.createElement(
@@ -633,7 +633,7 @@ window.__ModuleLoader__.load({
                       React.createElement(
                         "p",
                         { style: styles.small },
-                        `${detail.data.id} · ${detail.data.author === "human" ? "人工维护" : "助手记录"} · ${detail.data.valid_from}`,
+                        `${detail.data.serial || "—"} · ${KIND_STYLE[detail.data.kind] ? KIND_STYLE[detail.data.kind].label : detail.data.kind} · ${detail.data.author === "human" ? "人工维护" : "助手记录"} · ${detail.data.valid_from}`,
                       ),
                       React.createElement("pre", { style: styles.body }, detail.data.body),
                       (detail.data.provenance || []).length > 0
