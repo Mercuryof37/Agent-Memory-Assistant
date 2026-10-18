@@ -1,6 +1,7 @@
 import {
   createProposal,
   decideProposal,
+  importBundle,
   listProposals,
   loadProfile,
   readRulesFile,
@@ -420,6 +421,27 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     },
   };
 
+  const importRoute = {
+    path: '/api/agent-memory/import',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request: Request) => {
+      const body = await readJson(request);
+      try {
+        const report = importBundle(deps.store, body);
+        deps.store.appendJournal('audit', {
+          event: 'gui-import',
+          imported: report.imported,
+          skipped: report.skipped,
+          failed: report.failed.length,
+        });
+        return json(report);
+      } catch (error) {
+        return errorResponse(error instanceof Error ? error.message : String(error));
+      }
+    },
+  };
+
   const profileRoute = {
     path: '/api/agent-memory/profile',
     methods: ['GET', 'POST'],
@@ -466,6 +488,7 @@ export function guiRoutes(deps: GuiRouteDeps): unknown[] {
     decideRoute,
     reviseRoute,
     deleteRoute,
+    importRoute,
     profileRoute,
     rulesRoute,
   ];

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createProposal, initStore } from '../../core/src/index.ts';
+import { createProposal, importBundle, initStore } from '../../core/src/index.ts';
 import { MemoryStore } from '../../core/src/store/store.ts';
 import { loadConfig } from '../../core/src/config/load.ts';
 import { cleanupHome, tempHome } from '../../core/test/helpers.ts';
@@ -87,6 +87,7 @@ test('S14.4 every GUI route owns its full /api path', (t) => {
   assert.deepEqual(routes.map((route) => route.path).sort(), [
     '/api/agent-memory/delete',
     '/api/agent-memory/export',
+    '/api/agent-memory/import',
     '/api/agent-memory/item',
     '/api/agent-memory/list',
     '/api/agent-memory/profile',
@@ -196,4 +197,27 @@ test('S14.3 search and export read through the store only', (t) => {
   assert.equal(bundle.memories.length, 1);
   assert.equal(bundle.memories[0]?.body.trim(), '迁移脚本');
   assert.deepEqual(bundle.proposals, []);
+});
+
+test('S14.10 an exported bundle imports back and dedupes', (t) => {
+  const source = fixture(t);
+  source.store.add(
+    { kind: 'fact', abstract: '导入前的事实', body: '正文', evidence_level: 'observed' },
+    { author: 'human' },
+  );
+  const bundle = exportBundle(source.store);
+
+  const target = fixture(t);
+  const first = importBundle(target.store, bundle);
+  assert.equal(first.imported, 1);
+  assert.equal(first.skipped, 0);
+  assert.equal(first.failed.length, 0);
+  assert.equal(target.store.active().length, 1);
+
+  const second = importBundle(target.store, bundle);
+  assert.equal(second.imported, 0);
+  assert.equal(second.skipped, 1);
+  assert.equal(target.store.active().length, 1);
+
+  assert.throws(() => importBundle(target.store, { format: 'nope' }), /format/);
 });

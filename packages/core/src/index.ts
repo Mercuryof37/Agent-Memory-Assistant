@@ -38,3 +38,4 @@ export * from './personalization/scaffold.ts';
 export * from './personalization/guidance.ts';
 export * from './personalization/mode.ts';
 export * from './profile/profile.ts';
+export * from './transfer/import.ts';

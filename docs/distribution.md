@@ -64,7 +64,13 @@ npm run plugin:revert      # 还原 profile 备份
 2. 数据目录**不会**被删除；确认要删时手动处理 `~/.dsh/memory`；
 3. 重启。
 
-## 6. 已知限制
+## 6. 备份与导入
+
+- 导出：GUI「导出备份」下载 `agent-memory-*.json`；或 `mem export <dir>`（完整目录）。
+- 导入：GUI「导入备份」选择 JSON；重复内容按内容哈希跳过，导入条目记为人工添加，pending 提案不会导入（需重新提案）。
+- 恢复顺序：先装包 → 重启 → 导入 JSON → 检查列表与 `mem doctor`。
+
+## 7. 已知限制
 
 - 当前包 `private: true`，只出 tgz，不发 npm；正式发布时改 `private` 并补 README/LICENSE。
 - 客户端半层源码在 `packages/dsh/client/src/index.ts`，由 `npm run build` 生成 `client/client.js`；包只带产物，不带源码。改 UI 请改 src，不要直接改产物。

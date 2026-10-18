@@ -13,10 +13,11 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   assert.match(source, /factory: \(require\) =>/);
   assert.match(source, /ctx\.slots\.inject\(\s*"main"/);
   assert.match(source, /ctx\.slots\.inject\(\s*"sidebar\.panellist"/);
-  for (const endpoint of ['list', 'item', 'search', 'export', 'proposals', 'revise', 'delete', 'profile', 'rules']) {
+  for (const endpoint of ['list', 'item', 'search', 'export', 'import', 'proposals', 'revise', 'delete', 'profile', 'rules']) {
     assert.match(source, new RegExp(`/api/agent-memory/${endpoint}`));
   }
   assert.match(source, /命令手册/);
+  assert.match(source, /导入备份/);
   assert.match(source, /F-01/);
   // P2 human write surfaces: proposals, revise/delete, profile and rules editors.
   assert.match(source, /采纳/);

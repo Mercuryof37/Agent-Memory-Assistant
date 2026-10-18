@@ -262,6 +262,7 @@ function MemoryPage() {
   const [profileText, setProfileText] = React.useState("");
   const [rulesText, setRulesText] = React.useState("");
   const [notice, setNotice] = React.useState("");
+  const fileInputRef = React.useRef(null);
   const [busy, setBusy] = React.useState(false);
   const [revise, setRevise] = React.useState(null);
   const [expandedProposal, setExpandedProposal] = React.useState(null);
@@ -319,6 +320,15 @@ function MemoryPage() {
     if (!response.ok) throw new Error(data2.error || `HTTP ${response.status}`);
     return data2;
   });
+  const importFile = (file) => {
+    if (!file) return;
+    setBusy(true);
+    file.text().then((text) => postJson("/api/agent-memory/import", JSON.parse(text))).then((report) => {
+      const failed = Array.isArray(report.failed) ? report.failed.length : 0;
+      setNotice(`导入完成：新增 ${report.imported} 条，重复跳过 ${report.skipped} 条${failed > 0 ? `，失败 ${failed} 条` : ""}`);
+      load();
+    }).catch((error) => setNotice(`导入失败：${String(error.message || error)}`)).finally(() => setBusy(false));
+  };
   const refreshProposals = () => fetch("/api/agent-memory/proposals", { headers: { accept: "application/json" } }).then((response) => response.ok ? response.json() : []).then((data2) => setProposals(Array.isArray(data2) ? data2 : [])).catch(() => setProposals([]));
   const openProposals = () => {
     setPanel("proposals");
@@ -436,6 +446,21 @@ function MemoryPage() {
         }),
         React.createElement("button", { style: styles.buttonPrimary, onClick: runSearch }, "搜索"),
         React.createElement("button", { style: styles.button, onClick: exportNow }, "导出备份"),
+        React.createElement("input", {
+          ref: fileInputRef,
+          type: "file",
+          accept: ".json,application/json",
+          style: { display: "none" },
+          onChange: (event) => {
+            importFile(event.target.files ? event.target.files[0] : null);
+            event.target.value = "";
+          }
+        }),
+        React.createElement(
+          "button",
+          { style: styles.button, disabled: busy, onClick: () => fileInputRef.current && fileInputRef.current.click() },
+          "导入备份"
+        ),
         React.createElement("button", { style: styles.button, onClick: openProposals }, `提案 ${data ? data.pending : ""}`.trim()),
         React.createElement("button", { style: styles.button, onClick: openSettings }, "偏好与规则"),
         React.createElement("button", { style: styles.button, onClick: () => setManual(true) }, "命令手册")
