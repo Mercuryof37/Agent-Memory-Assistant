@@ -238,6 +238,8 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
       const [tree, setTree] = React.useState(null);
       const [treeProject, setTreeProject] = React.useState(null);
       const [focusId, setFocusId] = React.useState(null);
+      const [newProjectOpen, setNewProjectOpen] = React.useState(false);
+      const [newProjectName, setNewProjectName] = React.useState("");
 
       React.useEffect(() => {
         persistTheme(theme);
@@ -283,6 +285,16 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           .then((data) => setTree({ data }))
           .catch((error) => setTree({ error: String(error) }));
       };
+
+      React.useEffect(() => {
+        if (panel !== "tree") {
+          setTreeProject(null);
+          setFocusId(null);
+          setDetail(null);
+          setNewProjectOpen(false);
+          setNewProjectName("");
+        }
+      }, [panel]);
 
       React.useEffect(load, []);
 
@@ -567,7 +579,7 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
       const graphNodes = graphData ? graphData.nodes : [];
       const graphEdges = graphData ? graphData.edges : [];
       const focusNode = focusId === null ? null : graphNodes.find((node) => node.id === focusId) || null;
-      const focusNeighbors = focusNode
+      const explicitNeighbors = focusNode
         ? graphEdges
             .filter((edge) => edge.from === focusNode.id || edge.to === focusNode.id)
             .map((edge) => {
@@ -576,6 +588,17 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
             })
             .filter((entry) => entry.node)
         : [];
+      const explicitIds = new Set(explicitNeighbors.map((entry) => entry.node.id));
+      const suggestedNeighbors = focusNode
+        ? graphNodes
+            .filter((node) => {
+              if (node.id === focusNode.id || explicitIds.has(node.id)) return false;
+              if (node.project !== focusNode.project) return false;
+              return (node.tags || []).some((tag) => (focusNode.tags || []).includes(tag));
+            })
+            .map((node) => ({ node, edge: { type: "same_topic", from: focusNode.id, to: node.id } }))
+        : [];
+      const focusNeighbors = [...explicitNeighbors, ...suggestedNeighbors].slice(0, 8);
 
       const renderTreeCards = () => {
         if (!graphData) return null;
@@ -618,6 +641,25 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
             "点左侧一条记忆，查看它的局部关系。",
           );
         }
+        if (focusNeighbors.length === 0) {
+          return React.createElement(
+            "div",
+            { style: { display: "grid", gap: "10px" } },
+            React.createElement("h3", { style: { margin: 0, fontSize: "15px" } }, `${focusNode.serial || "—"} ${focusNode.display}`),
+            React.createElement(
+              "div",
+              { style: { ...styles.small, padding: "16px", background: "var(--am-surface-muted)", borderRadius: "12px" } },
+              "暂无显式关系；同项目、同标签的条目也没有。给这条记忆加标签或关系后，这里会出现局部图。",
+            ),
+            detail && detail.data
+              ? React.createElement(
+                  "div",
+                  { style: { padding: "0 2px" } },
+                  React.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body),
+                )
+              : null,
+          );
+        }
         const width = 460;
         const height = 280;
         const centerX = width / 2;
@@ -641,8 +683,9 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                 y1: centerY,
                 x2: entry.x,
                 y2: entry.y,
-                stroke: "var(--am-border-strong)",
-                strokeWidth: 1.2,
+                stroke: entry.edge.type === "same_topic" ? "var(--am-border)" : "var(--am-border-strong)",
+                strokeWidth: entry.edge.type === "same_topic" ? 1 : 1.2,
+                strokeDasharray: entry.edge.type === "same_topic" ? "4 3" : undefined,
               }),
             ),
             React.createElement("circle", { cx: centerX, cy: centerY, r: 34, fill: "var(--am-accent-soft)", stroke: "var(--am-accent)" }),
@@ -694,16 +737,52 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
             null,
             React.createElement("h2", { style: styles.groupTitle }, "项目"),
             React.createElement("p", { style: styles.small }, "按项目查看记忆；点一个项目进入工作树。"),
-            React.createElement(AmButton, {
-              variant: "ghost",
-              onClick: () => {
-                const name = window.prompt("新项目名称（例如 Agent Memory）");
-                if (name === null || name.trim() === "") return;
-                postJson("/api/agent-memory/projects", { name: name.trim() })
-                  .then(() => openTree())
-                  .catch((error) => setNotice(`新建项目失败：${String(error.message || error)}`));
-              },
-            }, "＋ 新建项目"),
+            React.createElement(
+              "div",
+              { style: { display: "flex", gap: "8px", alignItems: "center", margin: "8px 0 12px", flexWrap: "wrap" } },
+              newProjectOpen
+                ? React.createElement(
+                    React.Fragment,
+                    null,
+                    React.createElement("input", {
+                      className: "am-input",
+                      style: { width: "240px" },
+                      placeholder: "新项目名称（例如 Agent Memory）",
+                      autoFocus: true,
+                      value: newProjectName,
+                      onChange: (event) => setNewProjectName(event.target.value),
+                      onKeyDown: (event) => {
+                        if (event.key === "Enter") {
+                          const name = newProjectName.trim();
+                          if (name === "") return;
+                          postJson("/api/agent-memory/projects", { name })
+                            .then(() => {
+                              setNewProjectOpen(false);
+                              setNewProjectName("");
+                              openTree();
+                            })
+                            .catch((error) => setNotice(`新建项目失败：${String(error.message || error)}`));
+                        }
+                      },
+                    }),
+                    React.createElement(AmButton, {
+                      variant: "primary",
+                      onClick: () => {
+                        const name = newProjectName.trim();
+                        if (name === "") return;
+                        postJson("/api/agent-memory/projects", { name })
+                          .then(() => {
+                            setNewProjectOpen(false);
+                            setNewProjectName("");
+                            openTree();
+                          })
+                          .catch((error) => setNotice(`新建项目失败：${String(error.message || error)}`));
+                      },
+                    }, "创建"),
+                    React.createElement(AmButton, { variant: "ghost", onClick: () => { setNewProjectOpen(false); setNewProjectName(""); } }, "取消"),
+                  )
+                : React.createElement(AmButton, { variant: "ghost", onClick: () => setNewProjectOpen(true) }, "＋ 新建项目"),
+            ),
             renderTreeCards(),
           );
         }
@@ -714,7 +793,7 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           React.createElement(
             "div",
             { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" } },
-            React.createElement(AmButton, { variant: "ghost", onClick: () => { setTreeProject(null); setFocusId(null); } }, "← 全部项目"),
+            React.createElement(AmButton, { variant: "ghost", onClick: () => { setTreeProject(null); setFocusId(null); setDetail(null); } }, "← 全部项目"),
             React.createElement("h2", { style: { ...styles.groupTitle, margin: 0 } }, treeProject),
             React.createElement("span", { style: styles.small }, `${docs.length} 条`),
           ),
@@ -831,7 +910,7 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
           { className: "am-toolbar" },
           React.createElement(AmButton, {
             variant: "ghost",
-            onClick: panel === "tree" ? () => setPanel(null) : openTree,
+            onClick: panel === "tree" ? () => { setPanel(null); setDetail(null); setFocusId(null); } : openTree,
           }, panel === "tree" ? "← 列表" : "项目"),
           React.createElement(
             "div",

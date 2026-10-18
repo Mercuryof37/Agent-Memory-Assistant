@@ -542,6 +542,8 @@ function MemoryPage() {
   const [tree, setTree] = React2.useState(null);
   const [treeProject, setTreeProject] = React2.useState(null);
   const [focusId, setFocusId] = React2.useState(null);
+  const [newProjectOpen, setNewProjectOpen] = React2.useState(false);
+  const [newProjectName, setNewProjectName] = React2.useState("");
   React2.useEffect(() => {
     persistTheme(theme);
   }, [theme]);
@@ -574,6 +576,15 @@ function MemoryPage() {
       return response.json();
     }).then((data2) => setTree({ data: data2 })).catch((error) => setTree({ error: String(error) }));
   };
+  React2.useEffect(() => {
+    if (panel !== "tree") {
+      setTreeProject(null);
+      setFocusId(null);
+      setDetail(null);
+      setNewProjectOpen(false);
+      setNewProjectName("");
+    }
+  }, [panel]);
   React2.useEffect(load, []);
   const openItem = (id) => {
     setDetail({ loading: true });
@@ -773,10 +784,17 @@ ${lines.join("\n")}`);
   const graphNodes = graphData ? graphData.nodes : [];
   const graphEdges = graphData ? graphData.edges : [];
   const focusNode = focusId === null ? null : graphNodes.find((node) => node.id === focusId) || null;
-  const focusNeighbors = focusNode ? graphEdges.filter((edge) => edge.from === focusNode.id || edge.to === focusNode.id).map((edge) => {
+  const explicitNeighbors = focusNode ? graphEdges.filter((edge) => edge.from === focusNode.id || edge.to === focusNode.id).map((edge) => {
     const id = edge.from === focusNode.id ? edge.to : edge.from;
     return { node: graphNodes.find((node) => node.id === id), edge };
   }).filter((entry) => entry.node) : [];
+  const explicitIds = new Set(explicitNeighbors.map((entry) => entry.node.id));
+  const suggestedNeighbors = focusNode ? graphNodes.filter((node) => {
+    if (node.id === focusNode.id || explicitIds.has(node.id)) return false;
+    if (node.project !== focusNode.project) return false;
+    return (node.tags || []).some((tag) => (focusNode.tags || []).includes(tag));
+  }).map((node) => ({ node, edge: { type: "same_topic", from: focusNode.id, to: node.id } })) : [];
+  const focusNeighbors = [...explicitNeighbors, ...suggestedNeighbors].slice(0, 8);
   const renderTreeCards = () => {
     if (!graphData) return null;
     return React2.createElement(
@@ -815,6 +833,23 @@ ${lines.join("\n")}`);
         "点左侧一条记忆，查看它的局部关系。"
       );
     }
+    if (focusNeighbors.length === 0) {
+      return React2.createElement(
+        "div",
+        { style: { display: "grid", gap: "10px" } },
+        React2.createElement("h3", { style: { margin: 0, fontSize: "15px" } }, `${focusNode.serial || "—"} ${focusNode.display}`),
+        React2.createElement(
+          "div",
+          { style: { ...styles.small, padding: "16px", background: "var(--am-surface-muted)", borderRadius: "12px" } },
+          "暂无显式关系；同项目、同标签的条目也没有。给这条记忆加标签或关系后，这里会出现局部图。"
+        ),
+        detail && detail.data ? React2.createElement(
+          "div",
+          { style: { padding: "0 2px" } },
+          React2.createElement("div", { style: { ...styles.small, whiteSpace: "pre-wrap" } }, detail.data.body)
+        ) : null
+      );
+    }
     const width = 460;
     const height = 280;
     const centerX = width / 2;
@@ -838,8 +873,9 @@ ${lines.join("\n")}`);
             y1: centerY,
             x2: entry.x,
             y2: entry.y,
-            stroke: "var(--am-border-strong)",
-            strokeWidth: 1.2
+            stroke: entry.edge.type === "same_topic" ? "var(--am-border)" : "var(--am-border-strong)",
+            strokeWidth: entry.edge.type === "same_topic" ? 1 : 1.2,
+            strokeDasharray: entry.edge.type === "same_topic" ? "4 3" : void 0
           })
         ),
         React2.createElement("circle", { cx: centerX, cy: centerY, r: 34, fill: "var(--am-accent-soft)", stroke: "var(--am-accent)" }),
@@ -888,14 +924,49 @@ ${lines.join("\n")}`);
         null,
         React2.createElement("h2", { style: styles.groupTitle }, "项目"),
         React2.createElement("p", { style: styles.small }, "按项目查看记忆；点一个项目进入工作树。"),
-        React2.createElement(AmButton, {
-          variant: "ghost",
-          onClick: () => {
-            const name = window.prompt("新项目名称（例如 Agent Memory）");
-            if (name === null || name.trim() === "") return;
-            postJson("/api/agent-memory/projects", { name: name.trim() }).then(() => openTree()).catch((error) => setNotice(`新建项目失败：${String(error.message || error)}`));
-          }
-        }, "＋ 新建项目"),
+        React2.createElement(
+          "div",
+          { style: { display: "flex", gap: "8px", alignItems: "center", margin: "8px 0 12px", flexWrap: "wrap" } },
+          newProjectOpen ? React2.createElement(
+            React2.Fragment,
+            null,
+            React2.createElement("input", {
+              className: "am-input",
+              style: { width: "240px" },
+              placeholder: "新项目名称（例如 Agent Memory）",
+              autoFocus: true,
+              value: newProjectName,
+              onChange: (event) => setNewProjectName(event.target.value),
+              onKeyDown: (event) => {
+                if (event.key === "Enter") {
+                  const name = newProjectName.trim();
+                  if (name === "") return;
+                  postJson("/api/agent-memory/projects", { name }).then(() => {
+                    setNewProjectOpen(false);
+                    setNewProjectName("");
+                    openTree();
+                  }).catch((error) => setNotice(`新建项目失败：${String(error.message || error)}`));
+                }
+              }
+            }),
+            React2.createElement(AmButton, {
+              variant: "primary",
+              onClick: () => {
+                const name = newProjectName.trim();
+                if (name === "") return;
+                postJson("/api/agent-memory/projects", { name }).then(() => {
+                  setNewProjectOpen(false);
+                  setNewProjectName("");
+                  openTree();
+                }).catch((error) => setNotice(`新建项目失败：${String(error.message || error)}`));
+              }
+            }, "创建"),
+            React2.createElement(AmButton, { variant: "ghost", onClick: () => {
+              setNewProjectOpen(false);
+              setNewProjectName("");
+            } }, "取消")
+          ) : React2.createElement(AmButton, { variant: "ghost", onClick: () => setNewProjectOpen(true) }, "＋ 新建项目")
+        ),
         renderTreeCards()
       );
     }
@@ -909,6 +980,7 @@ ${lines.join("\n")}`);
         React2.createElement(AmButton, { variant: "ghost", onClick: () => {
           setTreeProject(null);
           setFocusId(null);
+          setDetail(null);
         } }, "← 全部项目"),
         React2.createElement("h2", { style: { ...styles.groupTitle, margin: 0 } }, treeProject),
         React2.createElement("span", { style: styles.small }, `${docs.length} 条`)
@@ -1017,7 +1089,11 @@ ${lines.join("\n")}`);
         { className: "am-toolbar" },
         React2.createElement(AmButton, {
           variant: "ghost",
-          onClick: panel === "tree" ? () => setPanel(null) : openTree
+          onClick: panel === "tree" ? () => {
+            setPanel(null);
+            setDetail(null);
+            setFocusId(null);
+          } : openTree
         }, panel === "tree" ? "← 列表" : "项目"),
         React2.createElement(
           "div",
