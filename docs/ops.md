@@ -192,3 +192,23 @@ node scripts/audit-sessions.mjs <根目录>
 
 V1 不承诺断电零丢失；目录项不 fsync 的边界见 README。
 
+## 9. 数据目录经过 junction / 符号链接
+
+DSH 的数据目录在工具沙箱之外。如果**存储目录本身或其直接父目录**是 junction 或符号链接，写、备份、导出都会悄悄落到别处，所以启动时默认拒绝：
+
+```text
+Agent Memory startup failed [HOME_INVALID]: the store path goes through a junction or symlink: <路径>
+  hint: pass --allow-junction (or set AGENT_MEMORY_ALLOW_JUNCTION=1) to use the canonical path
+```
+
+- 明确知道自己在做什么时加 `--allow-junction`（或 `AGENT_MEMORY_ALLOW_JUNCTION=1`）；`mem init` / `doctor` / `scaffold` / `policy seal` 与 DSH 插件都改用**真实路径**（`realpathSync.native` 的结果）。
+- Windows 上看不出 junction：libuv 把它报成普通目录，`lstat().isSymbolicLink()` 为 false，`readlink` 报 `EINVAL`。判定方式是"native realpath 是否等于 `realpath(父目录) + 名字`"；普通目录（哪怕经过 8.3 短名）两者相等，不会被误判。
+- 只检查存储目录与它的父目录；更高层的重定向（如企业策略重定向的 `C:\Users`）视为机器布局，静默跟随。
+- 备份与导出复制的是真实目录；换机还原用真实路径。
+
+### 锁的 PID 复用（已接受，不修）
+
+Node 没有跨进程读取启动时间的 API；Windows 只能靠 PowerShell/WMI，而它们需要管道读取输出，宿主沙箱禁止（见 §3），且每次探测都要 spawn。现状的风险是**可用性**，不是数据损坏：锁只在"心跳过期 **且** PID 不存活"时被接管，所以绝不为迟到的心跳覆盖活进程。
+
+PID 被无关进程复用时，锁会一直等到超时失败（`LOCK_TIMEOUT`，点名锁文件）。确认没有 `mem` 进程在运行后，删除 `<home>/.state/lock` 再重试；不要用脚本自动删。
+

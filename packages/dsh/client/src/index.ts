@@ -1584,28 +1584,8 @@ import { AmBadge, AmButton, AmSkeleton } from "./components";
                             ? React.createElement("div", { style: styles.empty }, "这一类还没有记忆。")
                             : React.createElement(
                                 "div",
-                                null,
-                                React.createElement("div", { style: styles.list }, renderRows(group.items.slice(0, 8))),
-                                group.items.length > 8
-                                  ? React.createElement(
-                                      "div",
-                                      {
-                                        className: "am-memory-scroll",
-                                        style: {
-                                          ...styles.list,
-                                          marginTop: "6px",
-                                          maxHeight: "320px",
-                                          overflowY: "auto",
-                                        },
-                                      },
-                                      React.createElement(
-                                        "p",
-                                        { style: { ...styles.small, margin: "0 0 6px" } },
-                                        `还有 ${group.items.length - 8} 条，向下滚动查看`,
-                                      ),
-                                      renderRows(group.items.slice(8)),
-                                    )
-                                  : null,
+                                { className: "am-memory-scroll am-group-scroll", style: styles.list },
+                                renderRows(group.items),
                               ),
                         ),
                       ),

@@ -159,7 +159,7 @@ export function apply(ctx: PluginContextLike): void {
   // S4: real tool surface + injection when a store is configured. If startup
   // fails (no home, bad policy, sealed file changed) fall back to the probe so a
   // broken store never takes the host down.
-  const home = resolveHome({ env: process.env });
+  let home = resolveHome({ env: process.env });
   // Cordis forbids undeclared service property reads; go through the guarded
   // resolver (ctx.get first) so a composition without a session still loads.
   const sessionService = service<{ id?: string }>(ctx, 'session');
@@ -182,6 +182,9 @@ export function apply(ctx: PluginContextLike): void {
     },
   );
   if (host !== null) {
+    // startup() canonicalizes a store reached through a junction/symlink; every
+    // path the command plane and the GUI use must be the canonical one.
+    home = host.runtime.home;
     // Registration-time services (the command plane). Interaction services are
     // resolved per call: Cordis may not have activated the provider fiber yet
     // when this plugin applies, and `userQuestions` (Typert) comes up later.

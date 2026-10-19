@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { run } from '../src/main.ts';
 import { cleanupHome, tempHome } from '../../core/test/helpers.ts';
@@ -58,6 +58,24 @@ test('init is idempotent and never overwrites human edits', async (t) => {
   assert.equal(second.code, 0);
   assert.match(second.stdout, /kept as-is: config\.toml/);
   assert.match(readFileSync(configPath, 'utf8'), /edited by hand/);
+});
+
+test('S30.1 init refuses a linked store until --allow-junction, then follows it', async (t) => {
+  const root = homeFor(t);
+  const target = join(root, 'real-home');
+  mkdirSync(target);
+  const link = join(root, 'linked-home');
+  symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
+
+  const refused = await mem(['init', '--home', link]);
+  assert.equal(refused.code, 2);
+  assert.match(refused.stderr, /HOME_INVALID/);
+  assert.match(refused.stderr, /--allow-junction/);
+
+  const allowed = await mem(['init', '--home', link, '--allow-junction']);
+  assert.equal(allowed.code, 0);
+  assert.ok(existsSync(join(target, 'config.toml')));
+  assert.ok(existsSync(join(target, '.state', 'policy.seal.json')));
 });
 
 test('doctor on an uninitialised store exits 2 and says what to do', async (t) => {

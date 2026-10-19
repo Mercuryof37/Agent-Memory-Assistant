@@ -299,6 +299,15 @@ ${TOKENS_CSS}
   background-clip: padding-box;
 }
 
+/* Group list: one fixed-height viewport with its own scrollbar. The page itself
+   must not grow with the number of memories; the header keeps the count. */
+.am-group-scroll {
+  max-height: min(352px, 52vh);
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
 .am-overlay {
   position: fixed; inset: 0; z-index: 50;
   background: rgba(15, 18, 25, .45);
@@ -1739,26 +1748,8 @@ ${lines.join("\n")}`);
             ),
             group.items.length === 0 ? React2.createElement("div", { style: styles.empty }, "这一类还没有记忆。") : React2.createElement(
               "div",
-              null,
-              React2.createElement("div", { style: styles.list }, renderRows(group.items.slice(0, 8))),
-              group.items.length > 8 ? React2.createElement(
-                "div",
-                {
-                  className: "am-memory-scroll",
-                  style: {
-                    ...styles.list,
-                    marginTop: "6px",
-                    maxHeight: "320px",
-                    overflowY: "auto"
-                  }
-                },
-                React2.createElement(
-                  "p",
-                  { style: { ...styles.small, margin: "0 0 6px" } },
-                  `还有 ${group.items.length - 8} 条，向下滚动查看`
-                ),
-                renderRows(group.items.slice(8))
-              ) : null
+              { className: "am-memory-scroll am-group-scroll", style: styles.list },
+              renderRows(group.items)
             )
           )
         )

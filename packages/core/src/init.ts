@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { CONFIG_TEMPLATE } from './config/config.ts';
 import { ensureDir, writeFileAtomic } from './fs/atomic.ts';
-import { assertSafeHome, layoutDirectories, memoryPaths } from './paths.ts';
+import { assertSafeHome, canonicalizeHome, layoutDirectories, memoryPaths } from './paths.ts';
 import { POLICY_TEMPLATE, sealIfNeeded } from './policy/policy.ts';
 import { ensureProjectsFile } from './projects/projects.ts';
 import { ensureCheckpointKey } from './journal/checkpoint.ts';
@@ -21,9 +21,10 @@ export interface InitResult {
  * must not quietly discard a human's edits. Content files (SOUL/USER/RULES/
  * MEMORY) are created by the stage that owns their format.
  */
-export function initStore(options: { home: string; now?: Date }): InitResult {
-  assertSafeHome(options.home);
-  const paths = memoryPaths(options.home);
+export function initStore(options: { home: string; now?: Date; allowJunction?: boolean }): InitResult {
+  const home = canonicalizeHome(options.home, { allowJunction: options.allowJunction === true });
+  assertSafeHome(home);
+  const paths = memoryPaths(home);
   const createdDirs: string[] = [];
   for (const dir of layoutDirectories(paths)) {
     if (!existsSync(dir)) createdDirs.push(dir);

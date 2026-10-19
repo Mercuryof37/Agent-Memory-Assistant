@@ -5,7 +5,7 @@ import { schemaKeys, validateAgainstSchema, type TableSpec } from '../config/sch
 import { StartupError, type ConfigProblem } from '../errors.ts';
 import { writeFileAtomic } from '../fs/atomic.ts';
 import { hashContent } from '../model/frontmatter.ts';
-import { memoryPaths } from '../paths.ts';
+import { memoryPaths, canonicalizeHome } from '../paths.ts';
 
 /**
  * policy.json: the attack surface that must not be editable by the agent.
@@ -251,8 +251,10 @@ export function sealPolicy(options: {
   now?: Date;
   /** Seal USER.md too. Default false: the agent may propose USER edits. */
   sealUser?: boolean;
+  allowJunction?: boolean;
 }): SealResult {
-  const paths = memoryPaths(options.home);
+  const home = canonicalizeHome(options.home, { allowJunction: options.allowJunction === true });
+  const paths = memoryPaths(home);
   if (!options.accept) {
     throw new StartupError('SEAL_REFUSED', 'refusing to re-seal policy.json without explicit confirmation', {
       sourcePath: paths.policyFile,
@@ -268,7 +270,7 @@ export function sealPolicy(options: {
   const { policy, problems } = parsePolicyText(policyText);
   if (problems.length > 0) throw policyProblems(paths.policyFile, problems);
 
-  const computed = computeSealedFiles(options.home);
+  const computed = computeSealedFiles(home);
   const sealedFiles: SealedFileHashes = {
     soul: computed.soul,
     user: options.sealUser === true ? computed.user : '',

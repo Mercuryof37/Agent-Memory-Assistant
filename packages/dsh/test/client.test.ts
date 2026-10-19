@@ -54,10 +54,12 @@ test('S13.1 the client half is a loader-format bundle with the required registra
   const importAt = source.indexOf('导入备份');
   assert.ok(manualAt !== -1 && exportAt !== -1 && importAt !== -1);
   assert.ok(manualAt < exportAt && exportAt < importAt);
-  // Each kind shows at most 8 rows; the rest live in a nested scroll area.
-  assert.match(source, /slice\(0, 8\)/);
-  assert.match(source, /还有 \$\{/);
-  assert.match(source, /maxHeight: "320px"/);
+  // Each kind renders one fixed-height scroll viewport with its own scrollbar;
+  // the count stays in the header and the page never grows with the list.
+  assert.ok(!source.includes('还有 ${'));
+  assert.ok(!source.includes('group.items.slice('));
+  assert.match(source, /am-group-scroll/);
+  assert.match(source, /max-height: min\(352px, 52vh\)/);
   // Detail renders above the list (flex order), and switching panels clears it.
   assert.match(source, /order: 1/);
   assert.match(source, /order: 2/);

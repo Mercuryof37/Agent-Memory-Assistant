@@ -2,7 +2,7 @@ import { existsSync, statSync } from 'node:fs';
 import { loadConfig } from './config/load.ts';
 import type { Config } from './config/config.ts';
 import { ConfigError, StartupError, type ConfigProblem } from './errors.ts';
-import { memoryPaths, assertSafeHome, resolveHome, type EnvLike, type MemoryPaths } from './paths.ts';
+import { memoryPaths, assertSafeHome, canonicalizeHome, resolveHome, type EnvLike, type MemoryPaths } from './paths.ts';
 import { loadPolicy, verifySealedFiles, type Policy } from './policy/policy.ts';
 
 /**
@@ -19,6 +19,8 @@ export interface StartupOptions {
   readonly configPath?: string;
   readonly env?: EnvLike;
   readonly cwd?: string;
+  /** Accept a store behind a junction/symlink and use its canonical path. */
+  readonly allowJunction?: boolean;
 }
 
 export interface Runtime {
@@ -35,11 +37,15 @@ export interface Runtime {
 }
 
 export function startup(options: StartupOptions = {}): Runtime {
-  const home = resolveHome({
-    home: options.home,
-    env: options.env,
-    cwd: options.cwd,
-  });
+  const env = options.env ?? process.env;
+  const home = canonicalizeHome(
+    resolveHome({
+      home: options.home,
+      env,
+      cwd: options.cwd,
+    }),
+    { allowJunction: options.allowJunction === true || env.AGENT_MEMORY_ALLOW_JUNCTION === '1' },
+  );
 
   assertSafeHome(home);
 

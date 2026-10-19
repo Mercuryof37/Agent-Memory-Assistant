@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { initStore } from '../src/init.ts';
 import { startup } from '../src/startup.ts';
@@ -114,4 +114,70 @@ test('the DSH adapter exposes settings without touching files itself', (t) => {
   assert.equal(settings.home, home);
   assert.equal(settings.config.recall.limit, 5);
   assert.equal(settings.runtime.policy.scan.private_tag, 'confirm');
+});
+
+function linkType(): 'junction' | 'dir' {
+  return process.platform === 'win32' ? 'junction' : 'dir';
+}
+
+test('S30.1 a store behind a junction is refused until --allow-junction', (t) => {
+  const root = tempHome();
+  t.after(() => cleanupHome(root));
+  const target = join(root, 'real-home');
+  mkdirSync(target);
+  initStore({ home: target });
+  const link = join(root, 'linked-home');
+  symlinkSync(target, link, linkType());
+
+  const error = expectStartupError(() => startup({ home: link }), 'HOME_INVALID');
+  assert.match(error.format(), /junction or symlink/);
+  assert.match(error.format(), /--allow-junction/);
+  assert.match(error.format(), /linked-home/);
+
+  const runtime = startup({ home: link, allowJunction: true });
+  assert.equal(runtime.home.toLowerCase(), realpathSync.native(target).toLowerCase());
+});
+
+test('S30.1 init follows an allowed junction to the canonical path', (t) => {
+  const root = tempHome();
+  t.after(() => cleanupHome(root));
+  const target = join(root, 'target');
+  mkdirSync(target);
+  const link = join(root, 'link');
+  symlinkSync(target, link, linkType());
+
+  const result = initStore({ home: link, allowJunction: true });
+  assert.equal(result.home.toLowerCase(), realpathSync.native(target).toLowerCase());
+  assert.ok(existsSync(join(target, 'config.toml')));
+  assert.ok(existsSync(join(target, '.state', 'policy.seal.json')));
+});
+
+test('S30.1 AGENT_MEMORY_ALLOW_JUNCTION=1 is the environment form of the flag', (t) => {
+  const root = tempHome();
+  t.after(() => cleanupHome(root));
+  const target = join(root, 'target');
+  mkdirSync(target);
+  initStore({ home: target });
+  const link = join(root, 'link');
+  symlinkSync(target, link, linkType());
+
+  const runtime = startup({ home: link, env: { AGENT_MEMORY_ALLOW_JUNCTION: '1' } });
+  assert.equal(runtime.home.toLowerCase(), realpathSync.native(target).toLowerCase());
+});
+
+test('S30.1 a new store under a linked parent is created at the real path', (t) => {
+  const root = tempHome();
+  t.after(() => cleanupHome(root));
+  const target = join(root, 'target');
+  mkdirSync(target);
+  const link = join(root, 'link');
+  symlinkSync(target, link, linkType());
+  const home = join(link, 'store');
+
+  const error = expectStartupError(() => initStore({ home }), 'HOME_INVALID');
+  assert.match(error.format(), /--allow-junction/);
+
+  const result = initStore({ home, allowJunction: true });
+  assert.equal(result.home.toLowerCase(), join(realpathSync.native(target), 'store').toLowerCase());
+  assert.ok(existsSync(join(target, 'store', 'config.toml')));
 });

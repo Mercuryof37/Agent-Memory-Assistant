@@ -1,5 +1,6 @@
+import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { StartupError } from './errors.ts';
 
 /**
@@ -42,6 +43,52 @@ export function assertSafeHome(home: string): void {
 
 export interface EnvLike {
   readonly [key: string]: string | undefined;
+}
+
+/**
+ * Follow a store path through a junction or symlink, but only on purpose.
+ *
+ * A linked store directory silently relocates every write, backup and export;
+ * DSH keeps the data directory outside the tool sandbox, so "where the store
+ * really is" must be an explicit choice. The check covers the two segments a
+ * human picks - the store directory itself and its immediate parent. Higher
+ * ancestors (a redirected `C:\Users`, for example) are left alone: they are
+ * machine layout, not the store.
+ */
+export function canonicalizeHome(home: string, options: { readonly allowJunction?: boolean } = {}): string {
+  const homeRedirect = redirectOf(home);
+  const parentRedirect = redirectOf(dirname(home));
+  if (homeRedirect === null && parentRedirect === null) return home;
+  const linked = homeRedirect !== null ? home : dirname(home);
+  if (options.allowJunction !== true) {
+    throw new StartupError('HOME_INVALID', `the store path goes through a junction or symlink: ${linked}`, {
+      sourcePath: home,
+      hint: 'pass --allow-junction (or set AGENT_MEMORY_ALLOW_JUNCTION=1) to use the canonical path',
+    });
+  }
+  return homeRedirect ?? join(parentRedirect ?? dirname(home), basename(home));
+}
+
+/**
+ * Where a path really points, or null when it points at itself.
+ *
+ * `lstat().isSymbolicLink()` is not enough on Windows: libuv reports junctions
+ * as ordinary directories. Comparing the native real path with
+ * `realpath(parent) + basename` detects junctions and symlinks alike, while a
+ * plain directory (even one reached through an 8.3 short name) compares equal.
+ */
+function redirectOf(path: string): string | null {
+  try {
+    const real = realpathSync.native(path);
+    const expected = join(realpathSync.native(dirname(path)), basename(path));
+    return samePath(real, expected) ? null : real;
+  } catch {
+    return null;
+  }
+}
+
+function samePath(a: string, b: string): boolean {
+  return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
 
 export interface MemoryPaths {

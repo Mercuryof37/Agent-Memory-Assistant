@@ -115,7 +115,7 @@ export function openHostService(
     options.onFailure?.(error);
     return null;
   }
-  const store = new MemoryStore({ home, config: runtime.config });
+  const store = new MemoryStore({ home: runtime.home, config: runtime.config });
 
   const lookupEvent = async (sessionId: string, seq: number): Promise<EvidenceEvent> => {
     // Live session fallback is sanctioned by plan §5.3; it is also what desktop

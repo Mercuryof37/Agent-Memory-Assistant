@@ -16,8 +16,8 @@
 | T6 | S4 | agent 的删除只能走 `decide` | `packages/dsh/src/tools.ts` 不注册 delete；提案应用走 `store.remove` / journal `delete` | 工具表无 delete；提交删除提案 → 人工 decide 后记忆失效、`read` 仍可追溯 | 可行：`store.remove` 与 journal `delete` 已在 S2b 实现并测试 | 完成（S4） |
 | T7 | S4 | pitfall 的 `error_signatures` 进工具 schema | `tools.ts` 的 JSON Schema：`kind=pitfall` 时 required 1–3 条 | 模型提交无签名的 pitfall 被 schema 拒绝；有签名通过 | 可行：S2a 的 store 已强制同规则，只需 schema 对齐 | 完成（S4） |
 | T8 | S7 | 备份生成 `SHA256SUMS` + 恢复演练 | 备份脚本（新增）/ `mem export` | 复制 → 校验清单 → 新目录 `rebuild` → 逐条一致 | 可行：`cpSync` + `hashContent` 已有 | 完成（S7；export/pack + SHA256SUMS + 校验测试） |
-| T9 | S7 | home 的 junction/符号链接实路径 | CLI 层对 home 做 `realpathSync`，记录 canonical 路径；可选 `--allow-junction` | 红队：junction home 被明确拒绝或显式允许；备份复制的是真实目录 | 可行：`node:fs.realpathSync` 可用 | 顺延（到 V1.1：home junction 的 realpath 策略未定） |
-| T10 | S7 | 锁的 PID 复用（尽力） | `fs/lock.ts` 记录进程创建时间（Windows 需 WMI/WMIC 查询） | 复用 PID 的无关进程不会让锁被误判存活；查不到时降级为现状 | **部分可行**：Node 无跨进程启动时间 API；失败保持"超时失败、绝不覆盖" | 顺延（到 V1.1：Node 无跨进程启动时间 API，锁保持超时失败不覆盖） |
+| T9 | S7 | home 的 junction/符号链接实路径 | CLI 层对 home 做 `realpathSync`，记录 canonical 路径；可选 `--allow-junction` | 红队：junction home 被明确拒绝或显式允许；备份复制的是真实目录 | 可行：`node:fs.realpathSync` 可用 | 完成（V1.1：默认拒绝并点名链接，`--allow-junction` 显式放行后使用 canonical 路径） |
+| T10 | S7 | 锁的 PID 复用（尽力） | `fs/lock.ts` 记录进程创建时间（Windows 需 WMI/WMIC 查询） | 复用 PID 的无关进程不会让锁被误判存活；查不到时降级为现状 | **部分可行**：Node 无跨进程启动时间 API；失败保持"超时失败、绝不覆盖" | 接受（Node 无跨进程启动时间 API；宿主沙箱禁止子进程管道，探测不可行；保持"超时失败、绝不覆盖"，恢复步骤见 ops.md §9） |
 | T11 | S7 | journal 断链的人工恢复步骤 | `docs/ops.md` + `doctor` 提示 | 按文档能在断链/截断后恢复或明确放弃；不出现"rebuild 掩盖损坏" | 可行：`rebuild` 已拒绝不一致 journal | 完成（S7；docs/ops.md §8） |
 | T13 | 接受 | 目录项 fsync | — | README 与 ADR 保留"崩溃可检测、可恢复、不承诺断电零丢失" | 接受：Windows 无目录 fsync API，备份是唯一兜底 | 接受 |
 | T14 | S3 | 探针 followup 消息缺 `id`，写坏会话后历史打不开 | `packages/dsh/src/plugin.ts` 补 `id`；新增 `scripts/repair-dsh-session.mjs` 修数据；M4 验收加"重开会话仍可载入" | 宿主 `validateStoredEvents` 对三份修复日志均为 `VALIDATION: OK`；单测断言 id 为 UUID 且两次调用不同 | 可行：`globalThis.crypto.randomUUID()`，bundle 不引 node 内置 | 完成（ADR-0003 §5.7） |

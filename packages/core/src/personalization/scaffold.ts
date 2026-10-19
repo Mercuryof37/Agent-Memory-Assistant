@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { writeFileAtomic } from '../fs/atomic.ts';
-import { memoryPaths } from '../paths.ts';
+import { memoryPaths, canonicalizeHome } from '../paths.ts';
 import { sealPolicy } from '../policy/policy.ts';
 
 /**
@@ -43,8 +43,9 @@ export interface ScaffoldResult {
   readonly sealedFiles: { readonly soul: string; readonly user: string; readonly rules: string };
 }
 
-export function scaffoldPersonalization(options: { home: string; now?: Date }): ScaffoldResult {
-  const paths = memoryPaths(options.home);
+export function scaffoldPersonalization(options: { home: string; now?: Date; allowJunction?: boolean }): ScaffoldResult {
+  const home = canonicalizeHome(options.home, { allowJunction: options.allowJunction === true });
+  const paths = memoryPaths(home);
   const targets: ReadonlyArray<readonly [string, string]> = [
     [paths.soulFile, SOUL_TEMPLATE],
     [paths.userFile, USER_TEMPLATE],
@@ -62,9 +63,10 @@ export function scaffoldPersonalization(options: { home: string; now?: Date }): 
   }
   // Human-invoked command: sealing here is intentional and scoped to SOUL/RULES.
   const seal = sealPolicy({
-    home: options.home,
+    home,
     accept: true,
     ...(options.now === undefined ? {} : { now: options.now }),
+    allowJunction: options.allowJunction === true,
   });
   return { created, kept, sealSha256: seal.sha256, sealedFiles: seal.sealedFiles };
 }

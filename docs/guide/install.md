@@ -1,95 +1,187 @@
-# 分发与安装（V3.2）
+# 安装手册（第一次装 DSH 插件也适用）
 
-> 目标：一个 `.tgz` 包或 npm 包，设置 → 插件一键安装，失败可回滚。发布检查单见 [release.md](../development/release.md)。
+> 目标：让第一次使用 DSH 的人也能装好 Agent Memory。两条主路径（插件页 / 聊天提示词）**都不需要 pnpm、不需要命令行**。
+> 只有「命令行」和「从源码开发」才可能需要 pnpm，见 §5 与 §10。
 
-## 1. 打包
+## 0. 装好后你会得到什么
 
-```powershell
-npm run pack
+- 侧栏多一个「记忆」入口：事实 / 坑 / 经验三类记录，支持搜索、项目工作树、提案审批；
+- 数据存在本机 `~/.dsh/memory`：不上传、不需要账号；
+- 卸载插件**不会**删除记忆数据。
+
+## 1. 安装前先确认三件事
+
+1. **DSH 桌面版 ≥ 0.2.1-rc.2**（在 DSH 的设置/关于里确认版本；旧版本可能没有「添加插件」入口）。
+2. **安装包不用你准备**：聊天提示词由助手从 GitHub 下载；插件页可以直接粘贴 tgz 的下载链接，也可以选本地文件。
+3. **不需要 pnpm**：
+   - 插件页安装与聊天提示词安装，都走 DSH 应用自带的包管理器；
+   - 只有「命令行」与「从源码开发」才要求你本机有 pnpm/npm；
+   - 如果某篇教程让你执行 `pnpm add ...`，那是开发机路径，普通安装可以跳过。
+
+## 2. 安装包从哪来（不用你准备）
+
+- **方式 B（聊天提示词）**：不用你准备。助手会调 GitHub API 找到最新 Release，自己下载到临时目录并校验，然后安装；只有下载失败时，它才会把 Release 链接给你手动下载。
+- **方式 A（插件页）**：两种都行——
+  - 直接把 tgz 的**下载链接**（`https://` 开头、以 `.tgz` 结尾）粘贴到「添加插件」对话框，宿主会自己下载；
+  - 或从 Release 页面下载后用本地路径（路径里可以有空格）。
+- 最新 Release 页面：
+  <https://github.com/Mercuryof37/Agent-Memory-Assistant/releases/latest>
+- 文件名形如 `agent_memory-dsh-<version>.tgz`（旧版本可能是 `agent-memory-dsh-<version>.tgz`，以 Release 为准）。
+
+> 只从 GitHub Release 安装；不要用网盘或聊天转发里来源不明的包。
+
+## 3. 方式 A：插件页安装（推荐）
+
+1. 打开 DSH；
+2. 点左侧栏的 **「插件」**（也可以从「设置 → 插件」进入同一页面）；
+3. 点 **「添加插件」**；若看到「+」菜单，选择 **「安装第三方插件」**；
+4. 在安装对话框里粘贴 `.tgz` 的**下载链接**（`https://` 开头、以 `.tgz` 结尾），或粘贴本地文件的完整路径（例如
+   `C:\Users\你\Downloads\agent_memory-dsh-0.5.4.tgz`）；部分版本也提供文件选择；
+5. 点「安装」，等进度结束（准备/下载/应用阶段不要关窗口）；
+   - 如果弹出安全/权限确认，确认来源是本插件的 tgz 后允许；
+   - 本插件**没有安装脚本**，正常不会出现 `pendingBuilds`（构建脚本待批准）；
+6. 安装完成 → **先别急着用，按下一步重启**。
+
+> ⚠️ **重启提示**：安装/启用新插件后，必须**完整退出 DSH（托盘图标也要退出）再重新打开**。
+> 只关窗口、最小化到托盘都不算重启，客户端半层不会重新加载。
+
+### 3.1 重启后验证
+
+见 §6 的验证清单。
+
+## 4. 方式 B：把提示词贴进聊天框（让助手代装）
+
+适合不想逐步点插件页、或需要远程协助的人。原理是让带**插件管理能力**的助手用 `plugin_manager` 工具完成安装，并在需要重启时提醒你。
+
+**前提**：当前会话的助手有插件管理工具（Creator 模式默认启用 `tool-plugin-manager`；标准预设通常没有）。
+如果助手说「当前会话没有插件管理工具」，不要让它硬装——直接用方式 A。
+
+### 4.1 操作步骤
+
+1. **不用准备安装包**：助手会自己从 GitHub 下载最新版；如果你已经下载过，也可以把路径或链接给它；
+2. 复制下面 §4.2 的**整段提示词**，粘贴到 DSH 聊天框，发送；
+3. 按助手提示操作：
+   - 出现权限卡片时，确认是给插件安装用的再批准；
+   - **助手说需要重启时，完整退出 DSH 并重新打开**；
+4. 重启后回到这个会话，输入「**继续安装验证**」，让助手完成 §6 的验证。
+
+### 4.2 提示词（整段复制）
+
+```text
+你是我的 DSH 插件安装助手。请帮我在当前这台电脑上安装 Agent Memory 插件（@agent_memory/dsh），并严格按下面的规则执行。
+
+【目标】
+把插件的 .tgz 安装到当前 DSH 桌面 profile，让侧栏出现「记忆」，并且能新建和搜索一条记忆。
+
+【第一步：先确认能力，不要假装】
+1. 先确认你是否有 plugin_manager 工具。
+2. 如果没有：直接告诉我「当前会话没有插件管理工具」，然后改为一步步指导我在侧栏「插件 → 添加插件」里操作；不要尝试用 npm/pnpm 手工改配置，也不要说已经安装。
+
+【第二步：由你从 GitHub 下载安装包，不要让我准备】
+3. 用 PowerShell 取最新 Release：
+   Invoke-RestMethod 'https://api.github.com/repos/Mercuryof37/Agent-Memory-Assistant/releases/latest'
+   在返回的 assets 里选以 .tgz 结尾的文件，记下 browser_download_url 和文件名（形如 agent_memory-dsh-<version>.tgz）。
+4. 建目录 $env:TEMP\agent-memory-install（PowerShell 写法），用 Invoke-WebRequest -UseBasicParsing 把资产下载到该目录；不要下载到工作区，也不要用来源不明的镜像。
+5. 校验下载结果：文件存在、大小大于 0、前两个字节是 1F 8B（gzip 魔数）；把版本和大小告诉我。
+6. 如果 API 或下载失败（TLS、证书、代理、404 等）：
+   - 先换 curl.exe -L 重试一次；
+   - 仍失败就用 git ls-remote --tags https://github.com/Mercuryof37/Agent-Memory-Assistant 取最新的 v* tag，拼出 https://github.com/Mercuryof37/Agent-Memory-Assistant/releases/download/<tag>/<文件名> 再试（文件名两种连字符都试）；
+   - 还不行就把错误原文和 Release 页面链接给我，等我手动下载后继续。
+   不要编造 URL，也不要从其他来源安装。
+
+【第三步：查看现状】
+7. 用 plugin_manager 执行 list_bundles，确认是否已安装或已有旧版本。
+8. 如果已安装旧版本：告诉我这会是一次升级，记忆数据不受影响，然后继续。
+
+【第四步：安装】
+9. 用 plugin_manager 的 install_bundle，target 填刚下载的 .tgz 绝对路径。
+10. 这一步会要求 danger-full-access 权限：先向我解释「这是为了让插件管理操作写入 DSH profile」，然后等我批准；我拒绝就停止。
+11. 如果返回 pendingBuilds：先把包名和「会运行安装脚本」的风险讲清楚，等我明确同意后再带 approvedBuilds 重试；不要默认批准。
+12. 如果返回版本不兼容（engines.dsh / peer 依赖不满足）：告诉我需要哪个 DSH 版本，建议我去 Release 换匹配的版本；不要使用版本豁免。
+
+【第五步：重启边界（最重要）】
+13. 如果安装结果显示需要重启（nextStep 里出现 restart），或者这是第一次安装：
+    - 立刻停下来；
+    - 明确告诉我：「现在需要完整退出 DSH（包括托盘图标），重新打开后再回来」；
+    - 把重启后的验证步骤先列给我；
+    - 不要在我重启前说「安装完成」，也不要假装已经验证过。
+14. 重启只能由我操作，你不要尝试自己关闭或重启 DSH。
+
+【第六步：重启后验证】
+15. 我重启回来说「继续安装验证」后，按顺序检查并逐条报告：
+    - 侧栏是否出现「记忆」；
+    - 打开「记忆」能否看到列表（可以是空的）；
+    - 新建一条测试记忆（摘要：安装验证；类型：经验），保存后搜索它能否命中；
+    - 如果失败，把错误码/日志里最关键的一行告诉我，并给出下一步；不要静默重试。
+16. 最后给我一份三行以内的结果：装了什么版本、数据目录在哪、还需要我做什么。
+
+【边界】
+- 不要修改或删除 ~/.dsh/memory 里的任何数据；
+- 不要用 npm/pnpm 手工改 DSH profile，除非我明确要求；
+- 不要编造版本号、下载地址或「已经成功」；
+- 每一步执行前，先用一句话说明你要做什么、为什么。
 ```
 
-产物：`release/agent_memory-dsh-<version>.tgz`（当前 `0.2.1`）。
+## 5. 方式 C：命令行（高级，可能依赖 pnpm）
 
-包内必须包含三部分（`scripts/pack.mjs` 会检查）：
+仅当你同时满足：已安装全局 `dsh` CLI、本机有 pnpm、且你知道自己在操作哪个 profile。
 
-| 路径 | 作用 |
+```powershell
+dsh plugin add "<tgz 的绝对路径>"
+```
+
+说明：
+
+- 桌面 profile 由 Electron 独占管理，CLI 不一定能直接操作它；失败时用方式 A；
+- 这条路径要求 pnpm 在 `PATH` 里，普通用户不需要；
+- 确认结果用 `dsh plugin list`。
+
+## 6. 验证清单
+
+重启后逐条勾：
+
+- [ ] 左侧栏出现「记忆」；
+- [ ] 打开后能看到列表（可以是空列表）；
+- [ ] 点分组「＋」新建一条：类型选「经验」，摘要写「安装验证」，保存；
+- [ ] 在搜索框搜「安装验证」能命中；
+- [ ] 再完整重启一次，这条记忆还在；
+- [ ] 可选：确认数据目录 `~/.dsh/memory` 存在（不需要手动创建）。
+
+## 7. 升级
+
+1. 下载新版本 `.tgz`（不要与旧包混放）；
+2. 插件页「添加插件」选择新 tgz，覆盖安装；或插件内「偏好与规则 → 插件更新 → 检查更新」；
+3. **完整重启**；
+4. 数据不迁移、不覆盖；升级后按 §6 抽查一条记忆。
+
+## 8. 回滚与卸载
+
+- **回滚**：安装上一个版本的 `.tgz`，完整重启；无需改数据。
+- **卸载**：插件页移除插件 → 完整重启；`~/.dsh/memory` 不会被删除。
+- 确认不再需要数据时，再手动删除 `~/.dsh/memory`（删除前先导出备份）。
+
+## 9. 常见问题
+
+| 现象 | 处理 |
 |---|---|
-| `package/dist/plugin.mjs` | 宿主半层（工具、注入、API 路由、审批） |
-| `package/client/client.js` | 客户端半层（侧栏「记忆」+ 工作台） |
-| `package/cordis.patch.yml` | 插件挂载补丁 |
+| 侧栏没有「记忆」 | 先在插件页确认插件是「已启用」，再完整重启；仍不行看插件页的错误信息 |
+| 安装对话框说 spec 无效 | 粘贴以 `.tgz` 结尾的 `https://` 下载链接，或本地文件的绝对路径 |
+| 助手下载失败 / 无法访问 GitHub | 助手会依次换 `curl`、按 tag 拼 URL 重试；仍失败时它会给你 Release 链接，手动下载后把路径发它 |
+| 出现权限卡片 | 这是给安装操作写 profile 的临时提权；确认来源后再批准，不同意就改用方式 A |
+| 出现 `pendingBuilds` | 本插件没有安装脚本；若出现，先看清包名再决定是否允许 |
+| 提示版本不兼容 | DSH 版本过旧或插件过新；升级 DSH 或换匹配版本的 tgz，不要强制豁免 |
+| 装完记忆不见了 | 安装不会删数据；先确认 home/profile 没换，再检查 `~/.dsh/memory` |
+| 没有 pnpm 能装吗 | 能。方式 A/B 不需要 pnpm；只有方式 C 和源码开发需要 |
+| 装完必须重启吗 | 首次安装或升级后需要**完整退出再打开**；只关窗口不生效 |
 
-其余：`locale/*.json`、`dist/plugin.mjs.map`。
-
-## 2. 安装
-
-### 2.1 图形界面（推荐）
-
-1. DSH → 设置 → 插件（Plugins）；
-2. 选择「从文件安装」/ Install from file，选中 `.tgz`；
-3. 重启 DSH（完整退出，不是关窗口）；
-4. 侧栏出现「记忆」图标即成功。
-
-### 2.2 命令行
+## 10. 维护者附录：打包与发布
 
 ```powershell
-dsh plugin add "D:\Ai Agent\Agent Memory\release\agent_memory-dsh-0.2.1.tgz"
+npm run pack          # 构建 + 产出 release/agent_memory-dsh-<version>.tgz
+npm run ci            # 门禁、类型检查、测试
 ```
 
-DSH 会写入当前 profile 的 `package.json` 并执行安装；用 `dsh plugin list` 确认。
-
-### 2.3 一键安装脚本
-
-```powershell
-node scripts/setup.mjs            # dry run
-node scripts/setup.mjs --apply    # 备份 → pnpm add → 追加 bundle
-node scripts/setup.mjs --revert "<backupDir>"
-```
-
-`setup` 会在 profile 的 `.backups/agent-memory-<timestamp>/` 留备份，适合没有 UI 的机器；
-桌面 profile 由 Electron 独占管理，脚本模拟插件页动作，失败可按提示回滚。
-
-### 2.4 npm（发布后）
-
-```powershell
-npm install -g @agent_memory/dsh
-# 或在插件页输入包名 @agent_memory/dsh
-```
-
-### 2.5 开发期链接（不用打包）
-
-```powershell
-npm run plugin:install     # 链接 packages/dsh 到 desktop profile
-npm run plugin:revert      # 还原 profile 备份
-```
-
-## 3. 升级
-
-1. 打新包（版本号先改 `packages/dsh/package.json`）；
-2. 插件页卸载旧版 / 安装新 tgz；
-3. 重启，`mem doctor` 检查数据与注入预算。
-
-数据在 `~/.dsh/memory`，升级不迁移、不覆盖；包只换代码。
-
-## 4. 回滚
-
-- 安装脚本在修改 profile 前会备份 `package.json` 与 `cordis.patch.yml`（见 `scripts/install-desktop-plugin.mjs`）；
-- 插件页卸载后，用备份还原并重启；
-- 或 `npm run plugin:revert`（开发链接模式）。
-
-## 5. 卸载
-
-1. 插件页卸载；
-2. 数据目录**不会**被删除；确认要删时手动处理 `~/.dsh/memory`；
-3. 重启。
-
-## 6. 备份与导入
-
-- 导出：GUI「导出备份」下载 `agent-memory-*.json`；或 `mem export <dir>`（完整目录）。
-- 导入：GUI「导入备份」选择 JSON；重复内容按内容哈希跳过，导入条目记为人工添加，pending 提案不会导入（需重新提案）。
-- 恢复顺序：先装包 → 重启 → 导入 JSON → 检查列表与 `mem doctor`。
-
-## 7. 已知限制
-
-- 当前包 `private: true`，只出 tgz，不发 npm；正式发布时改 `private` 并补 README/LICENSE。
-- 客户端半层源码在 `packages/dsh/client/src/index.ts`，由 `npm run build` 生成 `client/client.js`；包只带产物，不带源码。改 UI 请改 src，不要直接改产物。
-- 安装后若侧栏不出现：先在插件页确认「已启用」，再完整重启；仍不行看 DSH 日志里的模块加载错误。
+- 发布：打 tag `v*` 后，`.github/workflows/release.yml` 会跑 CI、打包并把 `.tgz` 附到 GitHub Release；
+- 发布检查单见 [release.md](../development/release.md)；
+- 开发机一键脚本 `scripts/setup.mjs` / `npm run plugin:install` 会直接调用 pnpm，只适合开发环境（不是普通用户的安装路径）；
+- 桌面 profile 由 Electron 管理，脚本与 CLI 都以插件页行为为准，失败先回滚再排查。

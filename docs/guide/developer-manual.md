@@ -72,6 +72,8 @@ mem mcp [--home <dir>]
 mem policy seal [--home <dir>] --accept [--seal-user]
 ```
 
+`--allow-junction`（或 `AGENT_MEMORY_ALLOW_JUNCTION=1`）显式接受经过 junction/符号链接的存储目录，并改用真实路径；默认拒绝。见 [运维手册](../ops.md) §9。
+
 聊天内指令：`/mem help`、`/mem recall`、`/mem read`、`/mem add`、`/mem proposals`、`/mem decide`、`/mem profile`、`/mem scaffold`、`/mem seal`；回顾用 `/mem-fact`、`/mem-pitfall`、`/mem-exp`。
 
 ## 4. 数据与格式

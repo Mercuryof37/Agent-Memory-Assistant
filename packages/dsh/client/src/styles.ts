@@ -264,6 +264,15 @@ ${TOKENS_CSS}
   background-clip: padding-box;
 }
 
+/* Group list: one fixed-height viewport with its own scrollbar. The page itself
+   must not grow with the number of memories; the header keeps the count. */
+.am-group-scroll {
+  max-height: min(352px, 52vh);
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
 .am-overlay {
   position: fixed; inset: 0; z-index: 50;
   background: rgba(15, 18, 25, .45);

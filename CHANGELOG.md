@@ -4,6 +4,24 @@ All notable changes to Agent Memory are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 SemVer.
 
+## [Unreleased]
+
+### Added
+
+- A first-time install guide that needs no pnpm, plus a chat prompt that
+  downloads the release tarball and stops before the required restart.
+
+### Changed
+
+- A store directory reached through a junction or symlink is now refused at
+  startup unless `--allow-junction` (or `AGENT_MEMORY_ALLOW_JUNCTION=1`) is
+  given; once allowed, the canonical real path is used everywhere.
+
+### Fixed
+
+- Each memory kind renders in one capped scroll viewport instead of a split
+  list with a "scroll down" hint.
+
 ## [0.5.4] - 2026-10-18
 
 ### Added

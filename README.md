@@ -30,19 +30,23 @@
 
 ## 安装
 
-**要求**：DSH 桌面 **0.2.1-rc.2+**，Node **24+**（DSH 自带运行时即可）。
+**要求**：DSH 桌面 **0.2.1-rc.2+**。**不需要 pnpm**——插件页与聊天提示词两条路径都走 DSH 自带的包管理器。
 
-### 设置 → 插件（推荐）
+### 插件页（推荐）
 
-1. 打开 DSH → 设置 → 插件（Plugins）；
-2. 搜索或输入包名 **`@agent_memory/dsh`**，或选择「从文件安装」并选中 `agent_memory-dsh-<version>.tgz`；
-3. 完整重启 DSH（不是关窗口）；
+1. 在 [GitHub Releases](https://github.com/Mercuryof37/Agent-Memory-Assistant/releases/latest) 复制 tgz 的**下载链接**（也可以先下载成文件）；
+2. DSH 左侧栏 →「插件」→「添加插件」，粘贴下载链接或本地文件路径 → 安装；
+3. **完整退出 DSH（托盘也要退出）再打开**；
 4. 侧栏出现「记忆」即安装成功。
 
-### 命令行
+### 聊天提示词（助手代装）
+
+不想点插件页：按 [安装手册 §4](docs/guide/install.md) 复制提示词贴进 DSH 聊天框。助手会**自己从 GitHub 下载安装包**、确认能力后安装，并在需要重启时**提前提示**，重启后再完成验证。
+
+### 命令行（高级，需要 pnpm）
 
 ```powershell
-dsh plugin add @agent_memory/dsh
+dsh plugin add "<tgz 的绝对路径>"
 ```
 
 ### 从源码开发
@@ -54,7 +58,7 @@ npm run plugin:install   # 链接到 desktop profile（会先备份）
 npm run plugin:revert    # 还原
 ```
 
-发布与回滚细节见 [安装与分发](docs/guide/install.md)。
+完整的安装、升级、回滚与排错见 [安装手册](docs/guide/install.md)。
 
 ## 第一次使用
 
@@ -126,6 +130,7 @@ MCP 工具：`memory_search`、`memory_read`、`memory_list`、`memory_propose`�
 - 目标宿主：DSH 桌面 0.2.1-rc.2（更旧版本未保证）；
 - 单用户、单机；不做云同步/多租户；
 - 检索为 BM25 + 字面匹配，不含向量检索；
+- 数据目录本身或其父目录是 junction/符号链接时，需 `--allow-junction`（或 `AGENT_MEMORY_ALLOW_JUNCTION=1`）显式放行；见 [运维手册](docs/ops.md) §9；
 - 发布包名 `@agent_memory/dsh`（npm 组织名为 `agent_memory`）。
 
 ## 维护者

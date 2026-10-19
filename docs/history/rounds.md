@@ -451,3 +451,11 @@
 - `memory_propose` 返回 `status: pending` 与 `reminder`；渲染文本明确“去【记忆 → 提案】审批”。
 - 仍不弹卡、不 decide；提醒只是可见输出，不改变审批门禁。
 - 测试：S9.1 断言 reminder 含“记忆 → 提案”和提案编号；全量 295 pass / 1 skip。
+
+### 第 54 轮 · V1.1 顺延项收口（2026-10-18）
+
+- **home junction（T9/Q8）**：`canonicalizeHome` 检测存储目录与其父目录的链接；默认 `HOME_INVALID` 并点名，`--allow-junction` / `AGENT_MEMORY_ALLOW_JUNCTION=1` 放行后使用 canonical 路径；`startup` / `initStore` / `scaffold` / `sealPolicy` 与 DSH 插件统一。
+- **锁的 PID 复用（T10/Q4）**：接受。Node 无跨进程启动时间 API；宿主沙箱禁止子进程管道。保持"心跳过期 + PID 不存活才接管"，恢复步骤写进 ops.md §9。
+- 测试：S30.1 五条（core 4 + CLI 1）；全量 301 tests（300 pass / 1 skip）。
+- 文档：ops.md §9、README 限制、开发者手册；记录 ADR-0049。
+

@@ -94,6 +94,8 @@ Usage:
 Options:
   --home <dir>     store directory (default: $AGENT_MEMORY_HOME, else $DSH_HOME/memory)
   --config <file>  config.toml to load (default: <home>/config.toml)
+  --allow-junction accept a store behind a junction/symlink and use its canonical path
+                   (or set AGENT_MEMORY_ALLOW_JUNCTION=1)
   --reason <text>  why a memory is being deleted (required)
   --json           machine-readable output
   --accept         required to re-seal policy.json after a human edit
@@ -119,7 +121,7 @@ const VALUE_FLAGS = new Set([
   'reason',
   'retention-days',
 ]);
-const BOOLEAN_FLAGS = new Set(['accept', 'batch', 'json', 'help', 'version', 'seal-user', 'apply', 'deep']);
+const BOOLEAN_FLAGS = new Set(['accept', 'batch', 'json', 'help', 'version', 'seal-user', 'apply', 'deep', 'allow-junction']);
 const KINDS: readonly Kind[] = ['fact', 'pitfall', 'exp'];
 
 class UsageError extends Error {
@@ -238,12 +240,17 @@ export async function main(argv: readonly string[]): Promise<number> {
   return run(argv);
 }
 
+function allowJunction(parsed: ParsedArgs, io: CliIo): boolean {
+  return parsed.flags.has('allow-junction') || io.env.AGENT_MEMORY_ALLOW_JUNCTION === '1';
+}
+
 function openRuntime(parsed: ParsedArgs, io: CliIo): Runtime {
   return startup({
     home: stringFlag(parsed, 'home'),
     configPath: stringFlag(parsed, 'config'),
     env: io.env,
     cwd: io.cwd,
+    allowJunction: allowJunction(parsed, io),
   });
 }
 
@@ -253,7 +260,7 @@ function openStore(runtime: Runtime): MemoryStore {
 
 function commandInit(parsed: ParsedArgs, io: CliIo): number {
   const home = resolveHome({ home: stringFlag(parsed, 'home'), env: io.env, cwd: io.cwd });
-  const result = initStore({ home });
+  const result = initStore({ home, allowJunction: allowJunction(parsed, io) });
   io.out(`store: ${result.home}`);
   io.out(`  created directories: ${result.createdDirs.length}`);
   io.out(`  created files: ${formatList(result.createdFiles, result.home)}`);
@@ -688,7 +695,7 @@ function commandProfile(parsed: ParsedArgs, io: CliIo): number {
 
 function commandScaffold(parsed: ParsedArgs, io: CliIo): number {
   const home = resolveHome({ home: stringFlag(parsed, 'home'), env: io.env, cwd: io.cwd });
-  const result = scaffoldPersonalization({ home });
+  const result = scaffoldPersonalization({ home, allowJunction: allowJunction(parsed, io) });
   if (result.created.length > 0) io.out(`created: ${result.created.join(', ')}`);
   if (result.kept.length > 0) io.out(`kept: ${result.kept.join(', ')}`);
   io.out(`policy sealed: ${result.sealSha256}`);
@@ -698,7 +705,12 @@ function commandScaffold(parsed: ParsedArgs, io: CliIo): number {
 
 function commandSeal(parsed: ParsedArgs, io: CliIo): number {
   const home = resolveHome({ home: stringFlag(parsed, 'home'), env: io.env, cwd: io.cwd });
-  const seal = sealPolicy({ home, accept: parsed.flags.has('accept'), sealUser: parsed.flags.has('seal-user') });
+  const seal = sealPolicy({
+    home,
+    accept: parsed.flags.has('accept'),
+    sealUser: parsed.flags.has('seal-user'),
+    allowJunction: allowJunction(parsed, io),
+  });
   io.out(`policy sealed: ${seal.sealPath}`);
   io.out(`  sha256: ${seal.sha256}`);
   const sealedCount = [seal.sealedFiles.soul, seal.sealedFiles.user, seal.sealedFiles.rules].filter(
